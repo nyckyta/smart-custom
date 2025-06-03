@@ -5,8 +5,12 @@
 testng = "7.5.1"
 testcontainers = "1.21.1"
 postgresql = "42.7.6"
+slf4j = "2.0.17"
+slf4jdk = "2.0.17"
 
 [libraries]
 testng = { module = "org.testng:testng", version.ref = "testng" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4jdk = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4jdk" }

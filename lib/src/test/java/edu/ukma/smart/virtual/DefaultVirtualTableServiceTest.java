@@ -8,13 +8,14 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
+import java.util.logging.ConsoleHandler;
 
 import org.testcontainers.containers.GenericContainer;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class DefaultVirtualTableServiceTest {
@@ -22,39 +23,56 @@ public class DefaultVirtualTableServiceTest {
     private static final String DB_NAME = "test_db";
 
     private GenericContainer<?> container;
+    private Connection connection;
 
     @BeforeClass
-    public void setUp() throws InterruptedException {
+    public void startContainer() throws IOException, InterruptedException {
+        ConsoleHandler consoleHandler = new ConsoleHandler();
         container = new GenericContainer<>("postgres:latest")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
         container.start();
+        container.execInContainer("psql",
+            "-U", "postgres",
+            "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
     }
 
     @AfterClass
-    public void tearDown() {
+    public void stopContainer() {
         container.stop();
     }
 
-    @BeforeMethod
-    public void init() throws IOException, InterruptedException {
-        container.execInContainer("psql", "-U", "postgres", "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
-    }
-
-    @AfterMethod
-    public void cleanUp() throws IOException, InterruptedException {
-        container.execInContainer("psql", "-U", "postgres", "-c", "DROP DATABASE IF EXISTS %s;".formatted(DB_NAME));
-    }
-
     @Test
-    public void testLibConnection() throws SQLException {
+    public void testTableCreation() throws SQLException, IOException, InterruptedException {
+        try (Connection conn = createConnection()) {
+            var newTable = new NewTable(
+                "table_key",
+                "Table table",
+                "This is a test table",
+                List.of()
+            );
+            var service = new DefaultVirtualTableService(conn);
+            service.createTable(newTable);
+        }
+
+        var result = container.execInContainer("psql",
+            "-U", "postgres",
+            "-d", DB_NAME,
+            "-c", """
+                SELECT table_schema, table_name, table_type, is_insertable_into FROM information_schema.tables
+                WHERE table_name = 'table_key';
+                """);
+
+        Assert.assertEquals(result.getExitCode(), 0, "Expected exit code 0, got: " + result.getExitCode());
+        Assert.assertTrue(result.getStdout().contains(" public       | table_key  | BASE TABLE | YES"));
+
+    }
+
+    private Connection createConnection() throws SQLException {
         String url = "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
         Properties props = new Properties();
         props.setProperty("user", "postgres");
         props.setProperty("password", "test");
-        Connection conn = DriverManager.getConnection(url, props);
-
-        var service = new DefaultVirtualTableService(conn);
-        service.deleteTable("table_key");
+        return DriverManager.getConnection(url, props);
     }
 }

@@ -20,6 +20,9 @@ dependencies {
     testImplementation(libs.testng)
     testImplementation(libs.testcontainers)
     testImplementation(libs.postgresql)
+    testImplementation(libs.slf4jdk)
+
+    implementation(libs.slf4j)
 
     // This dependency is exported to consumers, that is to say found on their compile classpath.
     //api(libs.commons.math3)
@@ -38,4 +41,8 @@ java {
 tasks.named<Test>("test") {
     // Use TestNG for unit tests.
     useTestNG()
+    systemProperty(
+        "java.util.logging.config.file",
+        "${projectDir}/src/test/resources/logging.properties"
+    )
 }
