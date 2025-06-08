@@ -68,4 +68,30 @@
 
 
 ## Features
-- [ ] Create custom entities with custom fields
+### Table creation
+-- Validate format of the field names and table name
+-- Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
+-- Support tables drop
+-- String fields
+  - - Support default values for columns : done 
+  - - Support null/non null values : done
+  - - Support min length/max length conditions
+  - - Support regex validation
+-- integer fields
+  - - Support default values for columns 
+  - - Support null/non null values 
+  - - Support min/max values
+-- boolean fields
+  - - Support default values for columns 
+  - - Support null/non null values
+-- floating fields
+  - - Support default values for columns 
+  - - Support null/non null values 
+  - - Support min/max values
+-- SQL injection protection
+  - - escape all special symbols before concat to string 
+-- References
+  - - Support references between custom entities
+
+### Read/Write operation
+
