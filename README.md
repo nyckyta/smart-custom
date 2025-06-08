@@ -71,6 +71,8 @@
 ### Table creation
 -- Validate format of the field names and table name
 -- Support tables drop : done
+-- CRUD operations to tables
+-- Error handling avoiding exceptions
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done
