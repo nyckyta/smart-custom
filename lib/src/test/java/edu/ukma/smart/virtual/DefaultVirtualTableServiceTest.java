@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.ConsoleHandler;
 
+import edu.ukma.smart.virtual.properties.StringProperty;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -23,7 +24,6 @@ public class DefaultVirtualTableServiceTest {
     private static final String DB_NAME = "test_db";
 
     private GenericContainer<?> container;
-    private Connection connection;
 
     @BeforeClass
     public void startContainer() throws IOException, InterruptedException {
@@ -43,29 +43,114 @@ public class DefaultVirtualTableServiceTest {
     }
 
     @Test
-    public void testTableCreation() throws SQLException, IOException, InterruptedException {
+    public void testTableCreation() throws SQLException {
         try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
             var newTable = new NewTable(
                 "table_key",
                 "Table table",
                 "This is a test table",
-                List.of()
+                List.of(
+                    StringProperty.builder()
+                        .key("property1")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .isRequired(true)
+                        .isUnique(false)
+                        .build()
+                )
             );
-            var service = new DefaultVirtualTableService(conn);
             service.createTable(newTable);
+
+            var statement = conn.createStatement();
+            Assert.assertTrue(statement.execute(
+                """
+                    SELECT table_schema, table_name, table_type, is_insertable_into 
+                    FROM information_schema.tables
+                    WHERE table_name = 'table_key'"""
+            ), "Statement must return result");
+
+            var result = statement.getResultSet();
+            Assert.assertTrue(result.next(), "Expected at least one result row");
+            Assert.assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
+            Assert.assertEquals(result.getString(2), "table_key", "Expected table name to be 'table_key'");
+            Assert.assertEquals(result.getString(3), "BASE TABLE", "Expected table type to be 'BASE TABLE'");
+            Assert.assertTrue(result.getBoolean(4), "Expected table to be insertable into");
+
+            var columnsTest = conn.createStatement();
+            Assert.assertTrue(columnsTest.execute(
+                """
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_name = 'table_key'"""
+            ), "Statement must return result");
+            var columnsResult = columnsTest.getResultSet();
+            columnsResult.next();
+            Assert.assertEquals(
+                columnsResult.getString("column_name"),
+                "_id",
+                "Expected column '_id'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("data_type"),
+                "integer",
+                "Expected column '_id' to be of type 'integer'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("is_nullable"),
+                "NO",
+                "Expected column '_id' to be NOT NULL"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("column_default"),
+                "nextval('table_key__id_seq'::regclass)",
+                "Expected column '_id' to have default value");
+            columnsResult.next();
+            Assert.assertEquals(
+                columnsResult.getString("column_name"),
+                "_created",
+                "Expected column '_created'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("data_type"),
+                "timestamp without time zone",
+                "Expected column '_created' to be of type 'timestamp without time zone'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("is_nullable"),
+                "NO",
+                "Expected column '_created' to be NOT NULL"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("column_default"),
+                "CURRENT_TIMESTAMP",
+                "Expected column '_created' to have default value"
+            );
+            columnsResult.next();
+            Assert.assertEquals(
+                columnsResult.getString("column_name"),
+                "property1",
+                "Expected column 'property1'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("data_type"),
+                "character varying",
+                "Expected column 'property1' to be of type 'character varying'"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("is_nullable"),
+                "NO",
+                "Expected column 'property1' to be NOT NULL"
+            );
+            Assert.assertEquals(
+                columnsResult.getString("column_default"),
+                "'default_value_1'::character varying",
+                "Expected column 'property1' to have default value"
+            );
+            Assert.assertFalse(columnsResult.next(), "Expected no more columns");
         }
-
-        var result = container.execInContainer("psql",
-            "-U", "postgres",
-            "-d", DB_NAME,
-            "-c", """
-                SELECT table_schema, table_name, table_type, is_insertable_into FROM information_schema.tables
-                WHERE table_name = 'table_key';
-                """);
-
-        Assert.assertEquals(result.getExitCode(), 0, "Expected exit code 0, got: " + result.getExitCode());
-        Assert.assertTrue(result.getStdout().contains(" public       | table_key  | BASE TABLE | YES"));
-
     }
 
     private Connection createConnection() throws SQLException {

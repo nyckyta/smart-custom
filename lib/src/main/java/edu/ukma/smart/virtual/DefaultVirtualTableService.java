@@ -3,6 +3,7 @@ package edu.ukma.smart.virtual;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import edu.ukma.smart.virtual.properties.StringProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,26 +24,30 @@ public class DefaultVirtualTableService implements VirtualTableService {
         try (var statement = connection.createStatement()) {
             var statementBuilder = new StringBuilder();
             statementBuilder
-                // figure out how to add timestamp on update
+                // TODO: figure out how to add timestamp on update
                 // _updated TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 .append(
                     """
                         CREATE TABLE public.%s (
                             _id SERIAL PRIMARY KEY NOT NULL,
-                            _created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            _created TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
                         """.formatted(newTable.key())
                 );
 
             for (var property : newTable.properties()) {
-                statementBuilder.append(
-                    ",%s %s DEFAULT %s %s %s\n".formatted(
-                        property.name(),
-                        property.type().sqlType,
-                        property.defaultValue() == null ? "NULL" : property.defaultValue(),
-                        property.isRequired() ? "NOT NULL" : "",
-                        property.isUnique() ? "UNIQUE" : ""
-                    )
-                );
+                switch (property) {
+                    case StringProperty s -> statementBuilder.append(
+                        ",%s %s DEFAULT '%s' %s %s\n".formatted(
+                            s.key(),
+                            "VARCHAR(255)", // TODO: make this configurable
+                            s.defaultValue() == null ? "NULL" : s.defaultValue(),
+                            s.isRequired() ? "NOT NULL" : "",
+                            s.isUnique() ? "UNIQUE" : ""
+                        )
+                    );
+                    default -> throw new IllegalStateException("Unexpected value: " + property);
+                }
+
             }
 
             statementBuilder.append(");");

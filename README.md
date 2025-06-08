@@ -64,8 +64,8 @@
  - security, permissions may be hard to handle
  - deriving entity from the request may also be tricky from security perspective
 
-
-
-
-
 -- Custom class loaders.
+
+
+## Features
+- [ ] Create custom entities with custom fields

@@ -1,35 +1,25 @@
-package edu.ukma.smart.virtual;
+package edu.ukma.smart.virtual.properties;
 
 import java.util.Objects;
 
 // TODO: strict validation
-public record Property(
+public record StringProperty(
+    String key,
     String name,
     String description,
-    Type type,
     String defaultValue,
     boolean isRequired,
     boolean isUnique
-) {
+) implements Property {
 
     public static PropertyBuilder builder() {
         return new PropertyBuilder();
     }
 
-    public enum Type {
-        STRING("VARCHAR");
-
-        public final String sqlType;
-
-        Type(String sqlType) {
-            this.sqlType = sqlType;
-        }
-    }
-
     public static final class PropertyBuilder {
+        private String key;
         private String name;
         private String description;
-        private Type type;
         private String defaultValue;
         private boolean isRequired;
         private boolean isUnique;
@@ -44,11 +34,6 @@ public record Property(
 
         public PropertyBuilder description(String description) {
             this.description = description;
-            return this;
-        }
-
-        public PropertyBuilder type(Type type) {
-            this.type = type;
             return this;
         }
 
@@ -67,11 +52,16 @@ public record Property(
             return this;
         }
 
-        public Property build() {
-            return new Property(
+        public PropertyBuilder key(String key) {
+            this.key = key;
+            return this;
+        }
+
+        public StringProperty build() {
+            return new StringProperty(
+                Objects.requireNonNull(key),
                 Objects.requireNonNull(name),
                 Objects.requireNonNull(description),
-                Objects.requireNonNull(type),
                 defaultValue,
                 isRequired,
                 isUnique

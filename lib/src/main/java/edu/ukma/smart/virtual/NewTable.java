@@ -3,6 +3,8 @@ package edu.ukma.smart.virtual;
 import java.util.List;
 import java.util.Objects;
 
+import edu.ukma.smart.virtual.properties.Property;
+
 // TODO: strict validation
 public record NewTable(
     String key,
