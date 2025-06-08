@@ -70,8 +70,7 @@
 ## Features
 ### Table creation
 -- Validate format of the field names and table name
--- Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
--- Support tables drop
+-- Support tables drop : done
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done
@@ -88,8 +87,9 @@
   - - Support default values for columns 
   - - Support null/non null values 
   - - Support min/max values
--- SQL injection protection
-  - - escape all special symbols before concat to string 
+-- Security
+  - - SQL Injection protection. escape all special symbols before concat to string
+  - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
 -- References
   - - Support references between custom entities
 

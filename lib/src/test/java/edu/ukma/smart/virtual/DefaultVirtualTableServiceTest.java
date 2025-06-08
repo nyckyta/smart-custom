@@ -153,6 +153,45 @@ public class DefaultVirtualTableServiceTest {
         }
     }
 
+    @Test
+    public void testTableDeletion() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            // Create a table to delete
+            var newTable = new NewTable(
+                "table_to_delete",
+                "Table to Delete",
+                "This table will be deleted",
+                List.of(
+                    StringProperty.builder()
+                        .key("property1")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .isRequired(true)
+                        .isUnique(false)
+                        .build()
+                )
+            );
+            service.createTable(newTable);
+
+            // Delete the table
+            service.deleteTable("table_to_delete");
+
+            // Verify the table is deleted
+            var statement = conn.createStatement();
+            statement.execute(
+                """
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_name = 'table_to_delete'
+                    """
+            );
+
+            Assert.assertFalse(statement.getResultSet().next(), "Expected no results for deleted table");
+        }
+    }
+
     private Connection createConnection() throws SQLException {
         String url = "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
         Properties props = new Properties();
