@@ -72,7 +72,7 @@
 -- Validate format of the field names and table name
 -- Support tables drop : done
 -- CRUD operations to tables
--- Error handling avoiding exceptions
+-- Error handling avoiding exceptions : done
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done
@@ -94,6 +94,9 @@
   - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
 -- References
   - - Support references between custom entities
+-- API for metainformation about entities
+  - - Get list of all custom entities
+  - - Get list of fields for custom entity
 
 ### Read/Write operation
 
