@@ -1,9 +1,11 @@
 package edu.ukma.smart.virtual;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 
 import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.values.ColumnValue;
 
 public interface VirtualTableService {
 
@@ -13,9 +15,9 @@ public interface VirtualTableService {
      * @param newTable the details of the new table to create
      * @return the created table
      */
-    // TODO: return optional error here
     Optional<? extends Err> createTable(NewTable newTable) throws SQLException;
 
-    // TODO: optional error here
     Optional<? extends Err> deleteTable(String tableKey) throws SQLException;
+
+    Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues) throws SQLException;
 }

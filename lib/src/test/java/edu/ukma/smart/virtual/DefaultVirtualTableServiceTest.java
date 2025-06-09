@@ -12,6 +12,8 @@ import java.util.logging.ConsoleHandler;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.StringValue;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -29,7 +31,6 @@ class DefaultVirtualTableServiceTest {
 
     @BeforeClass
     void startContainer() throws IOException, InterruptedException {
-        ConsoleHandler consoleHandler = new ConsoleHandler();
         container = new GenericContainer<>("postgres:latest")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
@@ -342,6 +343,41 @@ class DefaultVirtualTableServiceTest {
             );
 
             Assert.assertFalse(statement.getResultSet().next(), "Expected no results for deleted table");
+        }
+    }
+
+    @Test
+    void testRowAddingToTheVirtualTable() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            var newTable = new NewTable(
+                "table_key_add_row",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .isRequired(true)
+                        .isUnique(false)
+                        .build()
+                )
+            );
+
+            var err = service.createTable(newTable);
+            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+            var columnValues = List.of(StringValue.of("property_one", "value1"));
+
+            err = service.addRow("table_key_add_row", columnValues);
+            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+            var statement = conn.createStatement();
+            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one FROM table_key_add_row WHERE property_one = 'value1');");
+            var hasNext = statement.getResultSet().next();
+            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
