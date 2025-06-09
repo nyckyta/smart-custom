@@ -159,4 +159,25 @@ public class DefaultVirtualTableService implements VirtualTableService {
         return Optional.empty();
     }
 
+    @Override
+    public Optional<? extends Err> deleteRow(String tableKey, long rowId) throws SQLException {
+        if (!KEY_REGEXP.matcher(tableKey).matches()) {
+            log.error("Delete row: Table key '{}' does not match the required pattern '{}'", tableKey, KEY_REGEXP);
+            return Optional.of(
+                InputValidationErr.error("Wrong table key %s".formatted(tableKey))
+            );
+        }
+
+        connection.beginRequest();
+        try (var statement = connection.createStatement()) {
+            var query = "DELETE FROM %s WHERE _id = %d;".formatted(tableKey, rowId);
+            log.debug("Executing SQL statement to add row: {}", query);
+            statement.execute(query);
+        } finally {
+            connection.endRequest();
+        }
+
+        return Optional.empty();
+    }
+
 }

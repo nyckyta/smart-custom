@@ -7,12 +7,10 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.logging.ConsoleHandler;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.StringProperty;
-import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
@@ -378,6 +376,51 @@ class DefaultVirtualTableServiceTest {
             statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one FROM table_key_add_row WHERE property_one = 'value1');");
             var hasNext = statement.getResultSet().next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+        }
+    }
+
+    @Test
+    void testRowDeletionFromTheVirtualTable() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            var newTable = new NewTable(
+                "table_key_delete_row",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .isRequired(true)
+                        .isUnique(false)
+                        .build()
+                )
+            );
+
+            var err = service.createTable(newTable);
+            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+
+            try (var statement = conn.createStatement()) {
+                statement.execute("INSERT INTO table_key_delete_row (property_one) VALUES ('value1');");
+                statement.execute("SELECT _id FROM table_key_delete_row WHERE property_one = 'value1';");
+                var resultSet = statement.getResultSet();
+                var hasNext = resultSet.next();
+                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+                long rowId = resultSet.getLong("_id");
+
+                err = service.deleteRow("table_key_delete_row", rowId);
+                Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
+                try (var assertStatement = conn.createStatement()) {
+                    assertStatement.execute("""   
+                        SELECT 1 WHERE EXISTS(
+                            SELECT property_one FROM table_key_delete_row WHERE property_one = 'value1')""");
+                    hasNext = assertStatement.getResultSet().next();
+                    Assert.assertFalse(hasNext, "Expected the row to be deleted from the virtual table");
+                }
+            }
         }
     }
 

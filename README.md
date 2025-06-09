@@ -90,13 +90,14 @@
   - - Support null/non null values 
   - - Support min/max values
 -- Security
-  - - SQL Injection protection. escape all special symbols before concat to string
+  - - SQL Injection protection. escape all special symbols before concat to string : done
   - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
 -- References
   - - Support references between custom entities
 -- API for metainformation about entities
   - - Get list of all custom entities
   - - Get list of fields for custom entity
+-- What should we do with transactions?
 
 ### Read/Write operation
 

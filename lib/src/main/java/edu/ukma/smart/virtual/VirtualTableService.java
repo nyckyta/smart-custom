@@ -20,4 +20,5 @@ public interface VirtualTableService {
     Optional<? extends Err> deleteTable(String tableKey) throws SQLException;
 
     Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues) throws SQLException;
+    Optional<? extends Err> deleteRow(String tableKey, long rowId) throws SQLException;
 }
