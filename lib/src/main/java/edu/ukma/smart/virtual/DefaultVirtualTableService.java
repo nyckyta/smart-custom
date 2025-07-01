@@ -2,6 +2,7 @@ package edu.ukma.smart.virtual;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -51,6 +52,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             );
         }
 
+        var checks = new ArrayList<>();
         for (var property : newTable.properties()) {
             if (!KEY_REGEXP.matcher(property.key()).matches()) {
                 log.error("Create table: Property key '{}' does not match the required pattern '{}'", newTable.key(), KEY_REGEXP);
@@ -62,17 +64,37 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
 
             switch (property) {
-                case StringProperty s -> statementBuilder.append(
-                    ",%s VARCHAR(256) DEFAULT %s %s %s\n".formatted(
+                case StringProperty s -> {
+                    statementBuilder.append(
+                    ",%s TEXT DEFAULT %s %s %s\n".formatted(
                         s.key(),
                         s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
                         s.isRequired() ? "NOT NULL" : "",
                         s.isUnique() ? "UNIQUE" : "")
-                );
+                    );
+
+                    if (s.maxLength() != null && s.minLength() != null) {
+                        checks.add("CHECK (char_length(%s) BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
+                        break;
+                    }
+
+                    if (s.maxLength() != null) {
+                        checks.add("CHECK (char_length(%s) <= %d)".formatted(s.key(), s.maxLength()));
+                        break;
+                    }
+
+                    if (s.minLength() != null) {
+                        checks.add("CHECK (char_length(%s) >= %d)".formatted(s.key(), s.minLength()));
+                        break;
+                    }
+
+
+                }
                 default -> throw new IllegalStateException("Unexpected value: " + property);
             }
         }
 
+        checks.forEach(c -> statementBuilder.append(",%s".formatted(c)));
         statementBuilder.append(");");
 
         connection.beginRequest();
@@ -106,6 +128,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
+    // TODO: error handling for sql exceptions
     public Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues) throws SQLException {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
             log.error("Add row: Table key '{}' does not match the required pattern '{}'", tableKey, KEY_REGEXP);

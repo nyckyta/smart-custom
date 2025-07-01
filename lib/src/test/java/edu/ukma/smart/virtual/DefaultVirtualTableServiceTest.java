@@ -12,6 +12,7 @@ import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.values.StringValue;
+import org.postgresql.util.PSQLException;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -148,7 +149,9 @@ class DefaultVirtualTableServiceTest {
             "desc",
             "default_value",
             true,
-            false
+            false,
+            null,
+            null
         );
         final var maliciousTable = new NewTable(
             "table_key",
@@ -177,7 +180,9 @@ class DefaultVirtualTableServiceTest {
             "desc",
             "default_value",
             true,
-            false
+            false,
+            null,
+            null
         );
         final var maliciousTable = new NewTable(
             "users",
@@ -287,8 +292,8 @@ class DefaultVirtualTableServiceTest {
             );
             Assert.assertEquals(
                 columnsResult.getString("data_type"),
-                "character varying",
-                "Expected column 'property1' to be of type 'character varying'"
+                "text",
+                "Expected column 'property1' to be of type 'text'"
             );
             Assert.assertEquals(
                 columnsResult.getString("is_nullable"),
@@ -297,7 +302,7 @@ class DefaultVirtualTableServiceTest {
             );
             Assert.assertEquals(
                 columnsResult.getString("column_default"),
-                "'default_value_1'::character varying",
+                "'default_value_1'::text",
                 "Expected column 'property1' to have default value"
             );
             Assert.assertFalse(columnsResult.next(), "Expected no more columns");
@@ -350,7 +355,7 @@ class DefaultVirtualTableServiceTest {
             var service = new DefaultVirtualTableService(conn);
 
             var newTable = new NewTable(
-                "table_key_add_row",
+                "add_row_test",
                 "Table table",
                 "This is a test table",
                 List.of(
@@ -369,13 +374,102 @@ class DefaultVirtualTableServiceTest {
             Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
             var columnValues = List.of(StringValue.of("property_one", "value1"));
 
+            err = service.addRow("add_row_test", columnValues);
+            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+            var statement = conn.createStatement();
+            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one FROM add_row_test WHERE property_one = 'value1');");
+            var hasNext = statement.getResultSet().next();
+            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+        }
+    }
+
+    @Test
+    void testLengthLimitValidationForTextProperties() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            var newTable = new NewTable(
+                "table_key_add_row",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    StringProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .maxLength(5)
+                        .build(),
+                    StringProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .minLength(5)
+                        .build(),
+                    StringProperty.builder()
+                        .key("property_four")
+                        .name("Property 4")
+                        .description("This is property 3")
+                        .defaultValue("default_value_3")
+                        .maxLength(10)
+                        .minLength(5)
+                        .build()
+                )
+            );
+
+            var err = service.createTable(newTable);
+            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+            var columnValues = List.of(
+                StringValue.of("property_two", "value"),
+                StringValue.of("property_three", "value"),
+                StringValue.of("property_four", "value12345")
+            );
+
             err = service.addRow("table_key_add_row", columnValues);
             Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
 
             var statement = conn.createStatement();
-            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one FROM table_key_add_row WHERE property_one = 'value1');");
+            statement.execute("SELECT 1 WHERE EXISTS(" +
+                              "SELECT property_two, property_three, property_four " +
+                              "FROM table_key_add_row " +
+                              "WHERE property_two = 'value' AND property_three = 'value' AND property_four = 'value12345');");
             var hasNext = statement.getResultSet().next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+
+            var fourthColumnFailureTooLow = List.of(
+                StringValue.of("property_four", "val")
+            );
+            var fourthColumnFailureTooHigh = List.of(
+                StringValue.of("property_four", "value123456")
+            );
+            try {
+                service.addRow("table_key_add_row", fourthColumnFailureTooLow);
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            try {
+                service.addRow("table_key_add_row", fourthColumnFailureTooHigh);
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            var thirdColumnFailure = List.of(
+                StringValue.of("property_three", "val")
+            );
+
+            try {
+                service.addRow("table_key_add_row", thirdColumnFailure);
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            var secondColumnFailure = List.of(
+                StringValue.of("property_two", "value123456")
+            );
+
+            try {
+                service.addRow("table_key_add_row", secondColumnFailure);
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
         }
     }
 

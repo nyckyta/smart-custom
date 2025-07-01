@@ -9,7 +9,10 @@ public record StringProperty(
     String description,
     String defaultValue,
     boolean isRequired,
-    boolean isUnique
+    boolean isUnique,
+    Integer maxLength,
+    Integer minLength
+
 ) implements Property {
 
     public static PropertyBuilder builder() {
@@ -23,6 +26,8 @@ public record StringProperty(
         private String defaultValue;
         private boolean isRequired;
         private boolean isUnique;
+        private Integer maxLength;
+        private Integer minLength;
 
         private PropertyBuilder() {
         }
@@ -57,6 +62,23 @@ public record StringProperty(
             return this;
         }
 
+
+        public PropertyBuilder maxLength(int maxLength) {
+            if (maxLength < 0 && (minLength == null || maxLength > minLength)) {
+                throw new IllegalArgumentException("maxLength must be >= 0");
+            }
+            this.maxLength = maxLength;
+            return this;
+        }
+
+        public PropertyBuilder minLength(int minLength) {
+            if (minLength < 0 && (maxLength == null || minLength <= maxLength)) {
+                throw new IllegalArgumentException("minLength must be >= 0");
+            }
+            this.minLength = minLength;
+            return this;
+        }
+
         public StringProperty build() {
             return new StringProperty(
                 Objects.requireNonNull(key),
@@ -64,7 +86,9 @@ public record StringProperty(
                 Objects.requireNonNull(description),
                 defaultValue,
                 isRequired,
-                isUnique
+                isUnique,
+                maxLength,
+                minLength
             );
         }
     }

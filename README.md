@@ -69,10 +69,12 @@
 
 ## Features
 ### Table creation
--- Validate format of the field names and table name
+-- Validate format of the field names and table name: done
 -- Support tables drop : done
 -- CRUD operations to tables
--- Error handling avoiding exceptions : done
+-- Error handling avoiding exceptions
+  - - basic checks: done
+  - - Wrap sql exceptions (ideally vendor independant)
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done
