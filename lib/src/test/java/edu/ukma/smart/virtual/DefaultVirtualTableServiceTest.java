@@ -12,7 +12,6 @@ import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.values.StringValue;
-import org.postgresql.util.PSQLException;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -119,6 +118,19 @@ class DefaultVirtualTableServiceTest {
         };
     }
 
+    @DataProvider(name = "invalidMinMaxStringLengthInput")
+    Object[][] invalidMinMaxLength() {
+        return new Object[][]{
+            {0, 0}, // both invalid
+            {null, -1}, // unset, invalid
+            {0, null}, // invalid, unset
+            {1, 0}, // valid, invalid
+            {-1, 1}, // invalid, valid
+            {-1, -1}, // invalid-negative, invalid negative
+            {10, 9} // valid more than max, valid less than min
+        };
+    }
+
 
     @Test(dataProvider = "maliciousTableKeys")
     void testErrorOnInvalidTableKey(String maliciousKey) throws SQLException {
@@ -194,6 +206,33 @@ class DefaultVirtualTableServiceTest {
             final var service = new DefaultVirtualTableService(connection);
             Optional<? extends Err> result = service.createTable(maliciousTable);
 
+        }
+    }
+
+    @Test(dataProvider = "invalidMinMaxStringLengthInput")
+    void testErrorWhenMinMaxConstrainsAreInvalid(Integer[] boundaries) throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+            var newTable = new NewTable(
+                "table_key_1",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .isRequired(true)
+                        .isUnique(false)
+                        .minLength(boundaries[0])
+                        .maxLength(boundaries[1])
+                        .build()
+                )
+            );
+
+            var err = service.createTable(newTable);
+            Assert.assertTrue(err.isPresent(), "Expected no error when creating table");
         }
     }
 

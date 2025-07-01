@@ -75,6 +75,7 @@
 -- Error handling avoiding exceptions
   - - basic checks: done
   - - Wrap sql exceptions (ideally vendor independant)
+  - - error codes ?
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done

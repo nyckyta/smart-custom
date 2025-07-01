@@ -63,18 +63,12 @@ public record StringProperty(
         }
 
 
-        public PropertyBuilder maxLength(int maxLength) {
-            if (maxLength < 0 && (minLength == null || maxLength > minLength)) {
-                throw new IllegalArgumentException("maxLength must be >= 0");
-            }
+        public PropertyBuilder maxLength(Integer maxLength) {
             this.maxLength = maxLength;
             return this;
         }
 
-        public PropertyBuilder minLength(int minLength) {
-            if (minLength < 0 && (maxLength == null || minLength <= maxLength)) {
-                throw new IllegalArgumentException("minLength must be >= 0");
-            }
+        public PropertyBuilder minLength(Integer minLength) {
             this.minLength = minLength;
             return this;
         }

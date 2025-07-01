@@ -52,7 +52,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             );
         }
 
-        var checks = new ArrayList<>();
+        var checks = new ArrayList<String>();
         for (var property : newTable.properties()) {
             if (!KEY_REGEXP.matcher(property.key()).matches()) {
                 log.error("Create table: Property key '{}' does not match the required pattern '{}'", newTable.key(), KEY_REGEXP);
@@ -63,34 +63,13 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 );
             }
 
-            switch (property) {
-                case StringProperty s -> {
-                    statementBuilder.append(
-                    ",%s TEXT DEFAULT %s %s %s\n".formatted(
-                        s.key(),
-                        s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
-                        s.isRequired() ? "NOT NULL" : "",
-                        s.isUnique() ? "UNIQUE" : "")
-                    );
-
-                    if (s.maxLength() != null && s.minLength() != null) {
-                        checks.add("CHECK (char_length(%s) BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
-                        break;
-                    }
-
-                    if (s.maxLength() != null) {
-                        checks.add("CHECK (char_length(%s) <= %d)".formatted(s.key(), s.maxLength()));
-                        break;
-                    }
-
-                    if (s.minLength() != null) {
-                        checks.add("CHECK (char_length(%s) >= %d)".formatted(s.key(), s.minLength()));
-                        break;
-                    }
-
-
-                }
+            var err = switch (property) {
+                case StringProperty s -> addStringColumn(s, statementBuilder, checks);
                 default -> throw new IllegalStateException("Unexpected value: " + property);
+            };
+
+            if (err.isPresent()) {
+                return err;
             }
         }
 
@@ -103,6 +82,62 @@ public class DefaultVirtualTableService implements VirtualTableService {
             statement.execute(statementBuilder.toString());
         } finally {
             connection.endRequest();
+        }
+
+        return Optional.empty();
+    }
+
+    private static Optional<InputValidationErr> addStringColumn(StringProperty s, StringBuilder statementBuilder, List<String> checks) {
+        statementBuilder.append(
+        ",%s TEXT DEFAULT %s %s %s\n".formatted(
+            s.key(),
+            s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
+            s.isRequired() ? "NOT NULL" : "",
+            s.isUnique() ? "UNIQUE" : "")
+        );
+
+        if (s.maxLength() != null && s.minLength() != null) {
+            if (s.maxLength() < 1) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' max length can not be less than one".formatted(s.key()))
+                );
+            }
+
+            if (s.minLength() < 1) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' min length can not be less than one".formatted(s.key()))
+                );
+            }
+
+            if (s.maxLength() < s.minLength()) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' max length can not be less than min length".formatted(s.key()))
+                );
+            }
+            checks.add("CHECK (char_length(%s) BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
+            return Optional.empty();
+        }
+
+        if (s.maxLength() != null) {
+            if (s.maxLength() < 1) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' max length can not be less than one".formatted(s.key()))
+                );
+            }
+
+            checks.add("CHECK (char_length(%s) <= %d)".formatted(s.key(), s.maxLength()));
+            return Optional.empty();
+        }
+
+        if (s.minLength() != null) {
+            if (s.minLength() < 1) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' min length can not be less than one".formatted(s.key()))
+                );
+            }
+
+            checks.add("CHECK (char_length(%s) >= %d)".formatted(s.key(), s.minLength()));
+            return Optional.empty();
         }
 
         return Optional.empty();
@@ -202,5 +237,4 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
         return Optional.empty();
     }
-
 }
