@@ -12,7 +12,6 @@ public record StringProperty(
     boolean isUnique,
     Integer maxLength,
     Integer minLength
-
 ) implements Property {
 
     public static PropertyBuilder builder() {

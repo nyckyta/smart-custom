@@ -9,8 +9,10 @@ import java.util.regex.Pattern;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +67,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
             var err = switch (property) {
                 case StringProperty s -> addStringColumn(s, statementBuilder, checks);
+                case IntegerProperty i -> addIntegerColumn(i, statementBuilder, checks);
                 default -> throw new IllegalStateException("Unexpected value: " + property);
             };
 
@@ -87,6 +90,38 @@ public class DefaultVirtualTableService implements VirtualTableService {
         return Optional.empty();
     }
 
+    private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i, StringBuilder statementBuilder, List<String> checks) {
+        statementBuilder.append(
+            ",%s BIGINT DEFAULT %s %s %s\n".formatted(
+                i.key(),
+                i.defaultValue() == null ? "NULL" : i.defaultValue(),
+                i.isRequired() ? "NOT NULL" : "",
+                i.isUnique() ? "UNIQUE" : ""
+            )
+        );
+
+        if (i.max() != null && i.min() != null) {
+            if (i.max() < i.min()) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' max can not be less than min".formatted(i.key()))
+                );
+            }
+            checks.add("CHECK (%s BETWEEN %d AND %d)".formatted(i.key(), i.min(), i.max()));
+            return Optional.empty();
+        }
+
+        if (i.max() != null) {
+            checks.add("CHECK (%s <= %d)".formatted(i.key(), i.max()));
+            return Optional.empty();
+        }
+
+        if (i.min() != null) {
+            checks.add("CHECK (%s >= %d)".formatted(i.key(), i.min()));
+            return Optional.empty();
+        }
+
+        return Optional.empty();
+    }
     private static Optional<InputValidationErr> addStringColumn(StringProperty s, StringBuilder statementBuilder, List<String> checks) {
         statementBuilder.append(
         ",%s TEXT DEFAULT %s %s %s\n".formatted(
@@ -191,7 +226,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
             columnsPart.append(column.key()).append(",");
             switch (column) {
-                case StringValue s -> valuesPart.append("$$").append(s.value).append("$$").append(",");
+                case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
+                case IntegerValue i -> valuesPart.append(i.value()).append(",");
                 default -> throw new IllegalStateException("Unexpected value: " + column);
             }
         }

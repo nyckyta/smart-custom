@@ -10,7 +10,9 @@ import java.util.Properties;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
@@ -19,6 +21,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 class DefaultVirtualTableServiceTest {
@@ -405,19 +408,32 @@ class DefaultVirtualTableServiceTest {
                         .defaultValue("default_value_1")
                         .isRequired(true)
                         .isUnique(false)
+                        .build(),
+                    IntegerProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .defaultValue(42L)
+                        .isRequired(true)
+                        .isUnique(false)
                         .build()
                 )
             );
 
             var err = service.createTable(newTable);
             Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
-            var columnValues = List.of(StringValue.of("property_one", "value1"));
+            var columnValues = List.of(
+                StringValue.of("property_one", "value1"),
+                IntegerValue.of("property_two", 123L)
+            );
 
             err = service.addRow("add_row_test", columnValues);
             Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
 
             var statement = conn.createStatement();
-            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one FROM add_row_test WHERE property_one = 'value1');");
+            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
+                              " FROM add_row_test" +
+                              " WHERE property_one = 'value1' AND property_two = 123);");
             var hasNext = statement.getResultSet().next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
@@ -509,6 +525,102 @@ class DefaultVirtualTableServiceTest {
                 Assert.fail("Error should have been thrown");
             } catch (SQLException ex) {}
 
+        }
+    }
+
+    @Test
+    void testMinMaxValidationForIntegerProperties() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            var newTable = new NewTable(
+                "table_key_integer_add_row",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    IntegerProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .max(5L)
+                        .build(),
+                    IntegerProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .min(5L)
+                        .build(),
+                    IntegerProperty.builder()
+                        .key("property_four")
+                        .name("Property 4")
+                        .description("This is property four")
+                        .min(5L)
+                        .max(10L)
+                        .build()
+                ));
+
+            var err = service.createTable(newTable);
+            Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+
+            try {
+                service.addRow(
+                    "table_key_integer_add_row",
+                    List.of(
+                        IntegerValue.of("property_two", 6L)
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            try {
+                service.addRow(
+                    "table_key_integer_add_row",
+                    List.of(
+                        IntegerValue.of("property_three", 4L)
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            try {
+                service.addRow(
+                    "table_key_integer_add_row",
+                    List.of(
+                        IntegerValue.of("property_four", 11L)
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            try {
+                service.addRow(
+                    "table_key_integer_add_row",
+                    List.of(
+                        IntegerValue.of("property_four", 4L)
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {}
+
+            err = service.addRow(
+                "table_key_integer_add_row",
+                List.of(
+                    IntegerValue.of("property_four", 10L),
+                    IntegerValue.of("property_three", 6L),
+                    IntegerValue.of("property_two", 2L)
+                )
+            );
+
+            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+            try (var assertStatement = conn.createStatement()) {
+                assertStatement.execute("""   
+                        SELECT 1 WHERE EXISTS(
+                            SELECT * FROM table_key_integer_add_row
+                            WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
+                boolean hasNext = assertStatement.getResultSet().next();
+                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            }
         }
     }
 

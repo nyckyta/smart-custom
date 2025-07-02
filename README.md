@@ -79,12 +79,12 @@
 -- String fields
   - - Support default values for columns : done 
   - - Support null/non null values : done
-  - - Support min length/max length conditions
+  - - Support min length/max length conditions: done
   - - Support regex validation
 -- integer fields
-  - - Support default values for columns 
-  - - Support null/non null values 
-  - - Support min/max values
+  - - Support default values for columns done
+  - - Support null/non null values done
+  - - Support min/max values done
 -- boolean fields
   - - Support default values for columns 
   - - Support null/non null values
