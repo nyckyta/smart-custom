@@ -91,6 +91,9 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i, StringBuilder statementBuilder, List<String> checks) {
+        if (i.isRequired() && i.defaultValue() == null) {
+            return Optional.of(InputValidationErr.error("Create table: Property key '%s' is required, default value is null".formatted(i.key())));
+        }
         statementBuilder.append(
             ",%s BIGINT DEFAULT %s %s %s\n".formatted(
                 i.key(),
@@ -123,6 +126,9 @@ public class DefaultVirtualTableService implements VirtualTableService {
         return Optional.empty();
     }
     private static Optional<InputValidationErr> addStringColumn(StringProperty s, StringBuilder statementBuilder, List<String> checks) {
+        if (s.isRequired() && s.defaultValue() == null) {
+            return Optional.of(InputValidationErr.error("Create table: Property key '%s' is required, default value is null".formatted(s.key())));
+        }
         statementBuilder.append(
         ",%s TEXT DEFAULT %s %s %s\n".formatted(
             s.key(),
