@@ -9,8 +9,10 @@ import java.util.regex.Pattern;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.properties.BooleanProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
@@ -68,6 +70,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             var err = switch (property) {
                 case StringProperty s -> addStringColumn(s, statementBuilder, checks);
                 case IntegerProperty i -> addIntegerColumn(i, statementBuilder, checks);
+                case BooleanProperty b -> addBooleanColumn(b, statementBuilder);
                 default -> throw new IllegalStateException("Unexpected value: " + property);
             };
 
@@ -125,6 +128,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
         return Optional.empty();
     }
+
     private static Optional<InputValidationErr> addStringColumn(StringProperty s, StringBuilder statementBuilder, List<String> checks) {
         if (s.isRequired() && s.defaultValue() == null) {
             return Optional.of(InputValidationErr.error("Create table: Property key '%s' is required, default value is null".formatted(s.key())));
@@ -184,6 +188,25 @@ public class DefaultVirtualTableService implements VirtualTableService {
         return Optional.empty();
     }
 
+    private static Optional<InputValidationErr> addBooleanColumn(BooleanProperty b, StringBuilder statementBuilder) {
+        if (b.isRequired() && b.defaultValue() == null) {
+            return Optional.of(
+                InputValidationErr.error("Create table: Property key '%s' is required, default value is null".formatted(b.key())));
+        }
+        statementBuilder.append(
+            ",%s BOOLEAN DEFAULT %s %s %s\n".formatted(
+                b.key(),
+                b.defaultValue() == null ? "NULL" : b.defaultValue(),
+                b.isRequired() ? "NOT NULL" : "",
+                b.isUnique() ? "UNIQUE" : ""
+            )
+        );
+
+        return Optional.empty();
+    }
+
+
+
     @Override
     public Optional<? extends Err> deleteTable(String tableKey) throws SQLException {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
@@ -234,6 +257,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             switch (column) {
                 case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
                 case IntegerValue i -> valuesPart.append(i.value()).append(",");
+                case BooleanValue b -> valuesPart.append(b.value()).append(",");
                 default -> throw new IllegalStateException("Unexpected value: " + column);
             }
         }

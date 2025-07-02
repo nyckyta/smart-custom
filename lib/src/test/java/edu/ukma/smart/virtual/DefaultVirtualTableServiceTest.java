@@ -10,8 +10,10 @@ import java.util.Properties;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.properties.BooleanProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.testcontainers.containers.GenericContainer;
@@ -416,6 +418,14 @@ class DefaultVirtualTableServiceTest {
                         .defaultValue(42L)
                         .isRequired(true)
                         .isUnique(false)
+                        .build(),
+                    BooleanProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .defaultValue(true)
+                        .isRequired(true)
+                        .isUnique(false)
                         .build()
                 )
             );
@@ -424,7 +434,8 @@ class DefaultVirtualTableServiceTest {
             Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
             var columnValues = List.of(
                 StringValue.of("property_one", "value1"),
-                IntegerValue.of("property_two", 123L)
+                IntegerValue.of("property_two", 123L),
+                BooleanValue.of("property_three", true)
             );
 
             err = service.addRow("add_row_test", columnValues);
@@ -433,7 +444,7 @@ class DefaultVirtualTableServiceTest {
             var statement = conn.createStatement();
             statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
                               " FROM add_row_test" +
-                              " WHERE property_one = 'value1' AND property_two = 123);");
+                              " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true);");
             var hasNext = statement.getResultSet().next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
