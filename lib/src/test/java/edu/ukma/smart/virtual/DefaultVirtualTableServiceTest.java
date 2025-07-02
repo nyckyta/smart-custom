@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -11,9 +12,11 @@ import java.util.Properties;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.BooleanProperty;
+import edu.ukma.smart.virtual.properties.DecimalProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.values.BooleanValue;
+import edu.ukma.smart.virtual.values.DecimalValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.testcontainers.containers.GenericContainer;
@@ -23,7 +26,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 class DefaultVirtualTableServiceTest {
@@ -426,6 +428,12 @@ class DefaultVirtualTableServiceTest {
                         .defaultValue(true)
                         .isRequired(true)
                         .isUnique(false)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_four")
+                        .name("property 4")
+                        .scale(3)
+                        .precision(6)
                         .build()
                 )
             );
@@ -435,7 +443,8 @@ class DefaultVirtualTableServiceTest {
             var columnValues = List.of(
                 StringValue.of("property_one", "value1"),
                 IntegerValue.of("property_two", 123L),
-                BooleanValue.of("property_three", true)
+                BooleanValue.of("property_three", true),
+                DecimalValue.of("property_four", BigDecimal.valueOf(123.321))
             );
 
             err = service.addRow("add_row_test", columnValues);
@@ -444,7 +453,7 @@ class DefaultVirtualTableServiceTest {
             var statement = conn.createStatement();
             statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
                               " FROM add_row_test" +
-                              " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true);");
+                              " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true AND property_four = 123.321);");
             var hasNext = statement.getResultSet().next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
@@ -629,6 +638,109 @@ class DefaultVirtualTableServiceTest {
                         SELECT 1 WHERE EXISTS(
                             SELECT * FROM table_key_integer_add_row
                             WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
+                boolean hasNext = assertStatement.getResultSet().next();
+                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            }
+        }
+    }
+
+    @Test
+    void testMinMaxValidationForDecimalProperties() throws SQLException {
+        try (Connection conn = createConnection()) {
+            var service = new DefaultVirtualTableService(conn);
+
+            var newTable = new NewTable(
+                "table_key_decimal_add_row",
+                "Table table",
+                "This is a test table",
+                List.of(
+                    DecimalProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .max(BigDecimal.valueOf(2.5))
+                        .precision(4)
+                        .scale(3)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .min(BigDecimal.valueOf(1.125))
+                        .precision(4)
+                        .scale(3)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_four")
+                        .name("Property 4")
+                        .description("This is property four")
+                        .precision(4)
+                        .scale(3)
+                        .min(BigDecimal.valueOf(1.125))
+                        .max(BigDecimal.valueOf(2.5))
+                        .build()
+                ));
+
+            var err = service.createTable(newTable);
+            Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+
+            try {
+                service.addRow(
+                    "table_key_decimal_add_row",
+                    List.of(
+                        DecimalValue.of("property_two", BigDecimal.valueOf(6))
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {
+            }
+
+            try {
+                service.addRow(
+                    "table_key_decimal_add_row",
+                    List.of(
+                        DecimalValue.of("property_three", BigDecimal.valueOf(1))
+                    )
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {
+            }
+
+            try {
+                service.addRow(
+                    "table_key_decimal_add_row",
+                    List.of(
+                        DecimalValue.of("property_four", BigDecimal.valueOf(10)))
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {
+            }
+
+            try {
+                service.addRow(
+                    "table_key_decimal_add_row",
+                    List.of(
+                        DecimalValue.of("property_four", BigDecimal.valueOf(1)))
+                );
+                Assert.fail("Error should have been thrown");
+            } catch (SQLException ex) {
+            }
+
+            err = service.addRow(
+                "table_key_decimal_add_row",
+                List.of(
+                    DecimalValue.of("property_four", BigDecimal.valueOf(2.5)),
+                    DecimalValue.of("property_three", BigDecimal.valueOf(1.2453)),
+                    DecimalValue.of("property_two", BigDecimal.valueOf(1.126)))
+            );
+
+            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+            try (var assertStatement = conn.createStatement()) {
+                assertStatement.execute("""   
+                    SELECT 1 WHERE EXISTS(
+                        SELECT * FROM table_key_decimal_add_row
+                        WHERE property_four = 2.5 AND property_three = 1.245 AND property_two = 1.126)""");
                 boolean hasNext = assertStatement.getResultSet().next();
                 Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
             }

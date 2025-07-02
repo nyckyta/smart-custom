@@ -5,9 +5,4 @@ public record StringValue(String key, String value) implements ColumnValue {
     public static StringValue of(String key, String value) {
         return new StringValue(key, value);
     }
-
-    @Override
-    public String key() {
-        return key;
-    }
 }

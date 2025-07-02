@@ -5,9 +5,4 @@ public record BooleanValue(String key, Boolean value) implements ColumnValue {
     public static BooleanValue of(String key, Boolean value) {
         return new BooleanValue(key, value);
     }
-
-    @Override
-    public String key() {
-        return key;
-    }
 }

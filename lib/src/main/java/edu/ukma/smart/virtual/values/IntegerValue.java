@@ -6,9 +6,4 @@ public record IntegerValue(String key, Long value)
     public static IntegerValue of(String key, Long value) {
         return new IntegerValue(key, value);
     }
-
-    @Override
-    public String key() {
-        return key;
-    }
 }

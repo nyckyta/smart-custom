@@ -10,10 +10,12 @@ import java.util.regex.Pattern;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.BooleanProperty;
+import edu.ukma.smart.virtual.properties.DecimalProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.DecimalValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.StringValue;
 import org.slf4j.Logger;
@@ -23,6 +25,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     private final static Logger log = LoggerFactory.getLogger(DefaultVirtualTableService.class);
     private final static Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,100}$");
+    private final static int MAX_PRECISION = 131072;
+    private final static int MAX_SCALE = 16383;
     private final Connection connection;
 
     public DefaultVirtualTableService(Connection connection) {
@@ -76,6 +80,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 case StringProperty s -> addStringColumn(s, statementBuilder, checks);
                 case IntegerProperty i -> addIntegerColumn(i, statementBuilder, checks);
                 case BooleanProperty b -> addBooleanColumn(b, statementBuilder);
+                case DecimalProperty d -> addDecimalColumn(d, statementBuilder, checks);
                 default -> throw new IllegalStateException("Unexpected value: " + property);
             };
 
@@ -93,6 +98,49 @@ public class DefaultVirtualTableService implements VirtualTableService {
             statement.execute(statementBuilder.toString());
         } finally {
             connection.endRequest();
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<InputValidationErr> addDecimalColumn(DecimalProperty d, StringBuilder statementBuilder, List<String> checks) {
+        if (d.precision() < 1 || d.precision() > MAX_PRECISION) {
+            return Optional.of(InputValidationErr.error("Create table: property %s has invalid precision".formatted(d.key())));
+        }
+
+        if (d.scale() < 1 || d.scale() > MAX_SCALE) {
+            return Optional.of(InputValidationErr.error("Create table: property %s has invalid scale".formatted(d.key())));
+        }
+
+        statementBuilder.append(
+            ",%s NUMERIC(%d,%d) DEFAULT %s %s %s\n".formatted(
+                d.key(),
+                d.precision(),
+                d.scale(),
+                d.defaultValue() == null ? "NULL" : d.defaultValue(),
+                d.isRequired() ? "NOT NULL" : "",
+                d.isUnique() ? "UNIQUE" : ""
+            )
+        );
+
+        if (d.max() != null && d.min() != null) {
+            if (d.max().compareTo(d.min()) < 0) {
+                return Optional.of(
+                    InputValidationErr.error("Create table: Property key '%s' max can not be less than min".formatted(d.key()))
+                );
+            }
+            checks.add("CHECK (%s BETWEEN %f AND %f)".formatted(d.key(), d.min(), d.max()));
+            return Optional.empty();
+        }
+
+        if (d.max() != null) {
+            checks.add("CHECK (%s <= %f)".formatted(d.key(), d.max()));
+            return Optional.empty();
+        }
+
+        if (d.min() != null) {
+            checks.add("CHECK (%s >= %f)".formatted(d.key(), d.min()));
+            return Optional.empty();
         }
 
         return Optional.empty();
@@ -253,6 +301,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
                 case IntegerValue i -> valuesPart.append(i.value()).append(",");
                 case BooleanValue b -> valuesPart.append(b.value()).append(",");
+                case DecimalValue d -> valuesPart.append(d.value()).append(",");
                 default -> throw new IllegalStateException("Unexpected value: " + column);
             }
         }

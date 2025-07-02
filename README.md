@@ -82,16 +82,16 @@
   - - Support min length/max length conditions: done
   - - Support regex validation
 -- integer fields
-  - - Support default values for columns done
-  - - Support null/non null values done
-  - - Support min/max values done
+  - - Support default values for columns: done
+  - - Support null/non null values: done
+  - - Support min/max values: done
 -- boolean fields
-  - - Support default values for columns 
-  - - Support null/non null values
+  - - Support default values for columns: done
+  - - Support null/non null values: done
 -- floating fields
-  - - Support default values for columns 
-  - - Support null/non null values 
-  - - Support min/max values
+  - - Support default values for columns: done
+  - - Support null/non null values: done
+  - - Support min/max values: done
 -- Security
   - - SQL Injection protection. escape all special symbols before concat to string : done
   - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
