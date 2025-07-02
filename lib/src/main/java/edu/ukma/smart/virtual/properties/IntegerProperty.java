@@ -9,7 +9,7 @@ public record IntegerProperty(
     boolean isUnique,
     Long max,
     Long min
-) implements Property{
+) implements Property<Long> {
 
     public static IntegerPropertyBuilder builder() {
         return new IntegerPropertyBuilder();

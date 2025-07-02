@@ -12,7 +12,7 @@ public record StringProperty(
     boolean isUnique,
     Integer maxLength,
     Integer minLength
-) implements Property {
+) implements Property<String> {
 
     public static PropertyBuilder builder() {
         return new PropertyBuilder();

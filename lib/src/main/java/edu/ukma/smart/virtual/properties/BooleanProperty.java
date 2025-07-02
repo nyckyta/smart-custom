@@ -7,7 +7,7 @@ public record BooleanProperty(
     Boolean defaultValue,
     boolean isRequired,
     boolean isUnique
-) implements Property {
+) implements Property<Boolean> {
 
     public static BooleanPropertyBuilder builder() {
         return new BooleanPropertyBuilder();
