@@ -1,14 +1,5 @@
 package edu.ukma.smart.virtual;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.properties.BooleanProperty;
@@ -26,6 +17,15 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+
 import static org.testng.Assert.assertTrue;
 
 class DefaultVirtualTableServiceTest {
@@ -33,9 +33,10 @@ class DefaultVirtualTableServiceTest {
     private static final String DB_NAME = "test_db";
 
     private GenericContainer<?> container;
+    volatile private Connection connection;
 
     @BeforeClass
-    void startContainer() throws IOException, InterruptedException {
+    void startContainer() throws IOException, InterruptedException, SQLException {
         container = new GenericContainer<>("postgres:latest")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
@@ -43,16 +44,18 @@ class DefaultVirtualTableServiceTest {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
+        connection = createConnection();
     }
 
-    @AfterClass
-    void stopContainer() {
+    @AfterClass(alwaysRun = true)
+    void stopContainer() throws SQLException {
         container.stop();
+        connection.close();
     }
 
     @DataProvider
     Object[][] maliciousStringDefaultValues() {
-        return new Object[][] {
+        return new Object[][]{
             {"default_value'; DROP TABLE users; --"},
             {"default_value; DROP TABLE users; --"},
             {"default_value') OR 1=1; DROP TABLE users; --"},
@@ -148,16 +151,11 @@ class DefaultVirtualTableServiceTest {
             List.of()
         );
 
-        try (final var connection = createConnection()) {
-            final var service = new DefaultVirtualTableService(connection);
-            Optional<? extends Err> result = service.createTable(maliciousTable);
-
-            // Assert
-            assertTrue(result.isPresent(),
-                "Expected validation error for malicious table key: " + maliciousKey);
-            assertTrue(result.get() instanceof InputValidationErr,
-                "Expected InputValidationErr for malicious table key: " + maliciousKey);
-        }
+        final var service = new DefaultVirtualTableService(connection);
+        Optional<? extends Err> result = service.createTable(maliciousTable);
+        // Assert
+        assertTrue(result.isPresent(), "Expected validation error for malicious table key: " + maliciousKey);
+        assertTrue(result.get() instanceof InputValidationErr, "Expected InputValidationErr for malicious table key: " + maliciousKey);
     }
 
     @Test(dataProvider = "maliciousPropertyKeys")
@@ -178,616 +176,613 @@ class DefaultVirtualTableServiceTest {
             "table description",
             List.of(maliciousProperty)
         );
-        try (final var connection = createConnection()) {
-            final var service = new DefaultVirtualTableService(connection);
-            Optional<? extends Err> result = service.createTable(maliciousTable);
+        final var service = new DefaultVirtualTableService(connection);
+        Optional<? extends Err> result = service.createTable(maliciousTable);
 
-            // Assert
-            assertTrue(result.isPresent(),
-                "Expected validation error for malicious property key: " + maliciousPropertyKey);
-            assertTrue(result.get() instanceof InputValidationErr,
-                "Expected InputValidationErr for malicious property key: " + maliciousPropertyKey);
-        }
+        // Assert
+        assertTrue(result.isPresent(),
+            "Expected validation error for malicious property key: " + maliciousPropertyKey);
+        assertTrue(result.get() instanceof InputValidationErr,
+            "Expected InputValidationErr for malicious property key: " + maliciousPropertyKey);
     }
 
-    // TODO: complete test once insert is supported
     @Test(dataProvider = "maliciousDefaultStringValue", enabled = false)
     void testPropertyCreationWithMaliciousDefaultValue(String defaultValue) throws SQLException {
+        final var tableKey = "testPropertyCreationWithMaliciousDefaultValue";
         final var maliciousProperty = new StringProperty(
-            "test",
+            "malicious",
             "default",
             "desc",
-            "default_value",
+            defaultValue,
             true,
             false,
             null,
             null
         );
         final var maliciousTable = new NewTable(
-            "users",
+            tableKey,
             "table key",
             "table description",
             List.of(maliciousProperty)
         );
-        try (final var connection = createConnection()) {
-            final var service = new DefaultVirtualTableService(connection);
-            Optional<? extends Err> result = service.createTable(maliciousTable);
+        final var service = new DefaultVirtualTableService(connection);
+        Optional<? extends Err> result = service.createTable(maliciousTable);
 
+        Assert.assertFalse(result.isPresent(), "Expected no errors on table creation");
+
+        service.addRow(tableKey, List.of());
+
+        try (final var statement = connection.createStatement()) {
+            Assert.assertTrue(
+                statement.execute("SELECT * FROM %s WHERE malicious = $$%s$$".formatted(tableKey, defaultValue)),
+                "Expected results in result set"
+            );
         }
     }
 
     @Test(dataProvider = "invalidMinMaxStringLengthInput")
     void testErrorWhenMinMaxConstrainsAreInvalid(Integer[] boundaries) throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
-            var newTable = new NewTable(
-                "table_key_1",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_one")
-                        .name("Property 1")
-                        .description("This is property 1")
-                        .defaultValue("default_value_1")
-                        .isRequired(true)
-                        .isUnique(false)
-                        .minLength(boundaries[0])
-                        .maxLength(boundaries[1])
-                        .build()
-                )
-            );
+        var service = new DefaultVirtualTableService(connection);
+        var newTable = new NewTable(
+            "table_key_1",
+            "Table table",
+            "This is a test table",
+            List.of(
+                StringProperty.builder()
+                    .key("property_one")
+                    .name("Property 1")
+                    .description("This is property 1")
+                    .defaultValue("default_value_1")
+                    .isRequired(true)
+                    .isUnique(false)
+                    .minLength(boundaries[0])
+                    .maxLength(boundaries[1])
+                    .build()
+            )
+        );
 
-            var err = service.createTable(newTable);
-            Assert.assertTrue(err.isPresent(), "Expected no error when creating table");
-        }
+        var err = service.createTable(newTable);
+        Assert.assertTrue(err.isPresent(), "Expected no error when creating table");
     }
 
     @Test
     void testTableCreation() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            var newTable = new NewTable(
-                "table_key",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_one")
-                        .name("Property 1")
-                        .description("This is property 1")
-                        .defaultValue("default_value_1")
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build()
-                )
-            );
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        var newTable = new NewTable(
+            "table_key",
+            "Table table",
+            "This is a test table",
+            List.of(
+                StringProperty.builder()
+                    .key("property_one")
+                    .name("Property 1")
+                    .description("This is property 1")
+                    .defaultValue("default_value_1")
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build()
+            )
+        );
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
 
-            var statement = conn.createStatement();
-            assertTrue(statement.execute(
-                """
-                    SELECT table_schema, table_name, table_type, is_insertable_into 
-                    FROM information_schema.tables
-                    WHERE table_name = 'table_key'"""
-            ), "Statement must return result");
+        var statement = connection.createStatement();
+        assertTrue(statement.execute(
+            """
+                SELECT table_schema, table_name, table_type, is_insertable_into 
+                FROM information_schema.tables
+                WHERE table_name = 'table_key'"""
+        ), "Statement must return result");
 
-            var result = statement.getResultSet();
-            assertTrue(result.next(), "Expected at least one result row");
-            Assert.assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
-            Assert.assertEquals(result.getString(2), "table_key", "Expected table name to be 'table_key'");
-            Assert.assertEquals(result.getString(3), "BASE TABLE", "Expected table type to be 'BASE TABLE'");
-            assertTrue(result.getBoolean(4), "Expected table to be insertable into");
+        var result = statement.getResultSet();
+        assertTrue(result.next(), "Expected at least one result row");
+        Assert.assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
+        Assert.assertEquals(result.getString(2), "table_key", "Expected table name to be 'table_key'");
+        Assert.assertEquals(result.getString(3), "BASE TABLE", "Expected table type to be 'BASE TABLE'");
+        assertTrue(result.getBoolean(4), "Expected table to be insertable into");
 
-            var columnsTest = conn.createStatement();
-            assertTrue(columnsTest.execute(
-                """
-                    SELECT column_name, data_type, is_nullable, column_default
-                    FROM information_schema.columns
-                    WHERE table_name = 'table_key'"""
-            ), "Statement must return result");
-            var columnsResult = columnsTest.getResultSet();
-            columnsResult.next();
-            Assert.assertEquals(
-                columnsResult.getString("column_name"),
-                "_id",
-                "Expected column '_id'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("data_type"),
-                "integer",
-                "Expected column '_id' to be of type 'integer'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("is_nullable"),
-                "NO",
-                "Expected column '_id' to be NOT NULL"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("column_default"),
-                "nextval('table_key__id_seq'::regclass)",
-                "Expected column '_id' to have default value");
-            columnsResult.next();
-            Assert.assertEquals(
-                columnsResult.getString("column_name"),
-                "_created",
-                "Expected column '_created'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("data_type"),
-                "timestamp without time zone",
-                "Expected column '_created' to be of type 'timestamp without time zone'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("is_nullable"),
-                "NO",
-                "Expected column '_created' to be NOT NULL"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("column_default"),
-                "CURRENT_TIMESTAMP",
-                "Expected column '_created' to have default value"
-            );
-            columnsResult.next();
-            Assert.assertEquals(
-                columnsResult.getString("column_name"),
-                "property_one",
-                "Expected column 'property1'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("data_type"),
-                "text",
-                "Expected column 'property1' to be of type 'text'"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("is_nullable"),
-                "NO",
-                "Expected column 'property1' to be NOT NULL"
-            );
-            Assert.assertEquals(
-                columnsResult.getString("column_default"),
-                "'default_value_1'::text",
-                "Expected column 'property1' to have default value"
-            );
-            Assert.assertFalse(columnsResult.next(), "Expected no more columns");
-        }
+        var columnsTest = connection.createStatement();
+        assertTrue(columnsTest.execute(
+            """
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_name = 'table_key'"""
+        ), "Statement must return result");
+        var columnsResult = columnsTest.getResultSet();
+        columnsResult.next();
+        Assert.assertEquals(
+            columnsResult.getString("column_name"),
+            "_id",
+            "Expected column '_id'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("data_type"),
+            "integer",
+            "Expected column '_id' to be of type 'integer'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("is_nullable"),
+            "NO",
+            "Expected column '_id' to be NOT NULL"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("column_default"),
+            "nextval('table_key__id_seq'::regclass)",
+            "Expected column '_id' to have default value");
+        columnsResult.next();
+        Assert.assertEquals(
+            columnsResult.getString("column_name"),
+            "_created",
+            "Expected column '_created'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("data_type"),
+            "timestamp without time zone",
+            "Expected column '_created' to be of type 'timestamp without time zone'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("is_nullable"),
+            "NO",
+            "Expected column '_created' to be NOT NULL"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("column_default"),
+            "CURRENT_TIMESTAMP",
+            "Expected column '_created' to have default value"
+        );
+        columnsResult.next();
+        Assert.assertEquals(
+            columnsResult.getString("column_name"),
+            "property_one",
+            "Expected column 'property1'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("data_type"),
+            "text",
+            "Expected column 'property1' to be of type 'text'"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("is_nullable"),
+            "NO",
+            "Expected column 'property1' to be NOT NULL"
+        );
+        Assert.assertEquals(
+            columnsResult.getString("column_default"),
+            "'default_value_1'::text",
+            "Expected column 'property1' to have default value"
+        );
+        Assert.assertFalse(columnsResult.next(), "Expected no more columns");
     }
 
     @Test
     void testTableDeletion() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            // Create a table to delete
-            var newTable = new NewTable(
-                "table_to_delete",
-                "Table to Delete",
-                "This table will be deleted",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_key")
-                        .name("Property 1")
-                        .description("This is property 1")
-                        .defaultValue("default_value_1")
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build()
-                )
-            );
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Expected no error when creating table to delete");
+        // Create a table to delete
+        var newTable = new NewTable(
+            "table_to_delete",
+            "Table to Delete",
+            "This table will be deleted",
+            List.of(
+                StringProperty.builder()
+                    .key("property_key")
+                    .name("Property 1")
+                    .description("This is property 1")
+                    .defaultValue("default_value_1")
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build()
+            )
+        );
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table to delete");
 
-            // Delete the table
-            service.deleteTable("table_to_delete");
+        // Delete the table
+        service.deleteTable("table_to_delete");
 
-            // Verify the table is deleted
-            var statement = conn.createStatement();
-            statement.execute(
+        // Verify the table is deleted
+        var statement = connection.createStatement();
+        statement.execute(
+            """
+                SELECT 1 FROM information_schema.tables 
+                WHERE table_name = 'table_to_delete'
                 """
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_name = 'table_to_delete'
-                    """
-            );
+        );
 
-            Assert.assertFalse(statement.getResultSet().next(), "Expected no results for deleted table");
-        }
+        Assert.assertFalse(statement.getResultSet().next(), "Expected no results for deleted table");
     }
 
     @Test
     void testRowAddingToTheVirtualTable() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            var newTable = new NewTable(
-                "add_row_test",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_one")
-                        .name("Property 1")
-                        .description("This is property 1")
-                        .defaultValue("default_value_1")
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build(),
-                    IntegerProperty.builder()
-                        .key("property_two")
-                        .name("Property 2")
-                        .description("This is property 2")
-                        .defaultValue(42L)
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build(),
-                    BooleanProperty.builder()
-                        .key("property_three")
-                        .name("Property 3")
-                        .description("This is property 3")
-                        .defaultValue(true)
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build(),
-                    DecimalProperty.builder()
-                        .key("property_four")
-                        .name("property 4")
-                        .scale(3)
-                        .precision(6)
-                        .build()
-                )
-            );
+        var newTable = new NewTable(
+            "add_row_test",
+            "Table table",
+            "This is a test table",
+            List.of(
+                StringProperty.builder()
+                    .key("property_one")
+                    .name("Property 1")
+                    .description("This is property 1")
+                    .defaultValue("default_value_1")
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build(),
+                IntegerProperty.builder()
+                    .key("property_two")
+                    .name("Property 2")
+                    .description("This is property 2")
+                    .defaultValue(42L)
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build(),
+                BooleanProperty.builder()
+                    .key("property_three")
+                    .name("Property 3")
+                    .description("This is property 3")
+                    .defaultValue(true)
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build(),
+                DecimalProperty.builder()
+                    .key("property_four")
+                    .name("property 4")
+                    .scale(3)
+                    .precision(6)
+                    .build()
+            )
+        );
 
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
-            var columnValues = List.of(
-                StringValue.of("property_one", "value1"),
-                IntegerValue.of("property_two", 123L),
-                BooleanValue.of("property_three", true),
-                DecimalValue.of("property_four", BigDecimal.valueOf(123.321))
-            );
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        var columnValues = List.of(
+            StringValue.of("property_one", "value1"),
+            IntegerValue.of("property_two", 123L),
+            BooleanValue.of("property_three", true),
+            DecimalValue.of("property_four", BigDecimal.valueOf(123.321))
+        );
 
-            err = service.addRow("add_row_test", columnValues);
-            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+        err = service.addRow("add_row_test", columnValues);
+        Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
 
-            var statement = conn.createStatement();
-            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
-                              " FROM add_row_test" +
-                              " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true AND property_four = 123.321);");
-            var hasNext = statement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-        }
+        var statement = connection.createStatement();
+        statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
+            " FROM add_row_test" +
+            " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true AND property_four = 123.321);");
+        var hasNext = statement.getResultSet().next();
+        Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
     }
 
     @Test
     void testLengthLimitValidationForTextProperties() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
+        var newTable = new NewTable(
+            "table_key_add_row",
+            "Table table",
+            "This is a test table",
+            List.of(
+                StringProperty.builder()
+                    .key("property_two")
+                    .name("Property 2")
+                    .description("This is property 2")
+                    .maxLength(5)
+                    .build(),
+                StringProperty.builder()
+                    .key("property_three")
+                    .name("Property 3")
+                    .description("This is property 3")
+                    .minLength(5)
+                    .build(),
+                StringProperty.builder()
+                    .key("property_four")
+                    .name("Property 4")
+                    .description("This is property 3")
+                    .defaultValue("default_value_3")
+                    .maxLength(10)
+                    .minLength(5)
+                    .build()
+            )
+        );
 
-            var newTable = new NewTable(
-                "table_key_add_row",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_two")
-                        .name("Property 2")
-                        .description("This is property 2")
-                        .maxLength(5)
-                        .build(),
-                    StringProperty.builder()
-                        .key("property_three")
-                        .name("Property 3")
-                        .description("This is property 3")
-                        .minLength(5)
-                        .build(),
-                    StringProperty.builder()
-                        .key("property_four")
-                        .name("Property 4")
-                        .description("This is property 3")
-                        .defaultValue("default_value_3")
-                        .maxLength(10)
-                        .minLength(5)
-                        .build()
-                )
-            );
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        var columnValues = List.of(
+            StringValue.of("property_two", "value"),
+            StringValue.of("property_three", "value"),
+            StringValue.of("property_four", "value12345")
+        );
 
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
-            var columnValues = List.of(
-                StringValue.of("property_two", "value"),
-                StringValue.of("property_three", "value"),
-                StringValue.of("property_four", "value12345")
-            );
+        err = service.addRow("table_key_add_row", columnValues);
+        Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
 
-            err = service.addRow("table_key_add_row", columnValues);
-            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+        var statement = connection.createStatement();
+        statement.execute("SELECT 1 WHERE EXISTS(" +
+            "SELECT property_two, property_three, property_four " +
+            "FROM table_key_add_row " +
+            "WHERE property_two = 'value' AND property_three = 'value' AND property_four = 'value12345');");
+        var hasNext = statement.getResultSet().next();
+        Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
 
-            var statement = conn.createStatement();
-            statement.execute("SELECT 1 WHERE EXISTS(" +
-                              "SELECT property_two, property_three, property_four " +
-                              "FROM table_key_add_row " +
-                              "WHERE property_two = 'value' AND property_three = 'value' AND property_four = 'value12345');");
-            var hasNext = statement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-
-            var fourthColumnFailureTooLow = List.of(
-                StringValue.of("property_four", "val")
-            );
-            var fourthColumnFailureTooHigh = List.of(
-                StringValue.of("property_four", "value123456")
-            );
-            try {
-                service.addRow("table_key_add_row", fourthColumnFailureTooLow);
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            try {
-                service.addRow("table_key_add_row", fourthColumnFailureTooHigh);
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            var thirdColumnFailure = List.of(
-                StringValue.of("property_three", "val")
-            );
-
-            try {
-                service.addRow("table_key_add_row", thirdColumnFailure);
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            var secondColumnFailure = List.of(
-                StringValue.of("property_two", "value123456")
-            );
-
-            try {
-                service.addRow("table_key_add_row", secondColumnFailure);
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
+        var fourthColumnFailureTooLow = List.of(
+            StringValue.of("property_four", "val")
+        );
+        var fourthColumnFailureTooHigh = List.of(
+            StringValue.of("property_four", "value123456")
+        );
+        try {
+            service.addRow("table_key_add_row", fourthColumnFailureTooLow);
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
         }
+
+        try {
+            service.addRow("table_key_add_row", fourthColumnFailureTooHigh);
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        var thirdColumnFailure = List.of(
+            StringValue.of("property_three", "val")
+        );
+
+        try {
+            service.addRow("table_key_add_row", thirdColumnFailure);
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        var secondColumnFailure = List.of(
+            StringValue.of("property_two", "value123456")
+        );
+
+        try {
+            service.addRow("table_key_add_row", secondColumnFailure);
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
     }
 
     @Test
     void testMinMaxValidationForIntegerProperties() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            var newTable = new NewTable(
-                "table_key_integer_add_row",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    IntegerProperty.builder()
-                        .key("property_two")
-                        .name("Property 2")
-                        .description("This is property 2")
-                        .max(5L)
-                        .build(),
-                    IntegerProperty.builder()
-                        .key("property_three")
-                        .name("Property 3")
-                        .description("This is property 3")
-                        .min(5L)
-                        .build(),
-                    IntegerProperty.builder()
-                        .key("property_four")
-                        .name("Property 4")
-                        .description("This is property four")
-                        .min(5L)
-                        .max(10L)
-                        .build()
-                ));
+        var newTable = new NewTable(
+            "table_key_integer_add_row",
+            "Table table",
+            "This is a test table",
+            List.of(
+                IntegerProperty.builder()
+                    .key("property_two")
+                    .name("Property 2")
+                    .description("This is property 2")
+                    .max(5L)
+                    .build(),
+                IntegerProperty.builder()
+                    .key("property_three")
+                    .name("Property 3")
+                    .description("This is property 3")
+                    .min(5L)
+                    .build(),
+                IntegerProperty.builder()
+                    .key("property_four")
+                    .name("Property 4")
+                    .description("This is property four")
+                    .min(5L)
+                    .max(10L)
+                    .build()
+            ));
 
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Table must be created without issues");
 
-            try {
-                service.addRow(
-                    "table_key_integer_add_row",
-                    List.of(
-                        IntegerValue.of("property_two", 6L)
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            try {
-                service.addRow(
-                    "table_key_integer_add_row",
-                    List.of(
-                        IntegerValue.of("property_three", 4L)
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            try {
-                service.addRow(
-                    "table_key_integer_add_row",
-                    List.of(
-                        IntegerValue.of("property_four", 11L)
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            try {
-                service.addRow(
-                    "table_key_integer_add_row",
-                    List.of(
-                        IntegerValue.of("property_four", 4L)
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {}
-
-            err = service.addRow(
+        try {
+            service.addRow(
                 "table_key_integer_add_row",
                 List.of(
-                    IntegerValue.of("property_four", 10L),
-                    IntegerValue.of("property_three", 6L),
-                    IntegerValue.of("property_two", 2L)
+                    IntegerValue.of("property_two", 6L)
                 )
             );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
 
-            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+        try {
+            service.addRow(
+                "table_key_integer_add_row",
+                List.of(
+                    IntegerValue.of("property_three", 4L)
+                )
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
 
-            try (var assertStatement = conn.createStatement()) {
-                assertStatement.execute("""   
-                        SELECT 1 WHERE EXISTS(
-                            SELECT * FROM table_key_integer_add_row
-                            WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
-                boolean hasNext = assertStatement.getResultSet().next();
-                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-            }
+        try {
+            service.addRow(
+                "table_key_integer_add_row",
+                List.of(
+                    IntegerValue.of("property_four", 11L)
+                )
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        try {
+            service.addRow(
+                "table_key_integer_add_row",
+                List.of(
+                    IntegerValue.of("property_four", 4L)
+                )
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        err = service.addRow(
+            "table_key_integer_add_row",
+            List.of(
+                IntegerValue.of("property_four", 10L),
+                IntegerValue.of("property_three", 6L),
+                IntegerValue.of("property_two", 2L)
+            )
+        );
+
+        Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+        try (var assertStatement = connection.createStatement()) {
+            assertStatement.execute("""   
+                SELECT 1 WHERE EXISTS(
+                    SELECT * FROM table_key_integer_add_row
+                    WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
+            boolean hasNext = assertStatement.getResultSet().next();
+            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            var newTable = new NewTable(
-                "table_key_decimal_add_row",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    DecimalProperty.builder()
-                        .key("property_two")
-                        .name("Property 2")
-                        .description("This is property 2")
-                        .max(BigDecimal.valueOf(2.5))
-                        .precision(4)
-                        .scale(3)
-                        .build(),
-                    DecimalProperty.builder()
-                        .key("property_three")
-                        .name("Property 3")
-                        .description("This is property 3")
-                        .min(BigDecimal.valueOf(1.125))
-                        .precision(4)
-                        .scale(3)
-                        .build(),
-                    DecimalProperty.builder()
-                        .key("property_four")
-                        .name("Property 4")
-                        .description("This is property four")
-                        .precision(4)
-                        .scale(3)
-                        .min(BigDecimal.valueOf(1.125))
-                        .max(BigDecimal.valueOf(2.5))
-                        .build()
-                ));
+        var newTable = new NewTable(
+            "table_key_decimal_add_row",
+            "Table table",
+            "This is a test table",
+            List.of(
+                DecimalProperty.builder()
+                    .key("property_two")
+                    .name("Property 2")
+                    .description("This is property 2")
+                    .max(BigDecimal.valueOf(2.5))
+                    .precision(4)
+                    .scale(3)
+                    .build(),
+                DecimalProperty.builder()
+                    .key("property_three")
+                    .name("Property 3")
+                    .description("This is property 3")
+                    .min(BigDecimal.valueOf(1.125))
+                    .precision(4)
+                    .scale(3)
+                    .build(),
+                DecimalProperty.builder()
+                    .key("property_four")
+                    .name("Property 4")
+                    .description("This is property four")
+                    .precision(4)
+                    .scale(3)
+                    .min(BigDecimal.valueOf(1.125))
+                    .max(BigDecimal.valueOf(2.5))
+                    .build()
+            ));
 
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Table must be created without issues");
 
-            try {
-                service.addRow(
-                    "table_key_decimal_add_row",
-                    List.of(
-                        DecimalValue.of("property_two", BigDecimal.valueOf(6))
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
-
-            try {
-                service.addRow(
-                    "table_key_decimal_add_row",
-                    List.of(
-                        DecimalValue.of("property_three", BigDecimal.valueOf(1))
-                    )
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
-
-            try {
-                service.addRow(
-                    "table_key_decimal_add_row",
-                    List.of(
-                        DecimalValue.of("property_four", BigDecimal.valueOf(10)))
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
-
-            try {
-                service.addRow(
-                    "table_key_decimal_add_row",
-                    List.of(
-                        DecimalValue.of("property_four", BigDecimal.valueOf(1)))
-                );
-                Assert.fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
-
-            err = service.addRow(
+        try {
+            service.addRow(
                 "table_key_decimal_add_row",
                 List.of(
-                    DecimalValue.of("property_four", BigDecimal.valueOf(2.5)),
-                    DecimalValue.of("property_three", BigDecimal.valueOf(1.2453)),
-                    DecimalValue.of("property_two", BigDecimal.valueOf(1.126)))
+                    DecimalValue.of("property_two", BigDecimal.valueOf(6))
+                )
             );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
 
-            Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+        try {
+            service.addRow(
+                "table_key_decimal_add_row",
+                List.of(
+                    DecimalValue.of("property_three", BigDecimal.valueOf(1))
+                )
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
 
-            try (var assertStatement = conn.createStatement()) {
-                assertStatement.execute("""   
-                    SELECT 1 WHERE EXISTS(
-                        SELECT * FROM table_key_decimal_add_row
-                        WHERE property_four = 2.5 AND property_three = 1.245 AND property_two = 1.126)""");
-                boolean hasNext = assertStatement.getResultSet().next();
-                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-            }
+        try {
+            service.addRow(
+                "table_key_decimal_add_row",
+                List.of(
+                    DecimalValue.of("property_four", BigDecimal.valueOf(10)))
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        try {
+            service.addRow(
+                "table_key_decimal_add_row",
+                List.of(
+                    DecimalValue.of("property_four", BigDecimal.valueOf(1)))
+            );
+            Assert.fail("Error should have been thrown");
+        } catch (SQLException ex) {
+        }
+
+        err = service.addRow(
+            "table_key_decimal_add_row",
+            List.of(
+                DecimalValue.of("property_four", BigDecimal.valueOf(2.5)),
+                DecimalValue.of("property_three", BigDecimal.valueOf(1.2453)),
+                DecimalValue.of("property_two", BigDecimal.valueOf(1.126)))
+        );
+
+        Assert.assertFalse(err.isPresent(), "Expected no error when adding row to the virtual table");
+
+        try (var assertStatement = connection.createStatement()) {
+            assertStatement.execute("""   
+                SELECT 1 WHERE EXISTS(
+                    SELECT * FROM table_key_decimal_add_row
+                    WHERE property_four = 2.5 AND property_three = 1.245 AND property_two = 1.126)""");
+            boolean hasNext = assertStatement.getResultSet().next();
+            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
     @Test
     void testRowDeletionFromTheVirtualTable() throws SQLException {
-        try (Connection conn = createConnection()) {
-            var service = new DefaultVirtualTableService(conn);
+        var service = new DefaultVirtualTableService(connection);
 
-            var newTable = new NewTable(
-                "table_key_delete_row",
-                "Table table",
-                "This is a test table",
-                List.of(
-                    StringProperty.builder()
-                        .key("property_one")
-                        .name("Property 1")
-                        .description("This is property 1")
-                        .defaultValue("default_value_1")
-                        .isRequired(true)
-                        .isUnique(false)
-                        .build()
-                )
-            );
+        var newTable = new NewTable(
+            "table_key_delete_row",
+            "Table table",
+            "This is a test table",
+            List.of(
+                StringProperty.builder()
+                    .key("property_one")
+                    .name("Property 1")
+                    .description("This is property 1")
+                    .defaultValue("default_value_1")
+                    .isRequired(true)
+                    .isUnique(false)
+                    .build()
+            )
+        );
 
-            var err = service.createTable(newTable);
-            Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        var err = service.createTable(newTable);
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
 
-            try (var statement = conn.createStatement()) {
-                statement.execute("INSERT INTO table_key_delete_row (property_one) VALUES ('value1');");
-                statement.execute("SELECT _id FROM table_key_delete_row WHERE property_one = 'value1';");
-                var resultSet = statement.getResultSet();
-                var hasNext = resultSet.next();
-                Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-                long rowId = resultSet.getLong("_id");
+        try (var statement = connection.createStatement()) {
+            statement.execute("INSERT INTO table_key_delete_row (property_one) VALUES ('value1');");
+            statement.execute("SELECT _id FROM table_key_delete_row WHERE property_one = 'value1';");
+            var resultSet = statement.getResultSet();
+            var hasNext = resultSet.next();
+            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            long rowId = resultSet.getLong("_id");
 
-                err = service.deleteRow("table_key_delete_row", rowId);
-                Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
-                try (var assertStatement = conn.createStatement()) {
-                    assertStatement.execute("""   
-                        SELECT 1 WHERE EXISTS(
-                            SELECT property_one FROM table_key_delete_row WHERE property_one = 'value1')""");
-                    hasNext = assertStatement.getResultSet().next();
-                    Assert.assertFalse(hasNext, "Expected the row to be deleted from the virtual table");
-                }
+            err = service.deleteRow("table_key_delete_row", rowId);
+            Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
+            try (var assertStatement = connection.createStatement()) {
+                assertStatement.execute("""   
+                    SELECT 1 WHERE EXISTS(
+                        SELECT property_one FROM table_key_delete_row WHERE property_one = 'value1')""");
+                hasNext = assertStatement.getResultSet().next();
+                Assert.assertFalse(hasNext, "Expected the row to be deleted from the virtual table");
             }
         }
     }
