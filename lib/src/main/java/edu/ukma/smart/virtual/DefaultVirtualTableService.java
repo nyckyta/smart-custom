@@ -1,25 +1,18 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.properties.*;
+import edu.ukma.smart.virtual.values.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
-
-import edu.ukma.smart.virtual.errors.Err;
-import edu.ukma.smart.virtual.errors.InputValidationErr;
-import edu.ukma.smart.virtual.properties.BooleanProperty;
-import edu.ukma.smart.virtual.properties.DecimalProperty;
-import edu.ukma.smart.virtual.properties.IntegerProperty;
-import edu.ukma.smart.virtual.properties.StringProperty;
-import edu.ukma.smart.virtual.values.BooleanValue;
-import edu.ukma.smart.virtual.values.ColumnValue;
-import edu.ukma.smart.virtual.values.DecimalValue;
-import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.StringValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DefaultVirtualTableService implements VirtualTableService {
 
@@ -60,7 +53,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             );
         }
 
-        var checks = new ArrayList<String>();
+        var constraints = new ArrayList<String>();
         for (var property : newTable.properties()) {
             if (!KEY_REGEXP.matcher(property.key()).matches()) {
                 log.error("Create table: Property key '{}' does not match the required pattern '{}'", newTable.key(), KEY_REGEXP);
@@ -71,16 +64,17 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 );
             }
 
-            if (property.isRequired() && property.defaultValue() == null) {
+            if (!(property instanceof ReferenceProperty) && property.isRequired() && property.defaultValue() == null) {
                 return Optional.of(InputValidationErr.error("Create table: Property key '%s' is required, default value is null"
                     .formatted(property.key())));
             }
 
             var err = switch (property) {
-                case StringProperty s -> addStringColumn(s, statementBuilder, checks);
-                case IntegerProperty i -> addIntegerColumn(i, statementBuilder, checks);
+                case StringProperty s -> addStringColumn(s, statementBuilder, constraints);
+                case IntegerProperty i -> addIntegerColumn(i, statementBuilder, constraints);
                 case BooleanProperty b -> addBooleanColumn(b, statementBuilder);
-                case DecimalProperty d -> addDecimalColumn(d, statementBuilder, checks);
+                case DecimalProperty d -> addDecimalColumn(d, statementBuilder, constraints);
+                case ReferenceProperty r -> addReferenceProperty(r, statementBuilder, constraints);
                 default -> throw new IllegalStateException("Unexpected value: " + property);
             };
 
@@ -89,7 +83,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
         }
 
-        checks.forEach(c -> statementBuilder.append(",%s".formatted(c)));
+        constraints.forEach(c -> statementBuilder.append(",%s".formatted(c)));
         statementBuilder.append(");");
 
         connection.beginRequest();
@@ -100,6 +94,27 @@ public class DefaultVirtualTableService implements VirtualTableService {
             connection.endRequest();
         }
 
+        return Optional.empty();
+    }
+
+    private Optional<InputValidationErr> addReferenceProperty(
+        ReferenceProperty r,
+        StringBuilder statementBuilder,
+        List<String> constraints
+    ) {
+        if (!KEY_REGEXP.matcher(r.refTableKey()).matches()) {
+            return Optional.of(InputValidationErr.error("Create table: wrong table reference %s".formatted(r.refTableKey())));
+        }
+
+        statementBuilder.append(
+            ",%s INTEGER %s %s\n".formatted(
+                r.key(),
+                r.isRequired() ? "NOT NULL" : "",
+                r.isUnique() ? "UNIQUE" : ""
+            )
+        );
+
+        constraints.add("FOREIGN KEY (%s) REFERENCES %s(_id)".formatted(r.key(), r.refTableKey()));
         return Optional.empty();
     }
 
@@ -181,11 +196,11 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     private static Optional<InputValidationErr> addStringColumn(StringProperty s, StringBuilder statementBuilder, List<String> checks) {
         statementBuilder.append(
-        ",%s TEXT DEFAULT %s %s %s\n".formatted(
-            s.key(),
-            s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
-            s.isRequired() ? "NOT NULL" : "",
-            s.isUnique() ? "UNIQUE" : "")
+            ",%s TEXT DEFAULT %s %s %s\n".formatted(
+                s.key(),
+                s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
+                s.isRequired() ? "NOT NULL" : "",
+                s.isUnique() ? "UNIQUE" : "")
         );
 
         if (s.maxLength() != null && s.minLength() != null) {
@@ -249,7 +264,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
 
-
     @Override
     public Optional<? extends Err> deleteTable(String tableKey) throws SQLException {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
@@ -280,14 +294,23 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
 
         if (columnValues.isEmpty()) {
-            log.error("Add row: No column values provided for table '{}'", tableKey);
-            return Optional.of(
-                InputValidationErr.error("At least one column value is required to add a row to table %s".formatted(tableKey))
-            );
+            var query = """
+                INSERT INTO %s DEFAULT VALUES;""".formatted(tableKey);
+
+            connection.beginRequest();
+            try (var statement = connection.createStatement()) {
+                log.debug("Executing SQL statement to add row:\n {}", query);
+                statement.execute(query);
+            } finally {
+                connection.endRequest();
+            }
+
+            return Optional.empty();
         }
 
         var columnsPart = new StringBuilder("(");
         var valuesPart = new StringBuilder("VALUES (");
+
         for (var column : columnValues) {
             if (!KEY_REGEXP.matcher(column.key()).matches()) {
                 log.error("Add row: Table key '{}' does not match the required pattern '{}'", tableKey, KEY_REGEXP);
@@ -298,10 +321,12 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
             columnsPart.append(column.key()).append(",");
             switch (column) {
-                case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
+                case StringValue s ->
+                    valuesPart.append("$$").append(s.value()).append("$$").append(",");
                 case IntegerValue i -> valuesPart.append(i.value()).append(",");
                 case BooleanValue b -> valuesPart.append(b.value()).append(",");
                 case DecimalValue d -> valuesPart.append(d.value()).append(",");
+                case ReferenceValue r -> valuesPart.append(r.value()).append(",");
                 default -> throw new IllegalStateException("Unexpected value: " + column);
             }
         }

@@ -2,14 +2,8 @@ package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
-import edu.ukma.smart.virtual.properties.BooleanProperty;
-import edu.ukma.smart.virtual.properties.DecimalProperty;
-import edu.ukma.smart.virtual.properties.IntegerProperty;
-import edu.ukma.smart.virtual.properties.StringProperty;
-import edu.ukma.smart.virtual.values.BooleanValue;
-import edu.ukma.smart.virtual.values.DecimalValue;
-import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.StringValue;
+import edu.ukma.smart.virtual.properties.*;
+import edu.ukma.smart.virtual.values.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -33,7 +27,8 @@ class DefaultVirtualTableServiceTest {
     private static final String DB_NAME = "test_db";
 
     private GenericContainer<?> container;
-    volatile private Connection connection;
+    private Connection connection;
+    private DefaultVirtualTableService service;
 
     @BeforeClass
     void startContainer() throws IOException, InterruptedException, SQLException {
@@ -45,6 +40,7 @@ class DefaultVirtualTableServiceTest {
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
         connection = createConnection();
+        service = new DefaultVirtualTableService(connection);
     }
 
     @AfterClass(alwaysRun = true)
@@ -151,7 +147,6 @@ class DefaultVirtualTableServiceTest {
             List.of()
         );
 
-        final var service = new DefaultVirtualTableService(connection);
         Optional<? extends Err> result = service.createTable(maliciousTable);
         // Assert
         assertTrue(result.isPresent(), "Expected validation error for malicious table key: " + maliciousKey);
@@ -176,7 +171,6 @@ class DefaultVirtualTableServiceTest {
             "table description",
             List.of(maliciousProperty)
         );
-        final var service = new DefaultVirtualTableService(connection);
         Optional<? extends Err> result = service.createTable(maliciousTable);
 
         // Assert
@@ -205,7 +199,6 @@ class DefaultVirtualTableServiceTest {
             "table description",
             List.of(maliciousProperty)
         );
-        final var service = new DefaultVirtualTableService(connection);
         Optional<? extends Err> result = service.createTable(maliciousTable);
 
         Assert.assertFalse(result.isPresent(), "Expected no errors on table creation");
@@ -222,7 +215,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test(dataProvider = "invalidMinMaxStringLengthInput")
     void testErrorWhenMinMaxConstrainsAreInvalid(Integer[] boundaries) throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
         var newTable = new NewTable(
             "table_key_1",
             "Table table",
@@ -247,7 +239,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testTableCreation() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         var newTable = new NewTable(
             "table_key",
@@ -357,7 +348,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testTableDeletion() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         // Create a table to delete
         var newTable = new NewTable(
@@ -395,7 +385,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testRowAddingToTheVirtualTable() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         var newTable = new NewTable(
             "add_row_test",
@@ -457,7 +446,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testLengthLimitValidationForTextProperties() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
         var newTable = new NewTable(
             "table_key_add_row",
             "Table table",
@@ -547,7 +535,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testMinMaxValidationForIntegerProperties() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         var newTable = new NewTable(
             "table_key_integer_add_row",
@@ -645,7 +632,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         var newTable = new NewTable(
             "table_key_decimal_add_row",
@@ -746,7 +732,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testRowDeletionFromTheVirtualTable() throws SQLException {
-        var service = new DefaultVirtualTableService(connection);
 
         var newTable = new NewTable(
             "table_key_delete_row",
@@ -784,6 +769,75 @@ class DefaultVirtualTableServiceTest {
                 hasNext = assertStatement.getResultSet().next();
                 Assert.assertFalse(hasNext, "Expected the row to be deleted from the virtual table");
             }
+        }
+    }
+
+    @Test
+    void testTableCreationWithReferenceProperty() throws SQLException {
+        var err = service.createTable(
+            NewTable
+                .builder()
+                .key("test_table_creation_with_reference_property")
+                .description("test_table_creation_with_reference_property_description")
+                .name("test_table_creation_with_reference_property")
+                .properties(List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .build()))
+                .build()
+        );
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        err = service.addRow("test_table_creation_with_reference_property", List.of());
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+
+        err = service.createTable(
+            NewTable
+                .builder()
+                .key("test_table_creation_with_reference_property_having_ref")
+                .name("test_table_creation_with_reference_property_having_ref")
+                .description("test_table_creation_with_reference_property_having_ref_description")
+                .properties(List.of(
+                        ReferenceProperty.builder()
+                            .key("test_table_creation_with_reference_property_ref_property")
+                            .name("test_table_creation_with_reference_property_ref_property")
+                            .description("test_table_creation_with_reference_property_ref_description")
+                            .refTableKey("test_table_creation_with_reference_property")
+                            .isRequired(true)
+                            .build()
+                    )
+                )
+                .build()
+        );
+        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+
+        try {
+            service.addRow(
+                "test_table_creation_with_reference_property_having_ref",
+                List.of(ReferenceValue.of("test_table_creation_with_reference_property_ref_property", 42))
+            );
+            Assert.fail("Expected exception being thrown");
+        } catch (SQLException e) {
+        }
+
+        try (final var statement = connection.createStatement()) {
+            statement.execute("SELECT _id FROM test_table_creation_with_reference_property");
+            statement.getResultSet().next();
+            var parentId = statement.getResultSet().getInt(1);
+
+            service.addRow(
+                "test_table_creation_with_reference_property_having_ref",
+                List.of(ReferenceValue.of("test_table_creation_with_reference_property_ref_property", parentId))
+            );
+
+            statement.clearBatch();
+            statement.execute("SELECT _id " +
+                "FROM test_table_creation_with_reference_property_having_ref " +
+                "WHERE test_table_creation_with_reference_property_ref_property = %d".formatted(parentId));
+            Assert.assertTrue(statement.getResultSet().next(), "Expected the row being returned with reference");
+        } catch (SQLException ex) {
+            Assert.fail("expected no errors for; got " + ex.getMessage() );
         }
     }
 
