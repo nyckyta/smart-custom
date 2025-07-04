@@ -7,7 +7,7 @@ public record DecimalValue(
     BigDecimal value
 ) implements ColumnValue {
 
-    public static DecimalValue of(String key, BigDecimal value) {
-        return new DecimalValue(key, value);
-    }
+  public static DecimalValue of(String key, BigDecimal value) {
+    return new DecimalValue(key, value);
+  }
 }

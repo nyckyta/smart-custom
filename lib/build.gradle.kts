@@ -8,6 +8,7 @@
 plugins {
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
+    `checkstyle`
 }
 
 repositories {
@@ -36,6 +37,10 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+checkstyle {
+    toolVersion = "10.26.1"
 }
 
 tasks.named<Test>("test") {

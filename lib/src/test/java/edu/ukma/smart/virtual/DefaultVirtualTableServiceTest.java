@@ -837,7 +837,7 @@ class DefaultVirtualTableServiceTest {
                 "WHERE test_table_creation_with_reference_property_ref_property = %d".formatted(parentId));
             Assert.assertTrue(statement.getResultSet().next(), "Expected the row being returned with reference");
         } catch (SQLException ex) {
-            Assert.fail("expected no errors for; got " + ex.getMessage() );
+            Assert.fail("expected no errors for; got " + ex.getMessage());
         }
     }
 
