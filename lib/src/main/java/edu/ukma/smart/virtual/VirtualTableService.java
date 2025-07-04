@@ -8,18 +8,18 @@ import java.util.Optional;
 
 public interface VirtualTableService {
 
-  /**
-   * Creates a new virtual table.
-   *
-   * @param newTable the details of the new table to create
-   * @return the created table
-   */
-  Optional<? extends Err> createTable(NewTable newTable) throws SQLException;
+    /**
+     * Creates a new virtual table.
+     *
+     * @param newTable the details of the new table to create
+     * @return the created table
+     */
+    Optional<? extends Err> createTable(NewTable newTable) throws SQLException;
 
-  Optional<? extends Err> deleteTable(String tableKey) throws SQLException;
+    Optional<? extends Err> deleteTable(String tableKey) throws SQLException;
 
-  Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues)
-      throws SQLException;
+    Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues)
+        throws SQLException;
 
-  Optional<? extends Err> deleteRow(String tableKey, int rowId) throws SQLException;
+    Optional<? extends Err> deleteRow(String tableKey, int rowId) throws SQLException;
 }

@@ -72,36 +72,45 @@
 -- Validate format of the field names and table name: done
 -- Support tables drop : done
 -- CRUD operations to tables
+
 -- Error handling avoiding exceptions
 - - basic checks: done
 - - Wrap sql exceptions (ideally vendor independant)
 - - error codes ?
-    -- String fields
+
+-- String fields
 - - Support default values for columns : done
 - - Support null/non null values : done
 - - Support min length/max length conditions: done
 - - Support regex validation
-    -- integer fields
+
+-- integer fields
 - - Support default values for columns: done
 - - Support null/non null values: done
 - - Support min/max values: done
-    -- boolean fields
+
+-- boolean fields
 - - Support default values for columns: done
 - - Support null/non null values: done
-    -- floating fields
+
+-- floating fields
 - - Support default values for columns: done
 - - Support null/non null values: done
 - - Support min/max values: done
-    -- Security
+
+-- Security
 - - SQL Injection protection. escape all special symbols before concat to string : done
 - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
-    -- References
+
+-- References
 - - Support references between custom entities: done
 - - Circular dependencies should we fight, how do we fight?
-    -- API for metainformation about entities
+
+-- API for metainformation about entities
 - - Get list of all custom entities
 - - Get list of fields for custom entity
-    -- What should we do with transactions?
+
+-- What should we do with transactions?
 
 ### Read/Write operation
 

@@ -2,15 +2,15 @@ package edu.ukma.smart.virtual.properties;
 
 public interface Property<T> {
 
-  String key();
+    String key();
 
-  String name();
+    String name();
 
-  String description();
+    String description();
 
-  boolean isUnique();
+    boolean isUnique();
 
-  boolean isRequired();
+    boolean isRequired();
 
-  T defaultValue();
+    T defaultValue();
 }

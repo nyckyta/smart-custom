@@ -6,12 +6,12 @@ import java.util.List;
 
 interface QueryBuilder {
 
-  Return<String> createTable(NewTable newTable);
+    Return<String> createTable(NewTable newTable);
 
-  Return<String> deleteTable(String tableKey);
+    Return<String> deleteTable(String tableKey);
 
-  Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue> columnValues);
+    Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue> columnValues);
 
-  Return<String> deleteFromTable(String tableKey, int rowId);
-  // TODO: extend
+    Return<String> deleteFromTable(String tableKey, int rowId);
+    // TODO: extend
 }

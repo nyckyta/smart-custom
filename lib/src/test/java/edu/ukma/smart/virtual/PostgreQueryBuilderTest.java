@@ -1,19 +1,23 @@
 package edu.ukma.smart.virtual;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.properties.*;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
+import edu.ukma.smart.virtual.properties.BooleanProperty;
+import edu.ukma.smart.virtual.properties.DecimalProperty;
+import edu.ukma.smart.virtual.properties.IntegerProperty;
+import edu.ukma.smart.virtual.properties.Property;
+import edu.ukma.smart.virtual.properties.ReferenceProperty;
+import edu.ukma.smart.virtual.properties.StringProperty;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class PostgreQueryBuilderTest {
 
@@ -71,7 +75,8 @@ public class PostgreQueryBuilderTest {
                 .scale(2)
                 .build()
         );
-        NewTable newTable = NewTable.builder().key("users").name("users").description("users").properties(properties).build();
+        NewTable newTable = NewTable.builder().key("users").name("users").description("users")
+            .properties(properties).build();
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -100,7 +105,8 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testCreateTableWithNoProperties() {
         // Given
-        NewTable newTable = new NewTable("empty_table", "empty_table", "empty_table", Collections.emptyList());
+        NewTable newTable =
+            new NewTable("empty_table", "empty_table", "empty_table", Collections.emptyList());
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -139,7 +145,7 @@ public class PostgreQueryBuilderTest {
 
     @DataProvider(name = "invalidTableKeys")
     public Object[][] invalidTableKeys() {
-        return new Object[][]{
+        return new Object[][] {
             {"Users"},           // uppercase
             {"user-name"},       // hyphen
             {"user name"},       // space
@@ -180,7 +186,7 @@ public class PostgreQueryBuilderTest {
 
     @DataProvider(name = "validTableKeys")
     public Object[][] validTableKeys() {
-        return new Object[][]{
+        return new Object[][] {
             {"users"},
             {"user_profile"},
             {"user_data_log"},
@@ -219,7 +225,7 @@ public class PostgreQueryBuilderTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testCreateTableWithInvalidPropertyKey(String invalidKey) {
         // Given
-        List<Property<?>> properties = Arrays.asList(
+        List<Property<?>> properties = List.of(
             StringProperty.builder()
                 .key(invalidKey)
                 .name("Name")

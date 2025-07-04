@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.properties.Property;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -12,46 +13,50 @@ public record NewTable(
     List<Property<?>> properties
 ) {
 
-  public static NewTableBuilder builder() {
-    return new NewTableBuilder();
-  }
-
-  public static final class NewTableBuilder {
-    private String key;
-    private String name;
-    private String description;
-    private List<Property<?>> properties;
-
-    private NewTableBuilder() {
+    public NewTable(String key, String name, String description, List<Property<?>> properties) {
+        throw new IllegalStateException("Not supported, use builder");
     }
 
-    public NewTableBuilder key(String key) {
-      this.key = key;
-      return this;
+    public static NewTableBuilder builder() {
+        return new NewTableBuilder();
     }
 
-    public NewTableBuilder name(String name) {
-      this.name = name;
-      return this;
-    }
+    public static final class NewTableBuilder {
+        private String key;
+        private String name;
+        private String description;
+        private List<Property<?>> properties;
 
-    public NewTableBuilder description(String description) {
-      this.description = description;
-      return this;
-    }
+        private NewTableBuilder() {
+        }
 
-    public NewTableBuilder properties(List<Property<?>> properties) {
-      this.properties = properties;
-      return this;
-    }
+        public NewTableBuilder key(String key) {
+            this.key = key;
+            return this;
+        }
 
-    public NewTable build() {
-      return new NewTable(
-          Objects.requireNonNull(key),
-          Objects.requireNonNull(name),
-          Objects.requireNonNull(description),
-          Objects.requireNonNull(properties)
-      );
+        public NewTableBuilder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public NewTableBuilder description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public NewTableBuilder properties(List<Property<?>> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public NewTable build() {
+            return new NewTable(
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(name),
+                Objects.requireNonNull(description),
+                Collections.unmodifiableList(properties)
+            );
+        }
     }
-  }
 }

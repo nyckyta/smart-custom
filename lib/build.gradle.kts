@@ -8,7 +8,8 @@
 plugins {
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
-    `checkstyle`
+    checkstyle
+    id("com.github.spotbugs") version "6.2.1"
 }
 
 repositories {
