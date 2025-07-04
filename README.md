@@ -97,7 +97,7 @@
   - - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
 -- References
   - - Support references between custom entities: done
-  - - Circular dependencies should we fight? 
+  - - Circular dependencies should we fight, how do we fight?
 -- API for metainformation about entities
   - - Get list of all custom entities
   - - Get list of fields for custom entity

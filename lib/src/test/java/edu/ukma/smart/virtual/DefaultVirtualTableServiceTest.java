@@ -758,7 +758,7 @@ class DefaultVirtualTableServiceTest {
             var resultSet = statement.getResultSet();
             var hasNext = resultSet.next();
             Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
-            long rowId = resultSet.getLong("_id");
+            int rowId = resultSet.getInt("_id");
 
             err = service.deleteRow("table_key_delete_row", rowId);
             Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
