@@ -4,7 +4,7 @@ import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import java.util.List;
 
-interface QueryBuilder {
+interface QueryGenerator {
 
     Return<String> createTable(NewTable newTable);
 

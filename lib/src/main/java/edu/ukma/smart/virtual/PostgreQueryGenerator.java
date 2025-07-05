@@ -20,12 +20,12 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class PostgreQueryBuilder implements QueryBuilder {
+class PostgreQueryGenerator implements QueryGenerator {
 
     private static final int MAX_PRECISION = 131072;
     private static final int MAX_SCALE = 16383;
     private static final Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,100}$");
-    private static final Logger log = LoggerFactory.getLogger(PostgreQueryBuilder.class);
+    private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
 
     private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i,
                                                                  StringBuilder statementBuilder,

@@ -27,11 +27,11 @@ import org.testng.annotations.Test;
 
 public class PostgreQueryBuilderTest {
 
-    private PostgreQueryBuilder queryBuilder;
+    private PostgreQueryGenerator queryBuilder;
 
     @BeforeMethod
     public void setUp() {
-        queryBuilder = new PostgreQueryBuilder();
+        queryBuilder = new PostgreQueryGenerator();
     }
 
     // ========== CREATE TABLE TESTS ==========

@@ -13,7 +13,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultVirtualTableService.class);
     private final Connection connection;
-    private final QueryBuilder queryBuilder = new PostgreQueryBuilder();
+    private final QueryGenerator queryBuilder = new PostgreQueryGenerator();
 
     public DefaultVirtualTableService(Connection connection) {
         this.connection = connection;
