@@ -8,9 +8,9 @@ public interface Property<T> {
 
     String description();
 
-    boolean isUnique();
+    boolean unique();
 
-    boolean isRequired();
+    boolean required();
 
     T defaultValue();
 }

@@ -30,7 +30,7 @@ class PostgreQueryBuilder implements QueryBuilder {
     private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i,
                                                                  StringBuilder statementBuilder,
                                                                  List<String> checks) {
-        if (i.isRequired() && i.defaultValue() == null) {
+        if (i.required() && i.defaultValue() == null) {
             return Optional.of(InputValidationErr.error(
                 "Create table: Property key '%s' is required, default value is null"
                     .formatted(i.key())));
@@ -40,8 +40,8 @@ class PostgreQueryBuilder implements QueryBuilder {
             ",%s BIGINT DEFAULT %s %s %s%n".formatted(
                 i.key(),
                 i.defaultValue() == null ? "NULL" : i.defaultValue(),
-                i.isRequired() ? "NOT NULL" : "",
-                i.isUnique() ? "UNIQUE" : ""
+                i.required() ? "NOT NULL" : "",
+                i.unique() ? "UNIQUE" : ""
             )
         );
 
@@ -73,7 +73,7 @@ class PostgreQueryBuilder implements QueryBuilder {
     private static Optional<InputValidationErr> addStringColumn(StringProperty s,
                                                                 StringBuilder statementBuilder,
                                                                 List<String> checks) {
-        if (s.isRequired() && s.defaultValue() == null) {
+        if (s.required() && s.defaultValue() == null) {
             return Optional.of(InputValidationErr.error(
                 "Create table: Property key '%s' is required, default value is null"
                     .formatted(s.key())));
@@ -82,8 +82,8 @@ class PostgreQueryBuilder implements QueryBuilder {
             ",%s TEXT DEFAULT %s %s %s%n".formatted(
                 s.key(),
                 s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
-                s.isRequired() ? "NOT NULL" : "",
-                s.isUnique() ? "UNIQUE" : "")
+                s.required() ? "NOT NULL" : "",
+                s.unique() ? "UNIQUE" : "")
         );
 
         if (s.maxLength() != null && s.minLength() != null) {
@@ -146,7 +146,7 @@ class PostgreQueryBuilder implements QueryBuilder {
 
     private static Optional<InputValidationErr> addBooleanColumn(BooleanProperty b,
                                                                  StringBuilder statementBuilder) {
-        if (b.isRequired() && b.defaultValue() == null) {
+        if (b.required() && b.defaultValue() == null) {
             return Optional.of(InputValidationErr.error(
                 "Create table: Property key '%s' is required, default value is null"
                     .formatted(b.key())));
@@ -156,8 +156,8 @@ class PostgreQueryBuilder implements QueryBuilder {
             ",%s BOOLEAN DEFAULT %s %s %s%n".formatted(
                 b.key(),
                 b.defaultValue() == null ? "NULL" : b.defaultValue(),
-                b.isRequired() ? "NOT NULL" : "",
-                b.isUnique() ? "UNIQUE" : ""
+                b.required() ? "NOT NULL" : "",
+                b.unique() ? "UNIQUE" : ""
             )
         );
 
@@ -296,6 +296,11 @@ class PostgreQueryBuilder implements QueryBuilder {
             return Return.error(InputValidationErr.error("Wrong table key %s".formatted(tableKey)));
         }
 
+        if (rowId <= 1) {
+            log.error("Delete row: row id is less than 1");
+            return Return.error(InputValidationErr.error("Row id cannot be less than 1"));
+        }
+
         var query = "DELETE FROM %s WHERE _id = %d;".formatted(tableKey, rowId);
         return Return.of(query);
     }
@@ -313,8 +318,8 @@ class PostgreQueryBuilder implements QueryBuilder {
         statementBuilder.append(
             ",%s INTEGER %s %s%n".formatted(
                 r.key(),
-                r.isRequired() ? "NOT NULL" : "",
-                r.isUnique() ? "UNIQUE" : ""
+                r.required() ? "NOT NULL" : "",
+                r.unique() ? "UNIQUE" : ""
             )
         );
 
@@ -325,7 +330,7 @@ class PostgreQueryBuilder implements QueryBuilder {
     private Optional<InputValidationErr> addDecimalColumn(DecimalProperty d,
                                                           StringBuilder statementBuilder,
                                                           List<String> checks) {
-        if (d.isRequired() && d.defaultValue() == null) {
+        if (d.required() && d.defaultValue() == null) {
             return Optional.of(InputValidationErr.error(
                 "Create table: Property key '%s' is required, default value is null"
                     .formatted(d.key())));
@@ -347,8 +352,8 @@ class PostgreQueryBuilder implements QueryBuilder {
                 d.precision(),
                 d.scale(),
                 d.defaultValue() == null ? "NULL" : d.defaultValue(),
-                d.isRequired() ? "NOT NULL" : "",
-                d.isUnique() ? "UNIQUE" : ""
+                d.required() ? "NOT NULL" : "",
+                d.unique() ? "UNIQUE" : ""
             )
         );
 

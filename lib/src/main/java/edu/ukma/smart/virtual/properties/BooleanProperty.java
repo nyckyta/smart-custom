@@ -1,12 +1,14 @@
 package edu.ukma.smart.virtual.properties;
 
+import java.util.Objects;
+
 public record BooleanProperty(
     String key,
     String name,
     String description,
     Boolean defaultValue,
-    boolean isRequired,
-    boolean isUnique
+    boolean required,
+    boolean unique
 ) implements Property<Boolean> {
 
     public static BooleanPropertyBuilder builder() {
@@ -48,18 +50,25 @@ public record BooleanProperty(
             return this;
         }
 
-        public BooleanPropertyBuilder isRequired(boolean isRequired) {
+        public BooleanPropertyBuilder required(boolean isRequired) {
             this.isRequired = isRequired;
             return this;
         }
 
-        public BooleanPropertyBuilder isUnique(boolean isUnique) {
+        public BooleanPropertyBuilder unique(boolean isUnique) {
             this.isUnique = isUnique;
             return this;
         }
 
         public BooleanProperty build() {
-            return new BooleanProperty(key, name, description, defaultValue, isRequired, isUnique);
+            return new BooleanProperty(
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(name),
+                description,
+                defaultValue,
+                isRequired,
+                isUnique
+            );
         }
     }
 }

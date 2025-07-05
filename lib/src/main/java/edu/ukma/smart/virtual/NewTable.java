@@ -14,7 +14,10 @@ public record NewTable(
 ) {
 
     public NewTable(String key, String name, String description, List<Property<?>> properties) {
-        throw new IllegalStateException("Not supported, use builder");
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.properties = Collections.unmodifiableList(properties);
     }
 
     public static NewTableBuilder builder() {
@@ -55,7 +58,7 @@ public record NewTable(
                 Objects.requireNonNull(key),
                 Objects.requireNonNull(name),
                 Objects.requireNonNull(description),
-                Collections.unmodifiableList(properties)
+                Objects.requireNonNull(properties)
             );
         }
     }

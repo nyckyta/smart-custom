@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import edu.ukma.smart.virtual.errors.InputValidationErr;
@@ -11,8 +12,13 @@ import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.Property;
 import edu.ukma.smart.virtual.properties.ReferenceProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.values.BooleanValue;
+import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.DecimalValue;
+import edu.ukma.smart.virtual.values.IntegerValue;
+import edu.ukma.smart.virtual.values.ReferenceValue;
+import edu.ukma.smart.virtual.values.StringValue;
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.testng.annotations.BeforeMethod;
@@ -33,14 +39,14 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testCreateTableWithValidProperties() {
         // Given
-        List<Property<?>> properties = Arrays.asList(
+        List<Property<?>> properties = List.of(
             StringProperty.builder()
                 .key("name")
                 .name("Name")
                 .description("User name")
                 .defaultValue("default_name")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .minLength(1)
                 .maxLength(50)
                 .build(),
@@ -49,8 +55,8 @@ public class PostgreQueryBuilderTest {
                 .name("Age")
                 .description("User age")
                 .defaultValue(25L)
-                .isRequired(false)
-                .isUnique(false)
+                .required(false)
+                .unique(false)
                 .min(0L)
                 .max(120L)
                 .build(),
@@ -59,16 +65,16 @@ public class PostgreQueryBuilderTest {
                 .name("Active")
                 .description("Is user active")
                 .defaultValue(true)
-                .isRequired(false)
-                .isUnique(false)
+                .required(false)
+                .unique(false)
                 .build(),
             DecimalProperty.builder()
                 .key("salary")
                 .name("Salary")
                 .description("User salary")
                 .defaultValue(new BigDecimal("50000.00"))
-                .isRequired(false)
-                .isUnique(false)
+                .required(false)
+                .unique(false)
                 .min(new BigDecimal("0.00"))
                 .max(new BigDecimal("999999.99"))
                 .precision(10)
@@ -123,8 +129,8 @@ public class PostgreQueryBuilderTest {
                 .key("user_id")
                 .name("User ID")
                 .description("Reference to user")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .refTableKey("users")
                 .build()
         );
@@ -156,7 +162,9 @@ public class PostgreQueryBuilderTest {
             {"a".repeat(102)},   // too long (more than 100 chars)
             {"user's"},          // apostrophe
             {"user;drop"},       // semicolon (SQL injection attempt)
-            {"user/*comment*/"}  // SQL comment injection
+            // SQL comment injection
+            {"user/*comment*/"},
+            {"user;--"}
         };
     }
 
@@ -169,8 +177,8 @@ public class PostgreQueryBuilderTest {
                 .name("Name")
                 .description("User name")
                 .defaultValue("default")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .minLength(1)
                 .maxLength(50)
                 .build()
@@ -204,8 +212,8 @@ public class PostgreQueryBuilderTest {
                 .name("Name")
                 .description("User name")
                 .defaultValue("default")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .minLength(1)
                 .maxLength(50)
                 .build()
@@ -231,8 +239,8 @@ public class PostgreQueryBuilderTest {
                 .name("Name")
                 .description("User name")
                 .defaultValue("default")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .minLength(1)
                 .maxLength(50)
                 .build()
@@ -258,8 +266,8 @@ public class PostgreQueryBuilderTest {
                 .name("Name")
                 .description("User name")
                 .defaultValue(null) // required but no default
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .minLength(1)
                 .maxLength(50)
                 .build()
@@ -281,8 +289,8 @@ public class PostgreQueryBuilderTest {
                 .key("user_id")
                 .name("User ID")
                 .description("Reference to user")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .refTableKey("users")
                 .build()
         );
@@ -303,8 +311,8 @@ public class PostgreQueryBuilderTest {
                 .key("user_id")
                 .name("User ID")
                 .description("Reference to user")
-                .isRequired(true)
-                .isUnique(false)
+                .required(true)
+                .unique(false)
                 .refTableKey("Invalid-Table")
                 .build()
         );
@@ -328,8 +336,8 @@ public class PostgreQueryBuilderTest {
                 .name("Price")
                 .description("Product price")
                 .defaultValue(new BigDecimal("100.00"))
-                .isRequired(false)
-                .isUnique(false)
+                .required(false)
+                .unique(false)
                 .precision(0) // precision = 0
                 .scale(2)
                 .build()
@@ -352,13 +360,462 @@ public class PostgreQueryBuilderTest {
                 .name("Price")
                 .description("Product price")
                 .defaultValue(new BigDecimal("100.00"))
-                .isRequired(false)
-                .isUnique(false)
+                .required(false)
+                .unique(false)
                 .precision(10)
                 .scale(0) // scale = 0
                 .build()
         );
         NewTable newTable = new NewTable("products", "products", "products", properties);
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testCreateTableWithStringMaxLengthLessThanMin() {
+        // Given
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("description")
+                .name("Description")
+                .defaultValue("default")
+                .minLength(10)
+                .maxLength(5) // max < min
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("items")
+            .name("Items Table")
+            .description("Test table for items")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testCreateTableWithStringInvalidMaxLength() {
+        // Given
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("description")
+                .name("Description")
+                .defaultValue("default")
+                .minLength(null)
+                .maxLength(0) // max = 0
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("items")
+            .name("Items Table")
+            .description("Test table for items")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testCreateTableWithStringInvalidMinLength() {
+        // Given
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("description")
+                .name("Description")
+                .defaultValue("default")
+                .minLength(0) // min = 0
+                .maxLength(null)
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("items")
+            .name("Items Table")
+            .description("Test table for items")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+// ========== DELETE TABLE TESTS ==========
+
+    @Test
+    public void testDeleteTableWithValidKey() {
+        // When
+        Return<String> result = queryBuilder.deleteTable("users");
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        assertEquals(result.value(), "DROP TABLE users;");
+    }
+
+    @Test(dataProvider = "invalidTableKeys")
+    public void testDeleteTableWithInvalidKey(String invalidKey) {
+        // When
+        Return<String> result = queryBuilder.deleteTable(invalidKey);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+// ========== INSERT INTO TABLE TESTS ==========
+
+    @Test
+    public void testInsertIntoTableWithValidData() {
+        // Given
+        List<ColumnValue> columnValues = List.of(
+            StringValue.of("name", "John Doe"),
+            IntegerValue.of("age", 30L),
+            BooleanValue.of("active", true),
+            DecimalValue.of("salary", new BigDecimal("50000.00")),
+            ReferenceValue.of("department_id", 1)
+        );
+
+        // When
+        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        String sql = result.value();
+
+        assertTrue(sql.contains("INSERT INTO users"));
+        assertTrue(sql.contains("(name,age,active,salary,department_id)"));
+        assertTrue(sql.contains("VALUES ($$John Doe$$,30,true,50000.00,1)"));
+    }
+
+    @Test
+    public void testInsertIntoTableWithNoColumns() {
+        // When
+        Return<String> result = queryBuilder.insertIntoTable("users", Collections.emptyList());
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        assertEquals(result.value(), "INSERT INTO users DEFAULT VALUES;");
+    }
+
+    @Test(dataProvider = "invalidTableKeys")
+    public void testInsertIntoTableWithInvalidTableKey(String invalidKey) {
+        // Given
+        List<ColumnValue> columnValues = List.of(StringValue.of("name", "John Doe"));
+
+        // When
+        Return<String> result = queryBuilder.insertIntoTable(invalidKey, columnValues);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test(dataProvider = "invalidTableKeys")
+    public void testInsertIntoTableWithInvalidColumnKey(String invalidKey) {
+        // Given
+        List<ColumnValue> columnValues = List.of(StringValue.of(invalidKey, "John Doe"));
+
+        // When
+        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+// ========== SQL INJECTION PROTECTION TESTS ==========
+
+    @Test
+    public void testInsertWithSQLInjectionAttemptInStringValue() {
+        // Given - Malicious SQL injection attempt in string value
+        List<ColumnValue> columnValues = List.of(
+            new StringValue("name", "'; DROP TABLE users; --")
+        );
+
+        // When
+        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        String sql = result.value();
+
+        // Verify the malicious content is properly escaped with $$ quoting
+        assertTrue(sql.contains("$$'; DROP TABLE users; --$$"));
+        // Ensure it doesn't contain unescaped semicolons that could terminate the statement
+        assertFalse(sql.matches(".*[^$]';.*"));
+    }
+
+    @Test
+    public void testInsertWithSQLInjectionAttemptInTableKey() {
+        // Given - Malicious SQL injection attempt in table key should be rejected
+        List<ColumnValue> columnValues = List.of(
+            new StringValue("name", "John")
+        );
+
+        // When
+        Return<String> result =
+            queryBuilder.insertIntoTable("users; DROP TABLE users; --", columnValues);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testInsertWithSQLInjectionAttemptInColumnKey() {
+        // Given - Malicious SQL injection attempt in column key should be rejected
+        List<ColumnValue> columnValues = List.of(
+            new StringValue("name; DROP TABLE users; --", "John")
+        );
+
+        // When
+        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testCreateTableWithSQLInjectionInStringDefault() {
+        // Given - Test that string default values are properly escaped
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("description")
+                .name("description")
+                .defaultValue("'; DROP TABLE users; --")
+                .minLength(1)
+                .maxLength(100)
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("items")
+            .name("Items Table")
+            .description("Test table for items")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        String sql = result.value();
+
+        // Verify the malicious content is properly escaped with $$ quoting
+        assertTrue(sql.contains("$$'; DROP TABLE users; --$$"));
+    }
+
+// ========== DELETE FROM TABLE TESTS ==========
+
+    @Test
+    public void testDeleteFromTableWithValidData() {
+        // When
+        Return<String> result = queryBuilder.deleteFromTable("users", 123);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        assertEquals(result.value(), "DELETE FROM users WHERE _id = 123;");
+    }
+
+    @Test(dataProvider = "invalidTableKeys")
+    public void testDeleteFromTableWithInvalidTableKey(String invalidKey) {
+        // When
+        Return<String> result = queryBuilder.deleteFromTable(invalidKey, 123);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testDeleteFromTableWithNegativeId() {
+        // When
+        Return<String> result = queryBuilder.deleteFromTable("users", -1);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+// ========== UNIQUE AND NOT NULL CONSTRAINT TESTS ==========
+
+    @Test
+    public void testCreateTableWithUniqueConstraints() {
+        // Given
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("email")
+                .name("email")
+                .required(true)
+                .unique(true)
+                .defaultValue("default@example.com")
+                .minLength(1)
+                .maxLength(100)
+                .build(),
+            IntegerProperty.builder()
+                .key("employee_id")
+                .name("employee_id")
+                .required(true)
+                .unique(true)
+                .defaultValue(1000L)
+                .min(null)
+                .max(null)
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("employees")
+            .name("Employees Table")
+            .description("Table for storing employee information")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        String sql = result.value();
+
+        assertTrue(sql.contains("email TEXT DEFAULT $$default@example.com$$ NOT NULL UNIQUE"));
+        assertTrue(sql.contains("employee_id BIGINT DEFAULT 1000 NOT NULL UNIQUE"));
+    }
+
+    @Test
+    public void testCreateTableWithNullableColumns() {
+        // Given
+        List<Property<?>> properties = List.of(
+            StringProperty.builder()
+                .key("middle_name")
+                .name("Middle Name Table")
+                .required(false)
+                .unique(false)
+                .defaultValue(null)
+                .minLength(1)
+                .maxLength(50)
+                .build(),
+            IntegerProperty.builder()
+                .key("optional_number")
+                .name("Optional Number Table")
+                .required(false)
+                .unique(false)
+                .defaultValue(null)
+                .min(null)
+                .max(null)
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("people")
+            .name("People Table")
+            .description("Table for storing people information")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        String sql = result.value();
+
+        assertTrue(sql.contains("middle_name TEXT DEFAULT NULL"));
+        assertTrue(sql.contains("optional_number BIGINT DEFAULT NULL"));
+        // Should not contain NOT NULL for these columns
+        assertFalse(sql.matches(".*middle_name.*NOT NULL.*"));
+        assertFalse(sql.matches(".*optional_number.*NOT NULL.*"));
+    }
+
+// ========== BOUNDARY VALUE TESTS ==========
+
+    @Test
+    public void testCreateTableWithMaxPrecisionAndScale() {
+        // Given
+        List<Property<?>> properties = List.of(
+            DecimalProperty.builder()
+                .key("big_decimal")
+                .name("Big Decimal Table")
+                .required(false)
+                .unique(false)
+                .defaultValue(new BigDecimal("0"))
+                .min(null)
+                .max(null)
+                .precision(131072) // MAX value
+                .scale(16383) // MAX value
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("test_table")
+            .name("Test Table")
+            .description("Table for testing maximum precision and scale")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isEmpty());
+        assertTrue(result.value().contains("NUMERIC(131072,16383)"));
+    }
+
+    @Test
+    public void testCreateTableWithExceededPrecision() {
+        // Given
+        List<Property<?>> properties = List.of(
+            DecimalProperty.builder()
+                .key("big_decimal")
+                .name("Big Decimal Table")
+                .required(false)
+                .unique(false)
+                .defaultValue(new BigDecimal("0"))
+                .min(null)
+                .max(null)
+                .precision(131073) // Exceeds MAX_PRECISION
+                .scale(2)
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("test_table")
+            .name("Test Table")
+            .description("Table for testing precision validation")
+            .properties(properties)
+            .build();
+
+        // When
+        Return<String> result = queryBuilder.createTable(newTable);
+
+        // Then
+        assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testCreateTableWithExceededScale() {
+        // Given
+        List<Property<?>> properties = List.of(
+            DecimalProperty.builder()
+                .key("big_decimal")
+                .name("Big Decimal Table")
+                .required(false)
+                .unique(false)
+                .defaultValue(new BigDecimal("0"))
+                .min(null)
+                .max(null)
+                .precision(10)
+                .scale(16384) // Exceeds MAX_SCALE
+                .build()
+        );
+        NewTable newTable = NewTable.builder()
+            .key("test_table")
+            .name("Test Table")
+            .description("Table for testing scale validation")
+            .properties(properties)
+            .build();
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);

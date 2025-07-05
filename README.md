@@ -72,6 +72,10 @@
 -- Validate format of the field names and table name: done
 -- Support tables drop : done
 -- CRUD operations to tables
+- -  Create row: done
+- -  Edit row
+- -  Delete row: done
+- -  Get row (more sophisticated selects mby ?)
 
 -- Error handling avoiding exceptions
 - - basic checks: done

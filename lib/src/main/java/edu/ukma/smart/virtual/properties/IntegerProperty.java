@@ -1,12 +1,14 @@
 package edu.ukma.smart.virtual.properties;
 
+import java.util.Objects;
+
 public record IntegerProperty(
     String key,
     String name,
     String description,
     Long defaultValue,
-    boolean isRequired,
-    boolean isUnique,
+    boolean required,
+    boolean unique,
     Long max,
     Long min
 ) implements Property<Long> {
@@ -20,8 +22,8 @@ public record IntegerProperty(
         private String name;
         private String description;
         private Long defaultValue;
-        private boolean isRequired;
-        private boolean isUnique;
+        private boolean required;
+        private boolean unique;
         private Long max;
         private Long min;
 
@@ -52,13 +54,13 @@ public record IntegerProperty(
             return this;
         }
 
-        public IntegerPropertyBuilder isRequired(boolean isRequired) {
-            this.isRequired = isRequired;
+        public IntegerPropertyBuilder required(boolean isRequired) {
+            this.required = isRequired;
             return this;
         }
 
-        public IntegerPropertyBuilder isUnique(boolean isUnique) {
-            this.isUnique = isUnique;
+        public IntegerPropertyBuilder unique(boolean isUnique) {
+            this.unique = isUnique;
             return this;
         }
 
@@ -73,7 +75,13 @@ public record IntegerProperty(
         }
 
         public IntegerProperty build() {
-            return new IntegerProperty(key, name, description, defaultValue, isRequired, isUnique,
+            return new IntegerProperty(
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(name),
+                description,
+                defaultValue,
+                required,
+                unique,
                 max,
                 min);
         }

@@ -8,8 +8,8 @@ public record StringProperty(
     String name,
     String description,
     String defaultValue,
-    boolean isRequired,
-    boolean isUnique,
+    boolean required,
+    boolean unique,
     Integer maxLength,
     Integer minLength
 ) implements Property<String> {
@@ -46,12 +46,12 @@ public record StringProperty(
             return this;
         }
 
-        public PropertyBuilder isRequired(boolean isRequired) {
+        public PropertyBuilder required(boolean isRequired) {
             this.isRequired = isRequired;
             return this;
         }
 
-        public PropertyBuilder isUnique(boolean isUnique) {
+        public PropertyBuilder unique(boolean isUnique) {
             this.isUnique = isUnique;
             return this;
         }
@@ -76,7 +76,7 @@ public record StringProperty(
             return new StringProperty(
                 Objects.requireNonNull(key),
                 Objects.requireNonNull(name),
-                Objects.requireNonNull(description),
+                description,
                 defaultValue,
                 isRequired,
                 isUnique,

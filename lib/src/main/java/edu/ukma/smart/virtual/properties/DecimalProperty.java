@@ -1,18 +1,19 @@
 package edu.ukma.smart.virtual.properties;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public record DecimalProperty(
     String key,
     String name,
     String description,
     BigDecimal defaultValue,
-    boolean isRequired,
-    boolean isUnique,
+    boolean required,
+    boolean unique,
     int precision,
     int scale,
-    BigDecimal max,
-    BigDecimal min
+    BigDecimal min,
+    BigDecimal max
 ) implements Property<BigDecimal> {
 
     public static DecimalPropertyBuilder builder() {
@@ -24,8 +25,8 @@ public record DecimalProperty(
         private String name;
         private String description;
         private BigDecimal defaultValue;
-        private boolean isRequired;
-        private boolean isUnique;
+        private boolean required;
+        private boolean unique;
         private int precision;
         private int scale;
         private BigDecimal max;
@@ -58,13 +59,13 @@ public record DecimalProperty(
             return this;
         }
 
-        public DecimalPropertyBuilder isRequired(boolean isRequired) {
-            this.isRequired = isRequired;
+        public DecimalPropertyBuilder required(boolean isRequired) {
+            this.required = isRequired;
             return this;
         }
 
-        public DecimalPropertyBuilder isUnique(boolean isUnique) {
-            this.isUnique = isUnique;
+        public DecimalPropertyBuilder unique(boolean isUnique) {
+            this.unique = isUnique;
             return this;
         }
 
@@ -89,8 +90,18 @@ public record DecimalProperty(
         }
 
         public DecimalProperty build() {
-            return new DecimalProperty(key, name, description, defaultValue, isRequired, isUnique,
-                precision, scale, max, min);
+            return new DecimalProperty(
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(name),
+                description,
+                defaultValue,
+                required,
+                unique,
+                precision,
+                scale,
+                min,
+                max
+            );
         }
     }
 }

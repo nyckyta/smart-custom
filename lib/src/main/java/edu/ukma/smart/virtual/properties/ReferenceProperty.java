@@ -1,11 +1,13 @@
 package edu.ukma.smart.virtual.properties;
 
+import java.util.Objects;
+
 public record ReferenceProperty(
     String key,
     String name,
     String description,
-    boolean isRequired,
-    boolean isUnique,
+    boolean required,
+    boolean unique,
     Void defaultValue,
     String refTableKey
 ) implements Property<Void> {
@@ -22,8 +24,8 @@ public record ReferenceProperty(
 
     public static final class ReferencePropertyBuilder {
         private String refTableKey;
-        private boolean isUnique;
-        private boolean isRequired;
+        private boolean unique;
+        private boolean required;
         private String key;
         private String description;
         private String name;
@@ -40,13 +42,13 @@ public record ReferenceProperty(
             return this;
         }
 
-        public ReferencePropertyBuilder isUnique(boolean isUnique) {
-            this.isUnique = isUnique;
+        public ReferencePropertyBuilder unique(boolean isUnique) {
+            this.unique = isUnique;
             return this;
         }
 
-        public ReferencePropertyBuilder isRequired(boolean isRequired) {
-            this.isRequired = isRequired;
+        public ReferencePropertyBuilder required(boolean isRequired) {
+            this.required = isRequired;
             return this;
         }
 
@@ -66,8 +68,15 @@ public record ReferenceProperty(
         }
 
         public ReferenceProperty build() {
-            return new ReferenceProperty(key, name, description, isRequired, isUnique, null,
-                refTableKey);
+            return new ReferenceProperty(
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(name),
+                description,
+                required,
+                unique,
+                null,
+                Objects.requireNonNull(refTableKey)
+            );
         }
     }
 }
