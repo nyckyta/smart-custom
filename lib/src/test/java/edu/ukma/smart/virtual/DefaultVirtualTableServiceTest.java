@@ -1,5 +1,7 @@
 package edu.ukma.smart.virtual;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import edu.ukma.smart.virtual.errors.Err;
@@ -653,7 +655,6 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
-
         var newTable = new NewTable(
             "table_key_decimal_add_row",
             "Table table",
@@ -783,8 +784,7 @@ class DefaultVirtualTableServiceTest {
             int rowId = resultSet.getInt("_id");
 
             err = service.deleteRow("table_key_delete_row", rowId);
-            Assert.assertFalse(err.isPresent(),
-                "Expected no error when deleting row from the virtual table");
+            Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
             try (var assertStatement = connection.createStatement()) {
                 assertStatement.execute("""   
                     SELECT 1 WHERE EXISTS(
@@ -868,6 +868,106 @@ class DefaultVirtualTableServiceTest {
                 "Expected the row being returned with reference");
         } catch (SQLException ex) {
             Assert.fail("expected no errors for; got " + ex.getMessage());
+        }
+    }
+
+    @Test
+    void testTableRowUpdate() throws SQLException {
+        var err = service.createTable(
+            NewTable
+                .builder()
+                .key("test_table_row_update_base_table")
+                .name("base_table_name")
+                .description("base_table_description")
+                .properties(List.of(
+                    IntegerProperty
+                        .builder()
+                        .key("int_prop")
+                        .name("int_prop_name")
+                        .description("int_prop_description")
+                        .build()
+                ))
+                .build()
+        );
+
+        err = service.addRow("test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 1L)));
+        assertFalse(err.isPresent());
+        err = service.addRow("test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 2L)));
+        assertFalse(err.isPresent());
+
+
+        err = service.createTable(
+            NewTable
+                .builder()
+                .key("test_table_row_update")
+                .description("test_table_row_update_description")
+                .name("test_table_row_update_name")
+                .properties(List.of(
+                    IntegerProperty
+                        .builder()
+                        .key("int_prop")
+                        .name("int_prop_name")
+                        .description("int_prop_description")
+                        .build(),
+                    DecimalProperty
+                        .builder()
+                        .key("decimal_prop")
+                        .name("decimal_prop_name")
+                        .description("decimal_prop_name")
+                        .precision(10)
+                        .scale(2)
+                        .build(),
+                    StringProperty.builder()
+                        .key("string_prop")
+                        .name("string_prop")
+                        .description("string_prop")
+                        .build(),
+                    BooleanProperty.builder()
+                        .key("boolean_prop")
+                        .name("boolean_prop")
+                        .description("boolean_prop")
+                        .build(),
+                    ReferenceProperty.builder()
+                        .key("ref_prop")
+                        .name("ref_name")
+                        .description("ref_description")
+                        .refTableKey("test_table_row_update_base_table")
+                        .build()
+                ))
+                .build()
+        );
+        assertFalse(err.isPresent());
+
+        err = service.addRow(
+            "test_table_row_update",
+            List.of(
+                IntegerValue.of("int_prop", 1L),
+                DecimalValue.of("decimal_prop", new BigDecimal(25.5)),
+                StringValue.of("string_prop", "123"),
+                BooleanValue.of("boolean_prop", true),
+                ReferenceValue.of("ref_prop", 1))
+        );
+
+        assertFalse(err.isPresent());
+
+        err = service.updateRow(
+            UpdateRow.of("test_table_row_update", 1, List.of(
+                IntegerValue.of("int_prop", 2L),
+                DecimalValue.of("decimal_prop", new BigDecimal(35.5)),
+                StringValue.of("string_prop", "321"),
+                BooleanValue.of("boolean_prop", false),
+                ReferenceValue.of("ref_prop", 2)
+            ))
+        );
+
+        assertFalse(err.isPresent());
+
+        try (final var statement = connection.createStatement()) {
+            statement.execute("SELECT _id FROM test_table_row_update" +
+                " WHERE int_prop = 2 AND decimal_prop = 35.5 AND string_prop = '321' AND boolean_prop = FALSE AND ref_prop = 2"
+            );
+            assertTrue(statement.getResultSet().next());
+            assertEquals(statement.getResultSet().getInt(1), 1);
         }
     }
 

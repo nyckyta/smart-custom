@@ -72,8 +72,8 @@
 -- Validate format of the field names and table name: done
 -- Support tables drop : done
 -- CRUD operations to tables
-- -  Create row: done
-- -  Edit row
+- -  Create row: done 
+- -  Edit row : done
 - -  Delete row: done
 - -  Get row (more sophisticated selects mby ?) / get row
 
@@ -113,6 +113,8 @@
 -- API for metainformation about entities
 - - Get list of all custom entities
 - - Get list of fields for custom entity
+
+-- put limits on number of created columns allowed
 
 -- What should we do with transactions?
 -- Add interface configuring the lib.

@@ -1,7 +1,12 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.DecimalValue;
+import edu.ukma.smart.virtual.values.IntegerValue;
+import edu.ukma.smart.virtual.values.ReferenceValue;
+import edu.ukma.smart.virtual.values.StringValue;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -57,6 +62,33 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
+    public Optional<? extends Err> updateRow(UpdateRow updateRow) throws SQLException {
+        var query = queryBuilder.updateRow(updateRow);
+        if (query.error().isPresent()) {
+            return query.error();
+        }
+
+        int index = 1;
+        try (final var statement = connection.prepareStatement(query.value())) {
+            for (var value : updateRow.valuesToUpdate()) {
+                switch (value) {
+                    case StringValue s -> statement.setString(index, s.value());
+                    case IntegerValue i -> statement.setLong(index, i.value());
+                    case BooleanValue b -> statement.setBoolean(index, b.value());
+                    case DecimalValue d -> statement.setBigDecimal(index, d.value());
+                    case ReferenceValue r -> statement.setInt(index, r.value());
+                    default -> throw new IllegalStateException("Unexpected value: " + value);
+                }
+                index += 1;
+            }
+            statement.setInt(index, updateRow.rowId());
+            statement.execute();
+        }
+
+        return Optional.empty();
+    }
+
+    @Override
     public Optional<? extends Err> deleteRow(String tableKey, int rowId) throws SQLException {
         var query = queryBuilder.deleteFromTable(tableKey, rowId);
         if (query.error().isPresent()) {
@@ -77,3 +109,4 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
     }
 }
+

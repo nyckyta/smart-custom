@@ -241,9 +241,45 @@ class PostgreQueryGenerator implements QueryGenerator {
         return Return.of("DROP TABLE %s;".formatted(tableKey));
     }
 
+
     @Override
-    public Return<String> insertIntoTable(String tableKey,
-                                          List<? extends ColumnValue<?>> columnValues) {
+    public Return<String> updateRow(UpdateRow updateRow) {
+        if (!KEY_REGEXP.matcher(updateRow.tableKey()).matches()) {
+            log.error("Update row: Table key '{}' does not match the required pattern '{}'", updateRow.tableKey(),
+                KEY_REGEXP);
+            return Return.error(InputValidationErr.error("Wrong table key %s".formatted(updateRow.tableKey())));
+        }
+
+        if (updateRow.rowId() < 1) {
+            log.error("Update row: row id is less than 1");
+            return Return.error(InputValidationErr.error("Row id cannot be less than 1"));
+        }
+
+        if (updateRow.valuesToUpdate().isEmpty()) {
+            log.error("Update row: no values provided to update row");
+            return Return.error(InputValidationErr.error("No values provided to update row"));
+        }
+
+        var queryBuilder = new StringBuilder()
+            .append("UPDATE public.%s SET ".formatted(updateRow.tableKey()));
+        for (var column : updateRow.valuesToUpdate()) {
+            if (!KEY_REGEXP.matcher(column.key()).matches()) {
+                log.error("Update row: Column key '{}' does not match the required pattern '{}'", column.key(),
+                    KEY_REGEXP);
+                return Return.error(InputValidationErr.error("Wrong table key %s".formatted(column.key())));
+            }
+
+            queryBuilder.append("%s=?,".formatted(column.key()));
+        }
+
+        // remove last comma
+        queryBuilder.deleteCharAt(queryBuilder.length() - 1);
+        queryBuilder.append(" WHERE _id=?;");
+        return Return.of(queryBuilder.toString());
+    }
+
+    @Override
+    public Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue<?>> columnValues) {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
             log.error("Insert: Table key '{}' does not match the required pattern '{}'", tableKey,
                 KEY_REGEXP);
@@ -259,17 +295,14 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         for (var column : columnValues) {
             if (!KEY_REGEXP.matcher(column.key()).matches()) {
-                log.error("Add row: Table key '{}' does not match the required pattern '{}'",
-                    tableKey,
-                    KEY_REGEXP);
+                log.error("Add row: Column key '{}' does not match the required pattern '{}'", column.key(), KEY_REGEXP);
                 return Return.error(
-                    InputValidationErr.error("Wrong table key %s".formatted(tableKey)));
+                    InputValidationErr.error("Wrong table key %s".formatted(column.key())));
             }
 
             columnsPart.append(column.key()).append(",");
             switch (column) {
-                case StringValue s ->
-                    valuesPart.append("$$").append(s.value()).append("$$").append(",");
+                case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
                 case IntegerValue i -> valuesPart.append(i.value()).append(",");
                 case BooleanValue b -> valuesPart.append(b.value()).append(",");
                 case DecimalValue d -> valuesPart.append(d.value()).append(",");
@@ -296,7 +329,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(InputValidationErr.error("Wrong table key %s".formatted(tableKey)));
         }
 
-        if (rowId <= 1) {
+        if (rowId < 1) {
             log.error("Delete row: row id is less than 1");
             return Return.error(InputValidationErr.error("Row id cannot be less than 1"));
         }

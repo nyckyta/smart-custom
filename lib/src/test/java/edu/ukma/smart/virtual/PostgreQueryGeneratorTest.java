@@ -25,7 +25,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class PostgreQueryBuilderTest {
+public class PostgreQueryGeneratorTest {
 
     private PostgreQueryGenerator queryBuilder;
 
@@ -822,5 +822,86 @@ public class PostgreQueryBuilderTest {
 
         // Then
         assertTrue(result.error().isPresent());
+    }
+
+    @Test
+    public void testUpdateQueryGenerating() {
+        var updateRow = edu.ukma.smart.virtual.UpdateRow.of(
+            "table_key",
+            1,
+            List.of(
+                StringValue.of("s_prop", "123"),
+                IntegerValue.of("i_prop", 123L),
+                BooleanValue.of("b_prop", true),
+                ReferenceValue.of("r_prop", 123),
+                DecimalValue.of("d_prop", new BigDecimal("123.321"))
+            )
+        );
+
+        var query = queryBuilder.updateRow(updateRow);
+
+        assertFalse(query.error().isPresent());
+        assertEquals(query.value(), "UPDATE public.table_key SET s_prop=?,i_prop=?,b_prop=?,r_prop=?,d_prop=? WHERE _id=?;");
+    }
+
+    @Test
+    public void testUpdateQueryGeneratingFailsOnInvalidTableKey() {
+        var updateRow = edu.ukma.smart.virtual.UpdateRow.of(
+            "t",
+            1,
+            List.of(
+                DecimalValue.of("d_prop", new BigDecimal("123.321"))
+            )
+        );
+
+        var query = queryBuilder.updateRow(updateRow);
+
+        assertTrue(query.error().isPresent());
+    }
+
+    @Test
+    public void testUpdateQueryGeneratingFailsOnInvalidProperty() {
+        var updateRow = edu.ukma.smart.virtual.UpdateRow.of(
+            "valid",
+            1,
+            List.of(
+                StringValue.of("s_prop", "123"),
+                IntegerValue.of("i_prop", 123L),
+                BooleanValue.of("b_prop", true),
+                ReferenceValue.of("1", 1),
+                DecimalValue.of("d_prop", new BigDecimal("123.321"))
+            )
+        );
+
+        var query = queryBuilder.updateRow(updateRow);
+
+        assertTrue(query.error().isPresent());
+    }
+
+    @Test
+    public void testUpdateQueryGeneratingFailsOnInvalidRowId() {
+        var updateRow = edu.ukma.smart.virtual.UpdateRow.of(
+            "valid",
+            0,
+            List.of(
+                DecimalValue.of("d_prop", new BigDecimal("123.321"))
+            )
+        );
+
+        var query = queryBuilder.updateRow(updateRow);
+
+        assertTrue(query.error().isPresent());
+    }
+
+    @Test
+    public void testUpdateQueryGeneratingFailsOnEmptySetList() {
+        var updateRow = edu.ukma.smart.virtual.UpdateRow.of(
+            "valid",
+            1,
+            List.of()
+        );
+
+        var query = queryBuilder.updateRow(updateRow);
+        assertTrue(query.error().isPresent());
     }
 }

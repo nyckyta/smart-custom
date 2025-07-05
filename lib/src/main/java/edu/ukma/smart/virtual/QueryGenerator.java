@@ -12,7 +12,7 @@ interface QueryGenerator {
 
     Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue<?>> columnValues);
 
-    Return<String> updateRow(String tableKey, List<? extends ColumnValue<?>> columnValues);
+    Return<String> updateRow(UpdateRow updateRow);
 
     Return<String> deleteFromTable(String tableKey, int rowId);
     // TODO: extend
