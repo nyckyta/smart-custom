@@ -243,7 +243,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     @Override
     public Return<String> insertIntoTable(String tableKey,
-                                          List<? extends ColumnValue> columnValues) {
+                                          List<? extends ColumnValue<?>> columnValues) {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
             log.error("Insert: Table key '{}' does not match the required pattern '{}'", tableKey,
                 KEY_REGEXP);

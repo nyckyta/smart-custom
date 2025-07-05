@@ -45,7 +45,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     @Override
     // TODO: error handling for sql exceptions
-    public Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue> columnValues)
+    public Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue<?>> columnValues)
         throws SQLException {
         var query = queryBuilder.insertIntoTable(tableKey, columnValues);
         if (query.error().isPresent()) {

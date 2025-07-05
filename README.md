@@ -75,7 +75,7 @@
 - -  Create row: done
 - -  Edit row
 - -  Delete row: done
-- -  Get row (more sophisticated selects mby ?)
+- -  Get row (more sophisticated selects mby ?) / get row
 
 -- Error handling avoiding exceptions
 - - basic checks: done
@@ -104,7 +104,7 @@
 
 -- Security
 - - SQL Injection protection. escape all special symbols before concat to string : done
-- - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?
+- - Check tables live in dedicated schema, organize separation of roles (dedicated user for custom schema?)
 
 -- References
 - - Support references between custom entities: done
@@ -115,6 +115,7 @@
 - - Get list of fields for custom entity
 
 -- What should we do with transactions?
+-- Add interface configuring the lib.
 
 ### Read/Write operation
 

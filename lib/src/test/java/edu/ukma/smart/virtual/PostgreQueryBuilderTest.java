@@ -479,7 +479,7 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testInsertIntoTableWithValidData() {
         // Given
-        List<ColumnValue> columnValues = List.of(
+        List<ColumnValue<?>> columnValues = List.of(
             StringValue.of("name", "John Doe"),
             IntegerValue.of("age", 30L),
             BooleanValue.of("active", true),
@@ -512,7 +512,7 @@ public class PostgreQueryBuilderTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testInsertIntoTableWithInvalidTableKey(String invalidKey) {
         // Given
-        List<ColumnValue> columnValues = List.of(StringValue.of("name", "John Doe"));
+        List<ColumnValue<?>> columnValues = List.of(StringValue.of("name", "John Doe"));
 
         // When
         Return<String> result = queryBuilder.insertIntoTable(invalidKey, columnValues);
@@ -524,7 +524,7 @@ public class PostgreQueryBuilderTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testInsertIntoTableWithInvalidColumnKey(String invalidKey) {
         // Given
-        List<ColumnValue> columnValues = List.of(StringValue.of(invalidKey, "John Doe"));
+        List<ColumnValue<?>> columnValues = List.of(StringValue.of(invalidKey, "John Doe"));
 
         // When
         Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
@@ -538,7 +538,7 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testInsertWithSQLInjectionAttemptInStringValue() {
         // Given - Malicious SQL injection attempt in string value
-        List<ColumnValue> columnValues = List.of(
+        List<ColumnValue<?>> columnValues = List.of(
             new StringValue("name", "'; DROP TABLE users; --")
         );
 
@@ -558,7 +558,7 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testInsertWithSQLInjectionAttemptInTableKey() {
         // Given - Malicious SQL injection attempt in table key should be rejected
-        List<ColumnValue> columnValues = List.of(
+        List<ColumnValue<?>> columnValues = List.of(
             new StringValue("name", "John")
         );
 
@@ -573,7 +573,7 @@ public class PostgreQueryBuilderTest {
     @Test
     public void testInsertWithSQLInjectionAttemptInColumnKey() {
         // Given - Malicious SQL injection attempt in column key should be rejected
-        List<ColumnValue> columnValues = List.of(
+        List<ColumnValue<?>> columnValues = List.of(
             new StringValue("name; DROP TABLE users; --", "John")
         );
 
