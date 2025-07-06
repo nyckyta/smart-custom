@@ -57,7 +57,22 @@ public class DefaultVirtualTableService implements VirtualTableService {
             return query.error();
         }
 
-        executeStatement(query.value());
+        try (final var statement = connection.prepareStatement(query.value())) {
+            int index = 1;
+            for (final var cv : columnValues) {
+                switch (cv) {
+                    case StringValue s -> statement.setString(index, s.value());
+                    case IntegerValue i -> statement.setLong(index, i.value());
+                    case BooleanValue b -> statement.setBoolean(index, b.value());
+                    case DecimalValue d -> statement.setBigDecimal(index, d.value());
+                    case ReferenceValue r -> statement.setInt(index, r.value());
+                    default -> throw new IllegalStateException("Unexpected value: " + cv);
+                }
+                index += 1;
+            }
+            statement.execute();
+        }
+
         return Optional.empty();
     }
 

@@ -494,9 +494,7 @@ public class PostgreQueryGeneratorTest {
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertTrue(sql.contains("INSERT INTO users"));
-        assertTrue(sql.contains("(name,age,active,salary,department_id)"));
-        assertTrue(sql.contains("VALUES ($$John Doe$$,30,true,50000.00,1)"));
+        assertEquals(sql, "INSERT INTO users (name,age,active,salary,department_id) VALUES (?,?,?,?,?);");
     }
 
     @Test
@@ -550,9 +548,7 @@ public class PostgreQueryGeneratorTest {
         String sql = result.value();
 
         // Verify the malicious content is properly escaped with $$ quoting
-        assertTrue(sql.contains("$$'; DROP TABLE users; --$$"));
-        // Ensure it doesn't contain unescaped semicolons that could terminate the statement
-        assertFalse(sql.matches(".*[^$]';.*"));
+        assertEquals(sql, "INSERT INTO users (name) VALUES (?);");
     }
 
     @Test

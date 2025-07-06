@@ -301,14 +301,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             }
 
             columnsPart.append(column.key()).append(",");
-            switch (column) {
-                case StringValue s -> valuesPart.append("$$").append(s.value()).append("$$").append(",");
-                case IntegerValue i -> valuesPart.append(i.value()).append(",");
-                case BooleanValue b -> valuesPart.append(b.value()).append(",");
-                case DecimalValue d -> valuesPart.append(d.value()).append(",");
-                case ReferenceValue r -> valuesPart.append(r.value()).append(",");
-                default -> throw new IllegalStateException("Unexpected value: " + column);
-            }
+            valuesPart.append("?,");
         }
         // Remove last comma
         columnsPart.setLength(columnsPart.length() - 1);
