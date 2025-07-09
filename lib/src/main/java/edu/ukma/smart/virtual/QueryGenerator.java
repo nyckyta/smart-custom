@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.select.SelectQuery;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import java.util.List;
 
@@ -11,6 +12,8 @@ interface QueryGenerator {
     Return<String> deleteTable(String tableKey);
 
     Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue<?>> columnValues);
+
+    Return<SelectStatement> select(SelectQuery selectQuery);
 
     Return<String> updateRow(UpdateRow updateRow);
 

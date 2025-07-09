@@ -7,13 +7,23 @@ import edu.ukma.smart.virtual.properties.DecimalProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.ReferenceProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.select.BooleanPredicate;
+import edu.ukma.smart.virtual.select.CompoundPredicate;
+import edu.ukma.smart.virtual.select.DecimalPredicate;
+import edu.ukma.smart.virtual.select.IntegerPredicate;
+import edu.ukma.smart.virtual.select.RawPredicate;
+import edu.ukma.smart.virtual.select.ReferencePredicate;
+import edu.ukma.smart.virtual.select.SelectQuery;
+import edu.ukma.smart.virtual.select.StringPredicate;
 import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.DecimalValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.ReferenceValue;
+import edu.ukma.smart.virtual.values.ListValue;
 import edu.ukma.smart.virtual.values.StringValue;
+import edu.ukma.smart.virtual.values.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -201,11 +211,11 @@ class PostgreQueryGenerator implements QueryGenerator {
             if (!KEY_REGEXP.matcher(property.key()).matches()) {
                 log.error(
                     "Create table: Property key '{}' does not match the required pattern '{}'",
-                    newTable.key(), KEY_REGEXP);
+                    property.key(), KEY_REGEXP);
                 return Return.error(
                     InputValidationErr.error(
                         "Property key %s should consist only lower case english and '_' up to 100 chars".formatted(
-                            newTable.key())
+                            property.key())
                     )
                 );
             }
@@ -216,7 +226,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 case BooleanProperty b -> addBooleanColumn(b, query);
                 case DecimalProperty d -> addDecimalColumn(d, query, constraints);
                 case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
-                default -> throw new IllegalStateException("Unexpected value: " + property);
+                default -> Optional.of(InputValidationErr.error("Create: not supported property"));
             };
 
             if (err.isPresent()) {
@@ -256,8 +266,8 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         if (updateRow.valuesToUpdate().isEmpty()) {
-            log.error("Update row: no values provided to update row");
-            return Return.error(InputValidationErr.error("No values provided to update row"));
+            log.error("Update row: no params provided to update row");
+            return Return.error(InputValidationErr.error("No params provided to update row"));
         }
 
         var queryBuilder = new StringBuilder()
@@ -311,6 +321,53 @@ class PostgreQueryGenerator implements QueryGenerator {
         valuesPart.append(")");
 
         return Return.of("INSERT INTO %s %s %s;".formatted(tableKey, columnsPart, valuesPart));
+    }
+
+    @Override
+    public Return<SelectStatement> select(SelectQuery selectQuery) {
+        final var tableKey = selectQuery.tableKey();
+        if (!KEY_REGEXP.matcher(tableKey).matches()) {
+            log.error("Select: Table key '{}' does not match the required pattern '{}'", tableKey, KEY_REGEXP);
+            return Return.error(InputValidationErr.error("Wrong table key %s".formatted(tableKey)));
+        }
+
+        final var query = new StringBuilder("SELECT ");
+        if (selectQuery.columnKeysToReturn().isEmpty()) {
+            query.append("*");
+        } else {
+            for (final var cKey : selectQuery.columnKeysToReturn()) {
+                if (cKey == null || !KEY_REGEXP.matcher(cKey).matches()) {
+                    log.error("Select: Column key '{}' does not match the required pattern '{}'", cKey, KEY_REGEXP);
+                    return Return.error(
+                        InputValidationErr.error("Select: Wrong table key %s".formatted(cKey)));
+                }
+
+                query.append("%s,".formatted(cKey));
+            }
+            // remove last comma
+            query.delete(query.length() - 1, query.length());
+        }
+
+        query.append(" FROM public.%s ".formatted(tableKey));
+
+        // build where part of the query
+        if (selectQuery.predicate() == null) {
+            return Return.of(SelectStatement.of(query.append(";").toString()));
+        }
+
+        List<ColumnValue<?>> parameters = new ArrayList<>();
+        Return<String> where = switch (selectQuery.predicate()) {
+            case CompoundPredicate c -> buildCompoundQuery(c, parameters);
+            case RawPredicate<?> r -> buildRawQuery(r, parameters);
+            default -> Return.error(InputValidationErr.error("Select: Unknown predicate"));
+        };
+
+        if (where.error().isPresent()) {
+            return Return.error(where.error().get());
+        }
+
+        query.append("WHERE %s ;".formatted(where.value()));
+        return Return.of(SelectStatement.of(query.toString(), Collections.unmodifiableList(parameters)));
     }
 
     @Override
@@ -406,5 +463,117 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         return Optional.empty();
+    }
+
+    private <V> Return<String> buildRawQuery(RawPredicate<V> pred, List<ColumnValue<?>> parameters) {
+        final var cKey = pred.columnKey();
+        if (!KEY_REGEXP.matcher(pred.columnKey()).matches()) {
+            log.error("Select: Column key '{}' does not match the required pattern '{}'", cKey, KEY_REGEXP);
+            return Return.error(
+                InputValidationErr.error("Select: Wrong table key %s".formatted(cKey)));
+        }
+
+        return switch (pred) {
+            case IntegerPredicate i -> {
+                parameters.add(IntegerValue.of(i.columnKey(), i.value()));
+                yield Return.of("%s%s?".formatted(i.columnKey(), getIntegerOperator(i.op())));
+            }
+            case DecimalPredicate d -> {
+                parameters.add(DecimalValue.of(d.columnKey(), d.value()));
+                yield Return.of("%s%s?".formatted(d.columnKey(), getDecimalOperator(d.op())));
+            }
+            case BooleanPredicate b -> {
+                parameters.add(BooleanValue.of(b.columnKey(), b.value()));
+                yield Return.of("%s%s?".formatted(b.columnKey(), getBooleanOperator(b.op())));
+            }
+            case StringPredicate s -> {
+                parameters.add(StringValue.of(s.columnKey(), s.value()));
+                yield Return.of("%s%s?".formatted(s.columnKey(), getStringOperator(s.op())));
+            }
+            case ReferencePredicate r -> {
+                parameters.add(ListValue.of(r.columnKey(), r.value(), Type.REFERENCE));
+                yield Return.of("%s %s ?".formatted(r.columnKey(), getReferenceOperator(r.op())));
+            }
+            default -> Return.error(InputValidationErr.error("Select: unknown raw predicate"));
+        };
+    }
+
+    private Return<String> buildCompoundQuery(CompoundPredicate c, List<ColumnValue<?>> parameters) {
+        Return<String> leftSubquery = switch (c.left()) {
+            case CompoundPredicate cl -> buildCompoundQuery(cl, parameters);
+            case RawPredicate<?> rl -> buildRawQuery(rl, parameters);
+            default -> Return.error(InputValidationErr.error("Select: unknown left sub predicate"));
+        };
+
+        if (leftSubquery.error().isPresent()) {
+            log.error("Select: left subquery of compound query is invalid");
+            return leftSubquery;
+        }
+
+        Return<String> rightSubquery = switch (c.right()) {
+            case CompoundPredicate cr -> buildCompoundQuery(cr, parameters);
+            case RawPredicate<?> rr -> buildRawQuery(rr, parameters);
+            default -> Return.error(InputValidationErr.error("Select: unknown right sub predicate"));
+        };
+
+        if (rightSubquery.error().isPresent()) {
+            log.error("Select: right subquery of compound query is invalid");
+            return rightSubquery;
+        }
+
+        return switch (c.op()) {
+            case AND -> Return.of("(%s AND %s)".formatted(leftSubquery.value(), rightSubquery.value()));
+            case OR -> Return.of("(%s OR %s)".formatted(leftSubquery.value(), rightSubquery.value()));
+        };
+
+    }
+
+    private String getIntegerOperator(IntegerPredicate.Operator operator) {
+        return switch (operator) {
+            case IntegerPredicate.Operator.EQUAL -> "=";
+            case IntegerPredicate.Operator.NOT_EQUAL -> "<>";
+            case IntegerPredicate.Operator.LESS -> "<";
+            case IntegerPredicate.Operator.GREATER -> ">";
+            case IntegerPredicate.Operator.LESS_OR_EQUAL -> "<=";
+            case IntegerPredicate.Operator.GREATER_OR_EQUAL -> ">=";
+        };
+    }
+
+    private String getBooleanOperator(BooleanPredicate.Operator operator) {
+        return switch (operator) {
+            case BooleanPredicate.Operator.EQUAL -> "=";
+            case BooleanPredicate.Operator.NOT_EQUAL -> "<>";
+        };
+    }
+
+    private String getDecimalOperator(DecimalPredicate.Operator operator) {
+        return switch (operator) {
+            case DecimalPredicate.Operator.EQUAL -> "=";
+            case DecimalPredicate.Operator.NOT_EQUAL -> "<>";
+            case DecimalPredicate.Operator.LESS -> "<";
+            case DecimalPredicate.Operator.GREATER -> ">";
+            case DecimalPredicate.Operator.LESS_OR_EQUAL -> "<=";
+            case DecimalPredicate.Operator.GREATER_OR_EQUAL -> ">=";
+        };
+    }
+
+    private String getStringOperator(StringPredicate.Operator operator) {
+        return switch (operator) {
+            case StringPredicate.Operator.EQUAL -> "=";
+            case StringPredicate.Operator.NOT_EQUAL -> "<>";
+            case StringPredicate.Operator.LESS -> "<";
+            case StringPredicate.Operator.GREATER -> ">";
+            case StringPredicate.Operator.LESS_OR_EQUAL -> "<=";
+            case StringPredicate.Operator.GREATER_OR_EQUAL -> ">=";
+            case StringPredicate.Operator.LIKE -> "~~";
+            case StringPredicate.Operator.NOT_LIKE -> "!~~";
+        };
+    }
+
+    private String getReferenceOperator(ReferencePredicate.Operator operator) {
+        return switch (operator) {
+            case ReferencePredicate.Operator.IN -> "IN";
+            case ReferencePredicate.Operator.NOT_IN -> "NOT IN";
+        };
     }
 }

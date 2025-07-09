@@ -24,7 +24,7 @@
 1. Design
 - We create one table that will be registry for all other virtual tables.
 - Second table will have list of colums with references to the first table. (or mby store list of columus as embedded structure inside a table would be better?)
-- Third table will have actual data values.
+- Third table will have actual data params.
 - One value is reference on parent table, second value is ID and last value is reference.
 - Adding new table will be the same as creating a row inside an existing table
 - Removing new table will be the same as deleting a row
@@ -75,7 +75,11 @@
 - -  Create row: done 
 - -  Edit row : done
 - -  Delete row: done
-- -  Get row (more sophisticated selects mby ?) / get row
+- -  get row by Id, by matching statements : done
+  -- Query language is ultimate goal ?
+  --  
+-- Support tables altering
+-- multi constraint problem
 
 -- Error handling avoiding exceptions
 - - basic checks: done
@@ -83,24 +87,24 @@
 - - error codes ?
 
 -- String fields
-- - Support default values for columns : done
-- - Support null/non null values : done
+- - Support default params for columns : done
+- - Support null/non null params : done
 - - Support min length/max length conditions: done
 - - Support regex validation
 
 -- integer fields
-- - Support default values for columns: done
-- - Support null/non null values: done
-- - Support min/max values: done
+- - Support default params for columns: done
+- - Support null/non null params: done
+- - Support min/max params: done
 
 -- boolean fields
-- - Support default values for columns: done
-- - Support null/non null values: done
+- - Support default params for columns: done
+- - Support null/non null params: done
 
 -- floating fields
-- - Support default values for columns: done
-- - Support null/non null values: done
-- - Support min/max values: done
+- - Support default params for columns: done
+- - Support null/non null params: done
+- - Support min/max params: done
 
 -- Security
 - - SQL Injection protection. escape all special symbols before concat to string : done
@@ -114,10 +118,10 @@
 - - Get list of all custom entities
 - - Get list of fields for custom entity
 
--- put limits on number of created columns allowed
+- - put limits on number of created columns allowed
 
--- What should we do with transactions?
--- Add interface configuring the lib.
+- - What should we do with transactions?
+- - Add interface configuring the lib.
 
 ### Read/Write operation
 
