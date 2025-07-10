@@ -26,7 +26,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,17 +36,18 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static final int MAX_PRECISION = 131072;
     private static final int MAX_SCALE = 16383;
+    private static final Set<String> STATIC_FIELDS = Set.of("_id", "_created");
     private static final Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,100}$");
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
 
     private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i,
                                                                  StringBuilder statementBuilder,
                                                                  List<String> checks) {
-        if (i.required() && i.defaultValue() == null) {
-            return Optional.of(InputValidationErr.error(
-                "Create table: Property key '%s' is required, default value is null"
-                    .formatted(i.key())));
-        }
+//        if (i.required() && i.defaultValue() == null) {
+//            return Optional.of(InputValidationErr.error(
+//                "Create table: Property key '%s' is required, default value is null"
+//                    .formatted(i.key())));
+//        }
 
         statementBuilder.append(
             ",%s BIGINT DEFAULT %s %s %s%n".formatted(
@@ -83,11 +86,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static Optional<InputValidationErr> addStringColumn(StringProperty s,
                                                                 StringBuilder statementBuilder,
                                                                 List<String> checks) {
-        if (s.required() && s.defaultValue() == null) {
-            return Optional.of(InputValidationErr.error(
-                "Create table: Property key '%s' is required, default value is null"
-                    .formatted(s.key())));
-        }
+//        if (s.required() && s.defaultValue() == null) {
+//            return Optional.of(InputValidationErr.error(
+//                "Create table: Property key '%s' is required, default value is null"
+//                    .formatted(s.key())));
+//        }
         statementBuilder.append(
             ",%s TEXT DEFAULT %s %s %s%n".formatted(
                 s.key(),
@@ -156,11 +159,11 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static Optional<InputValidationErr> addBooleanColumn(BooleanProperty b,
                                                                  StringBuilder statementBuilder) {
-        if (b.required() && b.defaultValue() == null) {
-            return Optional.of(InputValidationErr.error(
-                "Create table: Property key '%s' is required, default value is null"
-                    .formatted(b.key())));
-        }
+//        if (b.required() && b.defaultValue() == null) {
+//            return Optional.of(InputValidationErr.error(
+//                "Create table: Property key '%s' is required, default value is null"
+//                    .formatted(b.key())));
+//        }
 
         statementBuilder.append(
             ",%s BOOLEAN DEFAULT %s %s %s%n".formatted(
@@ -194,7 +197,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 """
                     CREATE TABLE public.%s (
                         _id SERIAL PRIMARY KEY NOT NULL,
-                        _created TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+                        _created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
                     """.formatted(newTable.key())
             );
 
@@ -336,10 +339,10 @@ class PostgreQueryGenerator implements QueryGenerator {
             query.append("*");
         } else {
             for (final var cKey : selectQuery.columnKeysToReturn()) {
-                if (cKey == null || !KEY_REGEXP.matcher(cKey).matches()) {
+                if (cKey == null || (!KEY_REGEXP.matcher(cKey).matches() && !STATIC_FIELDS.contains(cKey))) {
                     log.error("Select: Column key '{}' does not match the required pattern '{}'", cKey, KEY_REGEXP);
                     return Return.error(
-                        InputValidationErr.error("Select: Wrong table key %s".formatted(cKey)));
+                        InputValidationErr.error("Select: Wrong column key %s".formatted(cKey)));
                 }
 
                 query.append("%s,".formatted(cKey));
@@ -413,11 +416,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     private Optional<InputValidationErr> addDecimalColumn(DecimalProperty d,
                                                           StringBuilder statementBuilder,
                                                           List<String> checks) {
-        if (d.required() && d.defaultValue() == null) {
-            return Optional.of(InputValidationErr.error(
-                "Create table: Property key '%s' is required, default value is null"
-                    .formatted(d.key())));
-        }
+//        if (d.required() && d.defaultValue() == null) {
+//            return Optional.of(InputValidationErr.error(
+//                "Create table: Property key '%s' is required, default value is null"
+//                    .formatted(d.key())));
+//        }
 
         if (d.precision() < 1 || d.precision() > MAX_PRECISION) {
             return Optional.of(InputValidationErr.error(
@@ -492,7 +495,13 @@ class PostgreQueryGenerator implements QueryGenerator {
             }
             case ReferencePredicate r -> {
                 parameters.add(ListValue.of(r.columnKey(), r.value(), Type.REFERENCE));
-                yield Return.of("%s %s ?".formatted(r.columnKey(), getReferenceOperator(r.op())));
+                yield Return.of(
+                    "%s %s (%s)".formatted(
+                        r.columnKey(),
+                        getReferenceOperator(r.op()),
+                        r.value().stream().map(v -> "?").collect(Collectors.joining(","))
+                    )
+                );
             }
             default -> Return.error(InputValidationErr.error("Select: unknown raw predicate"));
         };

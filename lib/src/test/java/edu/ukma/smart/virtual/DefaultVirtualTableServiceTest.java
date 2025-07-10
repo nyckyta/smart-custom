@@ -3,6 +3,7 @@ package edu.ukma.smart.virtual;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
@@ -11,7 +12,15 @@ import edu.ukma.smart.virtual.properties.DecimalProperty;
 import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.ReferenceProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
+import edu.ukma.smart.virtual.select.BooleanPredicate;
+import edu.ukma.smart.virtual.select.CompoundPredicate;
+import edu.ukma.smart.virtual.select.DecimalPredicate;
+import edu.ukma.smart.virtual.select.IntegerPredicate;
+import edu.ukma.smart.virtual.select.ReferencePredicate;
+import edu.ukma.smart.virtual.select.SelectQuery;
+import edu.ukma.smart.virtual.select.StringPredicate;
 import edu.ukma.smart.virtual.values.BooleanValue;
+import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.DecimalValue;
 import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.ReferenceValue;
@@ -25,9 +34,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import org.testcontainers.containers.GenericContainer;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeGroups;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -212,12 +221,12 @@ class DefaultVirtualTableServiceTest {
         );
         Optional<? extends Err> result = service.createTable(maliciousTable);
 
-        Assert.assertFalse(result.isPresent(), "Expected no errors on table creation");
+        assertFalse(result.isPresent(), "Expected no errors on table creation");
 
         service.addRow(tableKey, List.of());
 
         try (final var statement = connection.createStatement()) {
-            Assert.assertTrue(
+            assertTrue(
                 statement.execute(
                     "SELECT * FROM %s WHERE malicious = $$%s$$".formatted(tableKey, defaultValue)),
                 "Expected results in result set"
@@ -246,7 +255,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         var err = service.createTable(newTable);
-        Assert.assertTrue(err.isPresent(), "Expected no error when creating table");
+        assertTrue(err.isPresent(), "Expected no error when creating table");
     }
 
     @Test
@@ -267,7 +276,7 @@ class DefaultVirtualTableServiceTest {
             )
         );
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
 
         try (var statement = connection.createStatement()) {
             assertTrue(statement.execute(
@@ -279,10 +288,10 @@ class DefaultVirtualTableServiceTest {
 
             var result = statement.getResultSet();
             assertTrue(result.next(), "Expected at least one result row");
-            Assert.assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
-            Assert.assertEquals(result.getString(2), "table_key",
+            assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
+            assertEquals(result.getString(2), "table_key",
                 "Expected table name to be 'table_key'");
-            Assert.assertEquals(result.getString(3), "BASE TABLE",
+            assertEquals(result.getString(3), "BASE TABLE",
                 "Expected table type to be 'BASE TABLE'");
             assertTrue(result.getBoolean(4), "Expected table to be insertable into");
 
@@ -295,68 +304,68 @@ class DefaultVirtualTableServiceTest {
             ), "Statement must return result");
             var columnsResult = columnsTest.getResultSet();
             columnsResult.next();
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_name"),
                 "_id",
                 "Expected column '_id'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("data_type"),
                 "integer",
                 "Expected column '_id' to be of type 'integer'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("is_nullable"),
                 "NO",
                 "Expected column '_id' to be NOT NULL"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_default"),
                 "nextval('table_key__id_seq'::regclass)",
                 "Expected column '_id' to have default value");
             columnsResult.next();
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_name"),
                 "_created",
                 "Expected column '_created'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("data_type"),
-                "timestamp without time zone",
+                "timestamp with time zone",
                 "Expected column '_created' to be of type 'timestamp without time zone'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("is_nullable"),
                 "NO",
                 "Expected column '_created' to be NOT NULL"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_default"),
                 "CURRENT_TIMESTAMP",
                 "Expected column '_created' to have default value"
             );
             columnsResult.next();
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_name"),
                 "property_one",
                 "Expected column 'property1'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("data_type"),
                 "text",
                 "Expected column 'property1' to be of type 'text'"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("is_nullable"),
                 "NO",
                 "Expected column 'property1' to be NOT NULL"
             );
-            Assert.assertEquals(
+            assertEquals(
                 columnsResult.getString("column_default"),
                 "'default_value_1'::text",
                 "Expected column 'property1' to have default value"
             );
-            Assert.assertFalse(columnsResult.next(), "Expected no more columns");
+            assertFalse(columnsResult.next(), "Expected no more columns");
         }
     }
 
@@ -381,7 +390,7 @@ class DefaultVirtualTableServiceTest {
             )
         );
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table to delete");
+        assertFalse(err.isPresent(), "Expected no error when creating table to delete");
 
         // Delete the table
         service.deleteTable("table_to_delete");
@@ -397,7 +406,7 @@ class DefaultVirtualTableServiceTest {
                     """
             );
 
-            Assert.assertFalse(statement.getResultSet().next(), "Expected no results for deld");
+            assertFalse(statement.getResultSet().next(), "Expected no results for deld");
         }
     }
 
@@ -443,7 +452,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
         var columnValues = List.of(
             StringValue.of("property_one", "value1"),
             IntegerValue.of("property_two", 123L),
@@ -452,7 +461,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         err = service.addRow("add_row_test", columnValues);
-        Assert.assertFalse(err.isPresent(),
+        assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
         try (var statement = connection.createStatement()) {
@@ -460,7 +469,7 @@ class DefaultVirtualTableServiceTest {
                 " FROM add_row_test" +
                 " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true AND property_four = 123.321);");
             var hasNext = statement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
@@ -495,7 +504,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
         var columnValues = List.of(
             StringValue.of("property_two", "value"),
             StringValue.of("property_three", "value"),
@@ -503,7 +512,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         err = service.addRow("table_key_add_row", columnValues);
-        Assert.assertFalse(err.isPresent(),
+        assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
         try (var statement = connection.createStatement()) {
@@ -512,7 +521,7 @@ class DefaultVirtualTableServiceTest {
                 "FROM table_key_add_row " +
                 "WHERE property_two = 'value' AND property_three = 'value' AND property_four = 'value12345');");
             var hasNext = statement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            assertTrue(hasNext, "Expected the row to be added to the virtual table");
 
             var fourthColumnFailureTooLow = List.of(
                 StringValue.of("property_four", "val")
@@ -522,13 +531,13 @@ class DefaultVirtualTableServiceTest {
             );
             try {
                 service.addRow("table_key_add_row", fourthColumnFailureTooLow);
-                Assert.fail("Error should have been thrown");
+                fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
 
             try {
                 service.addRow("table_key_add_row", fourthColumnFailureTooHigh);
-                Assert.fail("Error should have been thrown");
+                fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
 
@@ -538,7 +547,7 @@ class DefaultVirtualTableServiceTest {
 
             try {
                 service.addRow("table_key_add_row", thirdColumnFailure);
-                Assert.fail("Error should have been thrown");
+                fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
 
@@ -548,7 +557,7 @@ class DefaultVirtualTableServiceTest {
 
             try {
                 service.addRow("table_key_add_row", secondColumnFailure);
-                Assert.fail("Error should have been thrown");
+                fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
         }
@@ -585,7 +594,7 @@ class DefaultVirtualTableServiceTest {
             ));
 
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+        assertFalse(err.isPresent(), "Table must be created without issues");
 
         try {
             service.addRow(
@@ -594,7 +603,7 @@ class DefaultVirtualTableServiceTest {
                     IntegerValue.of("property_two", 6L)
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -605,7 +614,7 @@ class DefaultVirtualTableServiceTest {
                     IntegerValue.of("property_three", 4L)
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -616,7 +625,7 @@ class DefaultVirtualTableServiceTest {
                     IntegerValue.of("property_four", 11L)
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -627,7 +636,7 @@ class DefaultVirtualTableServiceTest {
                     IntegerValue.of("property_four", 4L)
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -640,7 +649,7 @@ class DefaultVirtualTableServiceTest {
             )
         );
 
-        Assert.assertFalse(err.isPresent(),
+        assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
         try (var assertStatement = connection.createStatement()) {
@@ -649,7 +658,7 @@ class DefaultVirtualTableServiceTest {
                     SELECT * FROM table_key_integer_add_row
                     WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
             boolean hasNext = assertStatement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
@@ -688,7 +697,7 @@ class DefaultVirtualTableServiceTest {
             ));
 
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Table must be created without issues");
+        assertFalse(err.isPresent(), "Table must be created without issues");
 
         try {
             service.addRow(
@@ -697,7 +706,7 @@ class DefaultVirtualTableServiceTest {
                     DecimalValue.of("property_two", BigDecimal.valueOf(6))
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -708,7 +717,7 @@ class DefaultVirtualTableServiceTest {
                     DecimalValue.of("property_three", BigDecimal.valueOf(1))
                 )
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -718,7 +727,7 @@ class DefaultVirtualTableServiceTest {
                 List.of(
                     DecimalValue.of("property_four", BigDecimal.valueOf(10)))
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -728,7 +737,7 @@ class DefaultVirtualTableServiceTest {
                 List.of(
                     DecimalValue.of("property_four", BigDecimal.valueOf(1)))
             );
-            Assert.fail("Error should have been thrown");
+            fail("Error should have been thrown");
         } catch (SQLException ex) {
         }
 
@@ -740,7 +749,7 @@ class DefaultVirtualTableServiceTest {
                 DecimalValue.of("property_two", BigDecimal.valueOf(1.126)))
         );
 
-        Assert.assertFalse(err.isPresent(),
+        assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
         try (var assertStatement = connection.createStatement()) {
@@ -749,7 +758,7 @@ class DefaultVirtualTableServiceTest {
                     SELECT * FROM table_key_decimal_add_row
                     WHERE property_four = 2.5 AND property_three = 1.245 AND property_two = 1.126)""");
             boolean hasNext = assertStatement.getResultSet().next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
 
@@ -772,7 +781,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         var err = service.createTable(newTable);
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
 
         try (var statement = connection.createStatement()) {
             statement.execute("INSERT INTO table_key_delete_row (property_one) VALUES ('value1');");
@@ -780,17 +789,17 @@ class DefaultVirtualTableServiceTest {
                 "SELECT _id FROM table_key_delete_row WHERE property_one = 'value1';");
             var resultSet = statement.getResultSet();
             var hasNext = resultSet.next();
-            Assert.assertTrue(hasNext, "Expected the row to be added to the virtual table");
+            assertTrue(hasNext, "Expected the row to be added to the virtual table");
             int rowId = resultSet.getInt("_id");
 
             err = service.deleteRow("table_key_delete_row", rowId);
-            Assert.assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
+            assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
             try (var assertStatement = connection.createStatement()) {
                 assertStatement.execute("""   
                     SELECT 1 WHERE EXISTS(
                         SELECT property_one FROM table_key_delete_row WHERE property_one = 'value1')""");
                 hasNext = assertStatement.getResultSet().next();
-                Assert.assertFalse(hasNext,
+                assertFalse(hasNext,
                     "Expected the row to be deleted from the virtual table");
             }
         }
@@ -812,9 +821,9 @@ class DefaultVirtualTableServiceTest {
                         .build()))
                 .build()
         );
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
         err = service.addRow("test_table_creation_with_reference_property", List.of());
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
 
         err = service.createTable(
             NewTable
@@ -834,7 +843,7 @@ class DefaultVirtualTableServiceTest {
                 )
                 .build()
         );
-        Assert.assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table");
 
         try {
             service.addRow(
@@ -843,7 +852,7 @@ class DefaultVirtualTableServiceTest {
                     ReferenceValue.of("test_table_creation_with_reference_property_ref_property",
                         42))
             );
-            Assert.fail("Expected exception being thrown");
+            fail("Expected exception being thrown");
         } catch (SQLException e) {
         }
 
@@ -864,10 +873,10 @@ class DefaultVirtualTableServiceTest {
                 "FROM test_table_creation_with_reference_property_having_ref " +
                 "WHERE test_table_creation_with_reference_property_ref_property = %d".formatted(
                     parentId));
-            Assert.assertTrue(statement.getResultSet().next(),
+            assertTrue(statement.getResultSet().next(),
                 "Expected the row being returned with reference");
         } catch (SQLException ex) {
-            Assert.fail("expected no errors for; got " + ex.getMessage());
+            fail("expected no errors for; got " + ex.getMessage());
         }
     }
 
@@ -968,6 +977,281 @@ class DefaultVirtualTableServiceTest {
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
+        }
+    }
+
+    @DataProvider(name = "selectParameters")
+    Object[][] selectParameters() {
+        return new Object[][] {
+            {
+                SelectQuery.wildcard("test_table_select_faculty"),
+                List.of(
+                    List.of(IntegerValue.of("_id", 1L), IntegerValue.of("_created", System.currentTimeMillis()), StringValue.of("name", "Law school")),
+                    List.of(IntegerValue.of("_id", 2L), IntegerValue.of("_created", System.currentTimeMillis()), StringValue.of("name", "Computer science"))
+                )
+            },
+            {
+                SelectQuery.of("test_table_select_faculty", List.of("name")),
+                List.of(
+                    List.of(StringValue.of("name", "Law school")),
+                    List.of(StringValue.of("name", "Computer science"))
+                )
+            },
+            {
+                SelectQuery.of("test_table_select_faculty", List.of("_id", "name")),
+                List.of(
+                    List.of(IntegerValue.of("_id", 1L), StringValue.of("name", "Law school")),
+                    List.of(IntegerValue.of("_id", 2L), StringValue.of("name", "Computer science"))
+                )
+            },
+            {
+                SelectQuery.of("test_table_select_faculty", List.of("_id", "name")),
+                List.of(
+                    List.of(IntegerValue.of("_id", 1L), StringValue.of("name", "Law school")),
+                    List.of(IntegerValue.of("_id", 2L), StringValue.of("name", "Computer science"))
+                )
+            },
+            {
+                SelectQuery.of("test_table_select_teacher", List.of("name", "age", "salary", "married", "faculty")),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        BooleanValue.of("married", null),
+                        IntegerValue.of("faculty", 1L)
+                    ),
+                    List.of(
+                        StringValue.of("name", "Donald Knuth"),
+                        IntegerValue.of("age", 85L),
+                        DecimalValue.of("salary", new BigDecimal("270000.000")),
+                        BooleanValue.of("married", true),
+                        IntegerValue.of("faculty", 2L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "married", "faculty"),
+                    ReferencePredicate.in("faculty", List.of(2, 3, 4))
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Donald Knuth"),
+                        IntegerValue.of("age", 85L),
+                        DecimalValue.of("salary", new BigDecimal("270000.000")),
+                        BooleanValue.of("married", true),
+                        IntegerValue.of("faculty", 2L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "married", "faculty"),
+                    ReferencePredicate.notIn("faculty", List.of(2, 3, 4))
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        BooleanValue.of("married", null),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "married", "faculty"),
+                    ReferencePredicate.in("faculty", List.of(3, 4))
+                ),
+                List.of()
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "married", "faculty"),
+                    IntegerPredicate.lse("age", 60L)
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        BooleanValue.of("married", null),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "married", "faculty"),
+                    DecimalPredicate.gt("salary", new BigDecimal("280000"))
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        BooleanValue.of("married", null),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "faculty"),
+                    BooleanPredicate.eq("married", true)
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Donald Knuth"),
+                        IntegerValue.of("age", 85L),
+                        DecimalValue.of("salary", new BigDecimal("270000.000")),
+                        IntegerValue.of("faculty", 2L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "faculty"),
+                    DecimalPredicate.gt("salary", new BigDecimal("270000"))
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "faculty"),
+                    DecimalPredicate.gt("salary", new BigDecimal("270000"))
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "faculty"),
+                    StringPredicate.like("name", "%King%")
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Charles Kingsfield"),
+                        IntegerValue.of("age", 60L),
+                        DecimalValue.of("salary", new BigDecimal("300000.595")),
+                        IntegerValue.of("faculty", 1L)
+                    )
+                )
+            },
+            {
+                SelectQuery.of(
+                    "test_table_select_teacher",
+                    List.of("name", "age", "salary", "faculty"),
+                    StringPredicate.notLike("name", "%King%")
+                ),
+                List.of(
+                    List.of(
+                        StringValue.of("name", "Donald Knuth"),
+                        IntegerValue.of("age", 85L),
+                        DecimalValue.of("salary", new BigDecimal("270000.000")),
+                        IntegerValue.of("faculty", 2L)
+                    )
+                )
+            }
+        };
+    }
+    @BeforeGroups(value = {"testTableSelect"})
+    void selectTestsSetup() throws SQLException {
+        var err = service.createTable(
+            NewTable.builder()
+                .key("test_table_select_faculty")
+                .name("Faculty")
+                .description("University faculty")
+                .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+                .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation faculty, got " + err.orElse(null));
+        err = service.createTable(
+            NewTable.builder()
+                .key("test_table_select_teacher")
+                .name("Teacher")
+                .description("Teachers")
+                .properties(List.of(
+                    StringProperty.builder().key("name").name("name").maxLength(100).minLength(2).build(),
+                    IntegerProperty.builder().key("age").name("age").min(16L).build(),
+                    DecimalProperty.builder().key("salary").name("salary").precision(10).scale(3).build(),
+                    BooleanProperty.builder().key("married").name("married").build(),
+                    ReferenceProperty.builder().key("faculty").name("faculty").refTableKey("test_table_select_faculty")
+                        .required(true).name("Faculty teacher belongs to").build()
+                ))
+                .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during teacher creation, got " + err.orElse(null));
+
+        err = service.addRow("test_table_select_faculty", List.of(StringValue.of("name", "Law school")));
+        assertFalse(err.isPresent(), "Expected no error during adding faculty, got " + err.orElse(null));
+        err = service.addRow("test_table_select_faculty", List.of(StringValue.of("name", "Computer science")));
+        assertFalse(err.isPresent(), "Expected no error during adding faculty, got " + err.orElse(null));
+
+        err = service.addRow("test_table_select_teacher", List.of(
+            StringValue.of("name", "Charles Kingsfield"),
+            IntegerValue.of("age", 60L),
+            DecimalValue.of("salary", new BigDecimal("300000.595")),
+            ReferenceValue.of("faculty", 1)
+        ));
+        assertFalse(err.isPresent(), "Expected no error during adding teacher, got " + err.orElse(null));
+
+        err = service.addRow("test_table_select_teacher", List.of(
+            StringValue.of("name", "Donald Knuth"),
+            IntegerValue.of("age", 85L),
+            BooleanValue.of("married", true),
+            DecimalValue.of("salary", new BigDecimal("270000")),
+            ReferenceValue.of("faculty", 2)
+        ));
+        assertFalse(err.isPresent(), "Expected no error during adding teacher, got " + err.orElse(null));
+    }
+
+    @Test(dataProvider = "selectParameters", groups = {"testTableSelect"})
+    void testTableSelect(SelectQuery selectQuery, List<List<ColumnValue<?>>> expectedResult) throws SQLException {
+        var selectRes = service.select(selectQuery);
+
+        assertFalse(
+            selectRes.error().isPresent(),
+            "Expected no error during selecting, got " + selectRes.error().orElse(null)
+        );
+        assertEquals(selectRes.value().size(), expectedResult.size());
+        for (int i = 0; i < selectRes.value().size(); i += 1 ) {
+            var actualRow = selectRes.value().get(i);
+            assertEquals(actualRow.size(), expectedResult.get(i).size());
+
+            for (int j = 0; j < actualRow.size(); j += 1 ) {
+                if (actualRow.get(j).key().equals("_created")) {
+                    // do not want to spoil the query generator by clocking timestamps via the APP (though, mby I should)
+                    // TODO: mby mock somehow the time outside of the app?
+                    continue;
+                }
+
+                assertEquals(actualRow.get(j).value(), expectedResult.get(i).get(j).value());
+            }
         }
     }
 

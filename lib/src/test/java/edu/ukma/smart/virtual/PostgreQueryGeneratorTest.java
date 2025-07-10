@@ -106,7 +106,7 @@ public class PostgreQueryGeneratorTest {
         // Verify table structure
         assertTrue(sql.contains("CREATE TABLE public.users"));
         assertTrue(sql.contains("_id SERIAL PRIMARY KEY NOT NULL"));
-        assertTrue(sql.contains("_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL"));
+        assertTrue(sql.contains("_created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL"));
 
         // Verify columns
         assertTrue(sql.contains("name TEXT DEFAULT $$default_name$$ NOT NULL"));
@@ -1069,14 +1069,14 @@ public class PostgreQueryGeneratorTest {
             {
                 SelectQuery.wildcard("user_profile", ReferencePredicate.in("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size IN ? ;",
+                    "SELECT * FROM public.user_profile WHERE foot_size IN (?,?,?,?) ;",
                     List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
                 )
             },
             {
                 SelectQuery.wildcard("user_profile", ReferencePredicate.notIn("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size NOT IN ? ;",
+                    "SELECT * FROM public.user_profile WHERE foot_size NOT IN (?,?,?,?) ;",
                     List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
                 )
             },
