@@ -37,7 +37,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static final int MAX_PRECISION = 131072;
     private static final int MAX_SCALE = 16383;
     private static final Set<String> STATIC_FIELDS = Set.of("_id", "_created");
-    private static final Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,100}$");
+    private static final Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,62}$");
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
 
     private static Optional<InputValidationErr> addIntegerColumn(
@@ -393,14 +393,21 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         statementBuilder.append(
-            ",%s INTEGER %s %s%n".formatted(
+            ",%s INTEGER%s%s%s%n".formatted(
                 r.key(),
-                r.required() ? "NOT NULL" : "",
-                r.unique() ? "UNIQUE" : ""
+                r.required() ? " NOT NULL" : "",
+                r.unique() ? " UNIQUE" : "",
+                r.defaultValue() == null ? "" : " DEFAULT %d".formatted(r.defaultValue())
             )
         );
 
-        constraints.add("FOREIGN KEY (%s) REFERENCES %s(_id)".formatted(r.key(), r.refTableKey()));
+        constraints.add("FOREIGN KEY (%s) REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
+            .formatted(
+                r.key(),
+                r.refTableKey(),
+                r.required() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
+            )
+        );
         return Optional.empty();
     }
 

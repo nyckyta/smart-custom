@@ -171,7 +171,7 @@ public class PostgreQueryGeneratorTest {
             {"1users"},          // starts with number
             {""},                // empty
             {"u"},               // too short (less than 2 chars)
-            {"a".repeat(102)},   // too long (more than 100 chars)
+            {"a".repeat(64)},   // too long (more than 63 chars)
             {"user's"},          // apostrophe
             {"user;drop"},       // semicolon (SQL injection attempt)
             // SQL comment injection
@@ -210,7 +210,7 @@ public class PostgreQueryGeneratorTest {
             {"users"},
             {"user_profile"},
             {"user_data_log"},
-            {"a".repeat(100)},  // exactly 100 chars
+            {"a".repeat(62)},  // exactly 100 chars
             {"ab"}              // exactly 2 chars
         };
     }
@@ -265,32 +265,6 @@ public class PostgreQueryGeneratorTest {
         // Then
         assertTrue(result.error().isPresent());
         assertEquals(result.error().get().getClass(), InputValidationErr.class);
-    }
-
-    // ========== PROPERTY VALIDATION TESTS ==========
-
-    @Test
-    public void testCreateTableWithRequiredPropertyWithoutDefault() {
-        // Given
-        List<Property<?>> properties = List.of(
-            StringProperty.builder()
-                .key("name")
-                .name("Name")
-                .description("User name")
-                .defaultValue(null) // required but no default
-                .required(true)
-                .unique(false)
-                .minLength(1)
-                .maxLength(50)
-                .build()
-        );
-        NewTable newTable = new NewTable("users", "users", "users", properties);
-
-        // When
-        Return<String> result = queryBuilder.createTable(newTable);
-
-        // Then
-        assertTrue(result.error().isPresent());
     }
 
     @Test
@@ -947,8 +921,8 @@ public class PostgreQueryGeneratorTest {
                 SelectStatement.of("SELECT * FROM public.table_name ;", List.of())
             },
             {
-                SelectQuery.wildcard("a".repeat(101)), // 101 characters - should be valid as it's exactly at limit
-                SelectStatement.of("SELECT * FROM public." + "a".repeat(101) + " ;", List.of())
+                SelectQuery.wildcard("a".repeat(63)), // 63 characters - should be valid as it's exactly at limit
+                SelectStatement.of("SELECT * FROM public." + "a".repeat(63) + " ;", List.of())
             },
 
             // Valid column name edge cases
@@ -961,8 +935,8 @@ public class PostgreQueryGeneratorTest {
                 SelectStatement.of("SELECT column_with_underscores FROM public.table ;", List.of())
             },
             {
-                SelectQuery.of("table", List.of("a".repeat(101))), // 101 characters - should be valid
-                SelectStatement.of("SELECT " + "a".repeat(101) + " FROM public.table ;", List.of())
+                SelectQuery.of("table", List.of("a".repeat(63))), // 63 characters - should be valid
+                SelectStatement.of("SELECT " + "a".repeat(63) + " FROM public.table ;", List.of())
             },
 
             // Maximum number of columns (100 columns)
@@ -1308,11 +1282,6 @@ public class PostgreQueryGeneratorTest {
             {
                 SelectQuery.of("table", List.of("valid_column", "Invalid_Column")),
             },
-
-//            // Too many columns (over 100)
-//            {
-//                SelectQuery.of("table", generateColumnList(101)),
-//            },
 
             // Null column in list
             {

@@ -8,18 +8,12 @@ public record ReferenceProperty(
     String description,
     boolean required,
     boolean unique,
-    Void defaultValue,
+    Integer defaultValue,
     String refTableKey
-) implements Property<Void> {
+) implements Property<Integer> {
 
     public static ReferencePropertyBuilder builder() {
         return new ReferencePropertyBuilder();
-    }
-
-    @Override
-    public Void defaultValue() {
-        throw new UnsupportedOperationException(
-            "Reference properties do not support default value");
     }
 
     public static final class ReferencePropertyBuilder {
@@ -29,11 +23,12 @@ public record ReferenceProperty(
         private String key;
         private String description;
         private String name;
+        private Integer defaultValue;
 
         private ReferencePropertyBuilder() {
         }
 
-        public static ReferencePropertyBuilder aReferenceProperty() {
+        public static ReferencePropertyBuilder referencePropertyBuilder() {
             return new ReferencePropertyBuilder();
         }
 
@@ -67,6 +62,11 @@ public record ReferenceProperty(
             return this;
         }
 
+        public ReferencePropertyBuilder defaultValue(Integer defaultValue) {
+            this.defaultValue = defaultValue;
+            return this;
+        }
+
         public ReferenceProperty build() {
             return new ReferenceProperty(
                 Objects.requireNonNull(key),
@@ -74,7 +74,7 @@ public record ReferenceProperty(
                 description,
                 required,
                 unique,
-                null,
+                defaultValue,
                 Objects.requireNonNull(refTableKey)
             );
         }

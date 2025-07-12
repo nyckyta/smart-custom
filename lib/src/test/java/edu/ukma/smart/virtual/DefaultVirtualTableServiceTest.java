@@ -13,7 +13,6 @@ import edu.ukma.smart.virtual.properties.IntegerProperty;
 import edu.ukma.smart.virtual.properties.ReferenceProperty;
 import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
-import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
 import edu.ukma.smart.virtual.select.IntegerPredicate;
 import edu.ukma.smart.virtual.select.ReferencePredicate;
@@ -986,8 +985,10 @@ class DefaultVirtualTableServiceTest {
             {
                 SelectQuery.wildcard("test_table_select_faculty"),
                 List.of(
-                    List.of(IntegerValue.of("_id", 1L), IntegerValue.of("_created", System.currentTimeMillis()), StringValue.of("name", "Law school")),
-                    List.of(IntegerValue.of("_id", 2L), IntegerValue.of("_created", System.currentTimeMillis()), StringValue.of("name", "Computer science"))
+                    List.of(IntegerValue.of("_id", 1L), IntegerValue.of("_created", System.currentTimeMillis()),
+                        StringValue.of("name", "Law school")),
+                    List.of(IntegerValue.of("_id", 2L), IntegerValue.of("_created", System.currentTimeMillis()),
+                        StringValue.of("name", "Computer science"))
                 )
             },
             {
@@ -1179,6 +1180,7 @@ class DefaultVirtualTableServiceTest {
             }
         };
     }
+
     @BeforeGroups(value = {"testTableSelect"})
     void selectTestsSetup() throws SQLException {
         var err = service.createTable(
@@ -1239,11 +1241,11 @@ class DefaultVirtualTableServiceTest {
             "Expected no error during selecting, got " + selectRes.error().orElse(null)
         );
         assertEquals(selectRes.value().size(), expectedResult.size());
-        for (int i = 0; i < selectRes.value().size(); i += 1 ) {
+        for (int i = 0; i < selectRes.value().size(); i += 1) {
             var actualRow = selectRes.value().get(i);
             assertEquals(actualRow.size(), expectedResult.get(i).size());
 
-            for (int j = 0; j < actualRow.size(); j += 1 ) {
+            for (int j = 0; j < actualRow.size(); j += 1) {
                 if (actualRow.get(j).key().equals("_created")) {
                     // do not want to spoil the query generator by clocking timestamps via the APP (though, mby I should)
                     // TODO: mby mock somehow the time outside of the app?
@@ -1252,6 +1254,218 @@ class DefaultVirtualTableServiceTest {
 
                 assertEquals(actualRow.get(j).value(), expectedResult.get(i).get(j).value());
             }
+        }
+    }
+
+    @Test
+    void testReferencedRowCantBeDroppedWhenOtherTableRequires() throws SQLException {
+        var err = service.createTable(NewTable
+            .builder()
+            .key("test_referenced_row_can_not_be_dropped")
+            .name("test_name")
+            .description("test_description")
+            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow("test_referenced_row_can_not_be_dropped", List.of(StringValue.of("name", "123")));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.createTable(NewTable
+            .builder()
+            .key("test_referenced_table_with_reference")
+            .name("with_reference")
+            .description("with_reference")
+            .properties(List.of(
+                    ReferenceProperty
+                        .builder()
+                        .key("name")
+                        .name("name")
+                        .refTableKey("test_referenced_row_can_not_be_dropped")
+                        .required(true)
+                        .defaultValue(0)
+                        .build()
+                )
+            )
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow("test_referenced_table_with_reference", List.of(ReferenceValue.of("name", 1)));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        try {
+            err = service.deleteRow("test_referenced_table_can_not_be_dropped", 1);
+            fail("Should not allow to delete table");
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    @Test
+    void testReferencedRowDeleteSetsToNullWhenNotRequired() throws SQLException {
+        var err = service.createTable(NewTable
+            .builder()
+            .key("reference_row_delete_sets_to_null")
+            .name("test_name")
+            .description("test_description")
+            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow(
+            "reference_row_delete_sets_to_null",
+            List.of(StringValue.of("name", "123"))
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.createTable(NewTable
+            .builder()
+            .key("reference_row_delete_sets_to_null_reference")
+            .name("with_reference")
+            .description("with_reference")
+            .properties(List.of(
+                    ReferenceProperty
+                        .builder()
+                        .key("name")
+                        .name("name")
+                        .refTableKey("reference_row_delete_sets_to_null")
+                        .build()
+                )
+            )
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow(
+            "reference_row_delete_sets_to_null_reference",
+            List.of(ReferenceValue.of("name", 1))
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.deleteRow("reference_row_delete_sets_to_null", 1);
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        try (final var statement = connection.createStatement()) {
+            statement.execute("SELECT *" +
+                " FROM reference_row_delete_sets_to_null_reference" +
+                " WHERE _id=1 AND name IS NULL"
+            );
+            assertTrue(statement.getResultSet().next());
+            assertEquals(statement.getResultSet().getInt(1), 1);
+        }
+    }
+
+    // when property is not required and yet it has a default value, delete of the referenced row should set
+    // value on the table that has reference to default value
+    @Test
+    void testReferencedRowDeleteSetsToDefaultWhenDefaultValueSpecified() throws SQLException {
+        var err = service.createTable(NewTable
+            .builder()
+            .key("reference_row_delete_sets_to_default")
+            .name("test_name")
+            .description("test_description")
+            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow("reference_row_delete_sets_to_default",
+            List.of(StringValue.of("name", "123")));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+        err = service.addRow("reference_row_delete_sets_to_default",
+            List.of(StringValue.of("name", "321")));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.createTable(NewTable
+            .builder()
+            .key("reference_row_delete_sets_to_default_referencing")
+            .name("with_reference")
+            .description("with_reference")
+            .properties(List.of(
+                    ReferenceProperty
+                        .builder()
+                        .key("name")
+                        .name("name")
+                        .defaultValue(1)
+                        .refTableKey("reference_row_delete_sets_to_default")
+                        .build()
+                )
+            )
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+        err = service.addRow(
+            "reference_row_delete_sets_to_default_referencing",
+            List.of(ReferenceValue.of("name", 2))
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.deleteRow("reference_row_delete_sets_to_default", 2);
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        try (final var statement = connection.createStatement()) {
+            statement.execute("SELECT *" +
+                " FROM reference_row_delete_sets_to_default_referencing" +
+                " WHERE _id=1 AND name=1"
+            );
+            assertTrue(statement.getResultSet().next());
+            assertEquals(statement.getResultSet().getInt(1), 1);
+        }
+    }
+
+    @Test
+    void testUpdateOfReferencedRowIdIsRestricted() throws SQLException {
+        var err = service.createTable(NewTable
+            .builder()
+            .key("update_of_referenced_row_id_is_restricted")
+            .name("test_name")
+            .description("test_description")
+            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow("update_of_referenced_row_id_is_restricted",
+            List.of(StringValue.of("name", "123")));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.createTable(NewTable
+            .builder()
+            .key("update_of_referenced_row_id_is_restricted_referencing")
+            .name("with_reference")
+            .description("with_reference")
+            .properties(List.of(
+                    ReferenceProperty
+                        .builder()
+                        .key("name")
+                        .name("name")
+                        .defaultValue(1)
+                        .refTableKey("update_of_referenced_row_id_is_restricted")
+                        .build()
+                )
+            )
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+        err = service.addRow(
+            "update_of_referenced_row_id_is_restricted_referencing",
+            List.of(ReferenceValue.of("name", 1))
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        try {
+            final var statement = connection.createStatement();
+            statement.executeUpdate("UPDATE update_of_referenced_row_id_is_restricted" +
+                " SET _id=2" +
+                " WHERE _id=1;"
+            );
+            statement.close();
+            fail();
+        } catch (SQLException ex){
+
         }
     }
 
