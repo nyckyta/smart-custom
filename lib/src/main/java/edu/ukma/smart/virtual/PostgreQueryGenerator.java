@@ -40,14 +40,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static final Pattern KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,100}$");
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
 
-    private static Optional<InputValidationErr> addIntegerColumn(IntegerProperty i,
-                                                                 StringBuilder statementBuilder,
-                                                                 List<String> checks) {
-//        if (i.required() && i.defaultValue() == null) {
-//            return Optional.of(InputValidationErr.error(
-//                "Create table: Property key '%s' is required, default value is null"
-//                    .formatted(i.key())));
-//        }
+    private static Optional<InputValidationErr> addIntegerColumn(
+        IntegerProperty i,
+        StringBuilder statementBuilder,
+        List<String> checks
+    ) {
 
         statementBuilder.append(
             ",%s BIGINT DEFAULT %s %s %s%n".formatted(
@@ -83,14 +80,11 @@ class PostgreQueryGenerator implements QueryGenerator {
         return Optional.empty();
     }
 
-    private static Optional<InputValidationErr> addStringColumn(StringProperty s,
-                                                                StringBuilder statementBuilder,
-                                                                List<String> checks) {
-//        if (s.required() && s.defaultValue() == null) {
-//            return Optional.of(InputValidationErr.error(
-//                "Create table: Property key '%s' is required, default value is null"
-//                    .formatted(s.key())));
-//        }
+    private static Optional<InputValidationErr> addStringColumn(
+        StringProperty s,
+        StringBuilder statementBuilder,
+        List<String> checks
+    ) {
         statementBuilder.append(
             ",%s TEXT DEFAULT %s %s %s%n".formatted(
                 s.key(),
@@ -157,13 +151,10 @@ class PostgreQueryGenerator implements QueryGenerator {
         return Optional.empty();
     }
 
-    private static Optional<InputValidationErr> addBooleanColumn(BooleanProperty b,
-                                                                 StringBuilder statementBuilder) {
-//        if (b.required() && b.defaultValue() == null) {
-//            return Optional.of(InputValidationErr.error(
-//                "Create table: Property key '%s' is required, default value is null"
-//                    .formatted(b.key())));
-//        }
+    private static Optional<InputValidationErr> addBooleanColumn(
+        BooleanProperty b,
+        StringBuilder statementBuilder
+    ) {
 
         statementBuilder.append(
             ",%s BOOLEAN DEFAULT %s %s %s%n".formatted(
@@ -413,14 +404,11 @@ class PostgreQueryGenerator implements QueryGenerator {
         return Optional.empty();
     }
 
-    private Optional<InputValidationErr> addDecimalColumn(DecimalProperty d,
-                                                          StringBuilder statementBuilder,
-                                                          List<String> checks) {
-//        if (d.required() && d.defaultValue() == null) {
-//            return Optional.of(InputValidationErr.error(
-//                "Create table: Property key '%s' is required, default value is null"
-//                    .formatted(d.key())));
-//        }
+    private Optional<InputValidationErr> addDecimalColumn(
+        DecimalProperty d,
+        StringBuilder statementBuilder,
+        List<String> checks
+    ) {
 
         if (d.precision() < 1 || d.precision() > MAX_PRECISION) {
             return Optional.of(InputValidationErr.error(
