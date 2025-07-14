@@ -1,9 +1,13 @@
-package edu.ukma.smart.virtual;
+package edu.ukma.smart.virtual.create;
 
-import edu.ukma.smart.virtual.properties.Property;
+import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
+
+import edu.ukma.smart.virtual.Validated;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 // TODO: strict validation
 public record NewTable(
@@ -11,7 +15,7 @@ public record NewTable(
     String name,
     String description,
     List<Property<?>> properties
-) {
+) implements Validated {
 
     public NewTable(String key, String name, String description, List<Property<?>> properties) {
         this.key = key;
@@ -55,11 +59,32 @@ public record NewTable(
 
         public NewTable build() {
             return new NewTable(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
-                Objects.requireNonNull(description),
-                Objects.requireNonNull(properties)
+                key,
+                name,
+                description,
+                properties
             );
         }
+    }
+
+    @Override
+    public Optional<Err> validate() {
+        if (key == null) {
+            return Optional.of(InputValidationErr.error("Table key must be specified"));
+        }
+
+        if (!KEY_REGEXP.matcher(key).matches()) {
+            return Optional.of(InputValidationErr.error("Invalid table key format: %s".formatted(key)));
+        }
+
+        if (name == null || name.isBlank()) {
+            return Optional.of(InputValidationErr.error("Table name must be specified"));
+        }
+
+        if (properties == null) {
+            return Optional.of(InputValidationErr.error("Table properties must be specified"));
+        }
+
+        return Optional.empty();
     }
 }

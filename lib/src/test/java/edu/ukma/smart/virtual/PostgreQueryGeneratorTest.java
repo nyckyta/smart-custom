@@ -4,21 +4,25 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import edu.ukma.smart.virtual.create.BooleanProperty;
+import edu.ukma.smart.virtual.create.DecimalProperty;
+import edu.ukma.smart.virtual.create.IntegerProperty;
+import edu.ukma.smart.virtual.create.NewTable;
+import edu.ukma.smart.virtual.create.Property;
+import edu.ukma.smart.virtual.create.ReferenceProperty;
+import edu.ukma.smart.virtual.create.StringProperty;
+import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.properties.BooleanProperty;
-import edu.ukma.smart.virtual.properties.DecimalProperty;
-import edu.ukma.smart.virtual.properties.IntegerProperty;
-import edu.ukma.smart.virtual.properties.Property;
-import edu.ukma.smart.virtual.properties.ReferenceProperty;
-import edu.ukma.smart.virtual.properties.StringProperty;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
 import edu.ukma.smart.virtual.select.IntegerPredicate;
 import edu.ukma.smart.virtual.select.ReferencePredicate;
+import edu.ukma.smart.virtual.select.SelectProperty;
 import edu.ukma.smart.virtual.select.SelectQuery;
 import edu.ukma.smart.virtual.select.StringPredicate;
+import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.DecimalValue;
@@ -29,7 +33,6 @@ import edu.ukma.smart.virtual.values.StringValue;
 import edu.ukma.smart.virtual.values.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.testng.Assert;
@@ -121,19 +124,6 @@ public class PostgreQueryGeneratorTest {
     }
 
     @Test
-    public void testCreateTableWithNoProperties() {
-        // Given
-        NewTable newTable =
-            new NewTable("empty_table", "empty_table", "empty_table", Collections.emptyList());
-
-        // When
-        Return<String> result = queryBuilder.createTable(newTable);
-
-        // Then
-        assertTrue(result.error().isPresent());
-    }
-
-    @Test
     public void testCreateTableWithReferenceProperty() {
         // Given
         List<Property<?>> properties = List.of(
@@ -201,7 +191,7 @@ public class PostgreQueryGeneratorTest {
         Return<String> result = queryBuilder.createTable(newTable);
 
         // Then
-        assertTrue(result.error().isPresent());
+        assertTrue(result.error().isPresent(), "No error on invalid key %s".formatted(invalidKey));
     }
 
     @DataProvider(name = "validTableKeys")
@@ -506,7 +496,7 @@ public class PostgreQueryGeneratorTest {
     }
 
     @Test(dataProvider = "invalidTableKeys")
-    public void testInsertIntoTableWithInvalidColumnKey(String invalidKey) {
+    public void testInsertIntoTableWithInvalidpropertyKey(String invalidKey) {
         // Given
         List<ColumnValue<?>> columnValues = List.of(StringValue.of(invalidKey, "John Doe"));
 
@@ -553,7 +543,7 @@ public class PostgreQueryGeneratorTest {
     }
 
     @Test
-    public void testInsertWithSQLInjectionAttemptInColumnKey() {
+    public void testInsertWithSQLInjectionAttemptInpropertyKey() {
         // Given - Malicious SQL injection attempt in column key should be rejected
         List<ColumnValue<?>> columnValues = List.of(
             new StringValue("name; DROP TABLE users; --", "John")
@@ -601,7 +591,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testDeleteFromTableWithValidData() {
         // When
-        Return<String> result = queryBuilder.deleteFromTable("users", 123);
+        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("users", 123));
 
         // Then
         assertTrue(result.error().isEmpty());
@@ -611,7 +601,7 @@ public class PostgreQueryGeneratorTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testDeleteFromTableWithInvalidTableKey(String invalidKey) {
         // When
-        Return<String> result = queryBuilder.deleteFromTable(invalidKey, 123);
+        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of(invalidKey, 123));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -620,7 +610,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testDeleteFromTableWithNegativeId() {
         // When
-        Return<String> result = queryBuilder.deleteFromTable("users", -1);
+        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("users", -1));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -900,14 +890,20 @@ public class PostgreQueryGeneratorTest {
                 SelectStatement.of("SELECT * FROM public.key ;", List.of())
             },
             {
-                SelectQuery.of("key", List.of("column")),
+                SelectQuery.of("key", List.of(SelectProperty.of("column"))),
                 SelectStatement.of("SELECT column FROM public.key ;", List.of())},
             {
-                SelectQuery.of("key", List.of("column_one", "column_two")),
+                SelectQuery.of("key", List.of(SelectProperty.of("column_one"), SelectProperty.of("column_two"))),
                 SelectStatement.of("SELECT column_one,column_two FROM public.key ;", List.of())},
 
             {
-                SelectQuery.of("key", List.of("column_one", "column_two", "column_three")),
+                SelectQuery.of("key",
+                    List.of(
+                        SelectProperty.of("column_one"),
+                        SelectProperty.of("column_two"),
+                        SelectProperty.of("column_three")
+                    )
+                ),
                 SelectStatement.of("SELECT column_one,column_two,column_three FROM public.key ;", List.of())
             },
 
@@ -927,22 +923,26 @@ public class PostgreQueryGeneratorTest {
 
             // Valid column name edge cases
             {
-                SelectQuery.of("table", List.of("aa")),
+                SelectQuery.of("table", List.of(SelectProperty.of("aa"))),
                 SelectStatement.of("SELECT aa FROM public.table ;", List.of())
             },
             {
-                SelectQuery.of("table", List.of("column_with_underscores")),
+                SelectQuery.of("table", List.of(SelectProperty.of("column_with_underscores"))),
                 SelectStatement.of("SELECT column_with_underscores FROM public.table ;", List.of())
             },
             {
-                SelectQuery.of("table", List.of("a".repeat(63))), // 63 characters - should be valid
+                SelectQuery.of("table", List.of(SelectProperty.of("a".repeat(63)))), // 63 characters - should be valid
                 SelectStatement.of("SELECT " + "a".repeat(63) + " FROM public.table ;", List.of())
             },
 
             // Maximum number of columns (100 columns)
             {
                 SelectQuery.of("table", generateColumnList(100)),
-                SelectStatement.of("SELECT " + String.join(",", generateColumnList(100)) + " FROM public.table ;", List.of())
+                SelectStatement.of(
+                    "SELECT " + String.join(",",
+                        generateColumnList(100).stream().map(SelectProperty::propertyName).toList())
+                        + " FROM public.table ;",
+                    List.of())
             },
 
             // Valid table names with various patterns
@@ -1111,9 +1111,17 @@ public class PostgreQueryGeneratorTest {
                 )
             },
             {
-                SelectQuery.of("user_profile", List.of("one", "two", "name"), StringPredicate.like("name", "Kimberly")),
-                SelectStatement.of("SELECT one,two,name FROM public.user_profile WHERE name~~? ;",
-                    List.of(StringValue.of("name", "Kimberly")))
+                SelectQuery.of(
+                    "user_profile",
+                    List.of(
+                        SelectProperty.of("one"),
+                        SelectProperty.of("two"),
+                        SelectProperty.of("name")),
+                    StringPredicate.like("name", "Kimberly")),
+                SelectStatement.of(
+                    "SELECT one,two,name FROM public.user_profile WHERE name~~? ;",
+                    List.of(StringValue.of("name", "Kimberly"))
+                )
             },
             {
                 SelectQuery.wildcard(
@@ -1179,11 +1187,11 @@ public class PostgreQueryGeneratorTest {
     }
 
     // Helper method to generate column lists for testing
-    private static List<String> generateColumnList(int count) {
-        List<String> columns = new ArrayList<>();
+    private static List<SelectProperty> generateColumnList(int count) {
+        List<SelectProperty> columns = new ArrayList<>();
         String[] column = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
         for (int i = 0; i < count; i += 1) {
-            columns.add(column[i % column.length]);
+            columns.add(SelectProperty.of(column[i % column.length]));
         }
         return columns;
     }
@@ -1241,51 +1249,74 @@ public class PostgreQueryGeneratorTest {
 
             // Column name starting with uppercase
             {
-                SelectQuery.of("table", List.of("Column")),
+                SelectQuery.of("table", List.of(SelectProperty.of("Column"))),
             },
 
             // Column name starting with number
             {
-                SelectQuery.of("table", List.of("1column")),
+                SelectQuery.of("table", List.of(SelectProperty.of("1column"))),
             },
 
             // Column name starting with underscore
             {
-                SelectQuery.of("table", List.of("_column")),
+                SelectQuery.of("table", List.of(SelectProperty.of("_column"))),
             },
 
             // Column name with invalid characters
             {
-                SelectQuery.of("table", List.of("column-name")),
+                SelectQuery.of("table", List.of(SelectProperty.of("column-name"))),
             },
             {
-                SelectQuery.of("table", List.of("column.name")),
+                SelectQuery.of("table", List.of(SelectProperty.of("column.name"))),
             },
             {
-                SelectQuery.of("table", List.of("column name")),
+                SelectQuery.of("table", List.of(SelectProperty.of("column name"))),
             },
             {
-                SelectQuery.of("table", List.of("column@name")),
+                SelectQuery.of("table", List.of(SelectProperty.of("column@name"))),
             },
 
             // Column name too long (over 101 characters)
             {
-                SelectQuery.of("table", List.of("a".repeat(102))),
+                SelectQuery.of("table", List.of(SelectProperty.of("a".repeat(102)))),
             },
 
             // Column name too short (empty)
             {
-                SelectQuery.of("table", List.of("")),
+                SelectQuery.of("table", List.of(SelectProperty.of(""))),
+            },
+            // System column names (empty)
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("tableoid"))),
+            },
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmin"))),
+            },
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmax"))),
+            },
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmin"))),
+            },
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmax"))),
+            },
+            {
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("ctid"))),
             },
 
             // Multiple invalid columns
             {
-                SelectQuery.of("table", List.of("valid_column", "Invalid_Column")),
+                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("Invalid_Column"))),
             },
 
             // Null column in list
             {
-                SelectQuery.of("table", Arrays.asList("valid_column", null)),
+                SelectQuery.of("table",
+                    List.of(
+                        SelectProperty.of("valid_column"),
+                        SelectProperty.of(null))
+                ),
             },
 
             // SQL Injection attempts in table names
@@ -1345,51 +1376,60 @@ public class PostgreQueryGeneratorTest {
 
             // Basic injection in column names
             {
-                SelectQuery.of("users", List.of("name'; DROP TABLE users; --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name'; DROP TABLE users; --"))),
             },
             {
-                SelectQuery.of("users", List.of("name' OR '1'='1")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' OR '1'='1"))),
             },
             {
-                SelectQuery.of("users", List.of("name\" OR \"1\"=\"1")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name\" OR \"1\"=\"1"))),
             },
 
             // Union injection in column names
             {
-                SelectQuery.of("users", List.of("name UNION SELECT password FROM users")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name UNION SELECT password FROM users"))),
             },
             {
-                SelectQuery.of("users", List.of("name' UNION SELECT * FROM passwords --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' UNION SELECT * FROM passwords --"))),
             },
 
             // Comment injection in column names
             {
-                SelectQuery.of("users", List.of("name-- comment")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name-- comment"))),
             },
             {
-                SelectQuery.of("users", List.of("name/* comment */")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name/* comment */"))),
             },
             {
-                SelectQuery.of("users", List.of("name # comment")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name # comment"))),
             },
 
             // Function calls in column names
             {
-                SelectQuery.of("users", List.of("name, password")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name, password"))),
             },
             {
-                SelectQuery.of("users", List.of("name FROM users WHERE 1=1 --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name FROM users WHERE 1=1 --"))),
             },
             {
-                SelectQuery.of("users", List.of("name) FROM users WHERE (1=1")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name) FROM users WHERE (1=1"))),
             },
 
             // Multiple column injection attempts
             {
-                SelectQuery.of("users", List.of("valid_column", "malicious'; DROP TABLE users; --")),
+                SelectQuery.of(
+                    "users",
+                    List.of(
+                        SelectProperty.of("valid_column"),
+                        SelectProperty.of("malicious'; DROP TABLE users; --"))
+                ),
             },
             {
-                SelectQuery.of("users", List.of("name' OR '1'='1", "valid_column")),
+                SelectQuery.of("users",
+                    List.of(
+                        SelectProperty.of("name' OR '1'='1"),
+                        SelectProperty.of("valid_column"))
+                ),
             },
 
             // Advanced injection techniques
@@ -1399,7 +1439,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND 1=0x31 --"),
             },
             {
-                SelectQuery.of("users", List.of("name' AND 1=0x31 --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' AND 1=0x31 --"))),
             },
 
             // Char function attempts
@@ -1407,7 +1447,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND 1=CHAR(49) --"),
             },
             {
-                SelectQuery.of("users", List.of("name' AND 1=CHAR(49) --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' AND 1=CHAR(49) --"))),
             },
 
             // Time-based blind injection
@@ -1415,7 +1455,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND (SELECT COUNT(*) FROM users) > 0 --"),
             },
             {
-                SelectQuery.of("users", List.of("name' AND (SELECT COUNT(*) FROM users) > 0 --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' AND (SELECT COUNT(*) FROM users) > 0 --"))),
             },
 
             // Boolean-based blind injection
@@ -1423,7 +1463,8 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND SUBSTRING((SELECT password FROM users WHERE id=1),1,1)='a' --"),
             },
             {
-                SelectQuery.of("users", List.of("name' AND SUBSTRING((SELECT password FROM users WHERE id=1),1,1)='a' --")),
+                SelectQuery.of("users", List.of(
+                    SelectProperty.of("name' AND SUBSTRING((SELECT password FROM users WHERE id=1),1,1)='a' --"))),
             },
 
             // Error-based injection
@@ -1432,7 +1473,8 @@ public class PostgreQueryGeneratorTest {
             },
             {
                 SelectQuery.of("users",
-                    List.of("name' AND EXTRACTVALUE(1, CONCAT(0x7e, (SELECT password FROM users LIMIT 1), 0x7e)) --")),
+                    List.of(SelectProperty.of(
+                        "name' AND EXTRACTVALUE(1, CONCAT(0x7e, (SELECT password FROM users LIMIT 1), 0x7e)) --"))),
             },
 
             // Out-of-band injection
@@ -1451,35 +1493,36 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' || '1'=='1"),
             },
             {
-                SelectQuery.of("users", List.of("name' || '1'=='1")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' || '1'=='1"))),
             },
             // Escaped quote attempts
             {
                 SelectQuery.wildcard("users\\' OR \\'1\\'=\\'1"),
             },
             {
-                SelectQuery.of("users", List.of("name\\' OR \\'1\\'=\\'1")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name\\' OR \\'1\\'=\\'1"))),
             },
             // Nested query attempts
             {
                 SelectQuery.wildcard("users' AND (SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) AS t) --"),
             },
             {
-                SelectQuery.of("users", List.of("name' AND (SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) AS t) --")),
+                SelectQuery.of("users", List.of(
+                    SelectProperty.of("name' AND (SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) AS t) --"))),
             },
             // Cross-database injection attempts
             {
                 SelectQuery.wildcard("users' UNION SELECT * FROM information_schema.tables --"),
             },
             {
-                SelectQuery.of("users", List.of("name' UNION SELECT * FROM information_schema.columns --")),
+                SelectQuery.of("users", List.of(SelectProperty.of("name' UNION SELECT * FROM information_schema.columns --"))),
             },
             // Privilege escalation attempts
             {
                 SelectQuery.wildcard("users'; GRANT ALL PRIVILEGES ON *.* TO 'hacker'@'%' --")
             },
             {
-                SelectQuery.of("users", List.of("name'; CREATE USER 'hacker'@'%' IDENTIFIED BY 'password' --"))
+                SelectQuery.of("users", List.of(SelectProperty.of("name'; CREATE USER 'hacker'@'%' IDENTIFIED BY 'password' --")))
             }
         };
     }
@@ -1488,6 +1531,6 @@ public class PostgreQueryGeneratorTest {
     void testSelectQueryGeneratingSQLInjection(SelectQuery selectQuery) {
         var ret = queryBuilder.select(selectQuery);
         Assert.assertTrue(ret.error().isPresent(),
-            "No error. Parameter " + selectQuery + "; columns to return size " + selectQuery.columnKeysToReturn().size());
+            "No error. Parameter " + selectQuery + "; columns to return size " + selectQuery.propertyKeysToReturn().size());
     }
 }

@@ -1,9 +1,12 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.create.NewTable;
+import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.select.SelectQuery;
+import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.BooleanValue;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import edu.ukma.smart.virtual.values.DecimalValue;
@@ -11,7 +14,6 @@ import edu.ukma.smart.virtual.values.IntegerValue;
 import edu.ukma.smart.virtual.values.ListValue;
 import edu.ukma.smart.virtual.values.ReferenceValue;
 import edu.ukma.smart.virtual.values.StringValue;
-import edu.ukma.smart.virtual.values.Type;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -38,7 +40,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     @Override
     public Optional<? extends Err> createTable(NewTable newTable) throws SQLException {
-
         final var query = queryBuilder.createTable(newTable);
         if (query.error().isPresent()) {
             return query.error();
@@ -121,8 +122,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
-    public Optional<? extends Err> deleteRow(String tableKey, int rowId) throws SQLException {
-        var query = queryBuilder.deleteFromTable(tableKey, rowId);
+    public Optional<? extends Err> deleteRow(DeleteRow deleteRow) throws SQLException {
+        var query = queryBuilder.deleteFromTable(deleteRow);
         if (query.error().isPresent()) {
             return query.error();
         }
@@ -158,7 +159,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             var resultSet = statement.executeQuery();
             List<List<ColumnValue<?>>> queryResult = new ArrayList<>();
             while (resultSet.next()) {
-                List<ColumnValue<?>> rowResult = new ArrayList<>(query.columnKeysToReturn().size());
+                List<ColumnValue<?>> rowResult = new ArrayList<>(query.propertyKeysToReturn().size());
                 for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i += 1) {
                     String name = resultSet.getMetaData().getColumnName(i);
                     var value = switch (resultSet.getMetaData().getColumnType(i)) {
@@ -222,16 +223,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
         ;
 
         return _index;
-    }
-
-    private String resolveArrayType(Type type) {
-        return switch (type) {
-            case STRING -> "VARCHAR";
-            case INTEGER -> "BIGINT";
-            case BOOLEAN -> "BOOLEAN";
-            case DECIMAL -> "DECIMAL";
-            case REFERENCE -> "INTEGER";
-        };
     }
 
     private void executeStatement(String query) throws SQLException {

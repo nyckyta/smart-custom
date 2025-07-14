@@ -3,23 +3,23 @@ package edu.ukma.smart.virtual.select;
 import java.util.Objects;
 
 public record BooleanPredicate(
-    String columnKey,
+    String propertyKey,
     Operator op,
     Boolean value
 ) implements RawPredicate<Boolean> {
 
-    public BooleanPredicate(String columnKey, Operator op, Boolean value) {
-        this.columnKey = Objects.requireNonNull(columnKey);
-        this.op = Objects.requireNonNull(op);
+    public BooleanPredicate(String propertyKey, Operator op, Boolean value) {
+        this.propertyKey = propertyKey;
+        this.op = op;
         this.value = value;
     }
 
-    public static BooleanPredicate eq(String columnName, Boolean value) {
-        return new BooleanPredicate(Objects.requireNonNull(columnName), Operator.EQUAL, value);
+    public static BooleanPredicate eq(String propertyName, Boolean value) {
+        return new BooleanPredicate(propertyName, Operator.EQUAL, value);
     }
 
-    public static BooleanPredicate ne(String columnName, Boolean value) {
-        return new BooleanPredicate(Objects.requireNonNull(columnName), Operator.NOT_EQUAL, value);
+    public static BooleanPredicate ne(String propertyName, Boolean value) {
+        return new BooleanPredicate(Objects.requireNonNull(propertyName), Operator.NOT_EQUAL, value);
     }
 
     public enum Operator {

@@ -1,3 +1,5 @@
 package edu.ukma.smart.virtual.select;
 
-public interface Predicate {}
+import edu.ukma.smart.virtual.Validated;
+
+public interface Predicate extends Validated {}

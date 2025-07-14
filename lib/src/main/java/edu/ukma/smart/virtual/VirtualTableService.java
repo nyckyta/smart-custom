@@ -1,8 +1,11 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.create.NewTable;
+import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.select.SelectQuery;
+import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import java.sql.SQLException;
 import java.util.List;
@@ -25,7 +28,7 @@ public interface VirtualTableService {
 
     Optional<? extends Err> updateRow(UpdateRow updateRow) throws SQLException;
 
-    Optional<? extends Err> deleteRow(String tableKey, int rowId) throws SQLException;
+    Optional<? extends Err> deleteRow(DeleteRow deleteRow) throws SQLException;
 
     Return<List<List<ColumnValue<?>>>> select(SelectQuery query) throws SQLException;
 }

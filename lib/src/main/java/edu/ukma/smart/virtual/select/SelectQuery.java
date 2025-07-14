@@ -1,39 +1,44 @@
 package edu.ukma.smart.virtual.select;
 
+import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
+
+import edu.ukma.smart.virtual.Validated;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 public record SelectQuery(
     String tableKey,
-    List<String> columnKeysToReturn,
+    List<SelectProperty> propertyKeysToReturn,
     Predicate predicate
-) {
+) implements Validated {
 
-    public SelectQuery(String tableKey, List<String> columnKeysToReturn, Predicate predicate) {
-        this.tableKey = Objects.requireNonNull(tableKey);
-        this.columnKeysToReturn = Objects.requireNonNull(columnKeysToReturn);
+    public SelectQuery(String tableKey, List<SelectProperty> propertyKeysToReturn, Predicate predicate) {
+        this.tableKey = tableKey;
+        this.propertyKeysToReturn = propertyKeysToReturn;
         this.predicate = predicate;
     }
 
     public static SelectQuery of(
         String tableKey,
-        List<String> columnsToReturn
+        List<SelectProperty> columnsToReturn
     ) {
         return new SelectQuery(
-            Objects.requireNonNull(tableKey),
-            Objects.requireNonNull(columnsToReturn),
+            tableKey,
+            columnsToReturn,
             null
         );
     }
 
     public static SelectQuery of(
         String tableKey,
-        List<String> columnsToReturn,
+        List<SelectProperty> columnsToReturn,
         Predicate predicate
     ) {
         return new SelectQuery(
-            Objects.requireNonNull(tableKey),
-            Objects.requireNonNull(columnsToReturn),
+            tableKey,
+            columnsToReturn,
             predicate
         );
     }
@@ -44,5 +49,22 @@ public record SelectQuery(
 
     public static SelectQuery wildcard(String tableKey, Predicate predicate) {
         return new SelectQuery(tableKey, List.of(), predicate);
+    }
+
+    @Override
+    public Optional<Err> validate() {
+        if (tableKey == null) {
+            return Optional.of(InputValidationErr.error("Table key must be specified"));
+        }
+
+        if (!KEY_REGEXP.matcher(tableKey).matches()) {
+            return Optional.of(InputValidationErr.error("Invalid table key format: %s".formatted(tableKey)));
+        }
+
+        if (propertyKeysToReturn == null) {
+            return Optional.of(InputValidationErr.error("Property keys must be specified or set to empty list"));
+        }
+
+        return Optional.empty();
     }
 }

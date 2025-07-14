@@ -1,4 +1,4 @@
-package edu.ukma.smart.virtual.properties;
+package edu.ukma.smart.virtual.create;
 
 import java.util.Objects;
 

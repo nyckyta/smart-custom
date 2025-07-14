@@ -1,7 +1,10 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.create.NewTable;
+import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.select.SelectQuery;
+import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.ColumnValue;
 import java.util.List;
 
@@ -17,6 +20,6 @@ interface QueryGenerator {
 
     Return<String> updateRow(UpdateRow updateRow);
 
-    Return<String> deleteFromTable(String tableKey, int rowId);
+    Return<String> deleteFromTable(DeleteRow deleteRow);
     // TODO: extend
 }

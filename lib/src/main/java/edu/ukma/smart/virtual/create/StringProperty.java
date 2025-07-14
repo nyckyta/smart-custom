@@ -1,8 +1,9 @@
-package edu.ukma.smart.virtual.properties;
+package edu.ukma.smart.virtual.create;
 
-import java.util.Objects;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
+import java.util.Optional;
 
-// TODO: strict validation
 public record StringProperty(
     String key,
     String name,
@@ -74,8 +75,8 @@ public record StringProperty(
 
         public StringProperty build() {
             return new StringProperty(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
+                key,
+                name,
                 description,
                 defaultValue,
                 isRequired,
@@ -84,5 +85,34 @@ public record StringProperty(
                 minLength
             );
         }
+    }
+
+    @Override
+    public Optional<Err> validate() {
+        boolean maxLengthSet = maxLength != null;
+        boolean minLengthSet = minLength != null;
+
+        if (maxLengthSet && maxLength < 1) {
+            return Optional.of(InputValidationErr.error(
+                "Property key '%s' max length can not be less than one".formatted(key()))
+            );
+        }
+
+        if (minLengthSet && minLength < 1) {
+            return Optional.of(
+                InputValidationErr.error(
+                    "Property key '%s' min length can not be less than one".formatted(key()))
+            );
+        }
+
+        if (minLengthSet && maxLengthSet) {
+            if (maxLength() < minLength()) {
+                return Optional.of(
+                    InputValidationErr.error("Property key '%s' max length can not be less than min length".formatted(key()))
+                );
+            }
+        }
+
+        return Property.super.validate();
     }
 }

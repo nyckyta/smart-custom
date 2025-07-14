@@ -1,9 +1,7 @@
-package edu.ukma.smart.virtual;
+package edu.ukma.smart.virtual.update;
 
 import edu.ukma.smart.virtual.values.ColumnValue;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 public record UpdateRow(
     String tableKey,
@@ -11,9 +9,9 @@ public record UpdateRow(
     List<ColumnValue<?>> valuesToUpdate
 ) {
     public UpdateRow(String tableKey, int rowId, List<ColumnValue<?>> valuesToUpdate) {
-        this.tableKey = Objects.requireNonNull(tableKey);
+        this.tableKey = tableKey;
         this.rowId = rowId;
-        this.valuesToUpdate = Collections.unmodifiableList(valuesToUpdate);
+        this.valuesToUpdate = valuesToUpdate;
     }
 
     public static UpdateRow of(String tableKey, int rowId, List<ColumnValue<?>> valuesToUpdate) {

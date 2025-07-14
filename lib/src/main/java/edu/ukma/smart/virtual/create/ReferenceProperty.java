@@ -1,6 +1,8 @@
-package edu.ukma.smart.virtual.properties;
+package edu.ukma.smart.virtual.create;
 
-import java.util.Objects;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
+import java.util.Optional;
 
 public record ReferenceProperty(
     String key,
@@ -69,14 +71,27 @@ public record ReferenceProperty(
 
         public ReferenceProperty build() {
             return new ReferenceProperty(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
+                key,
+                name,
                 description,
                 required,
                 unique,
                 defaultValue,
-                Objects.requireNonNull(refTableKey)
+                refTableKey
             );
         }
+    }
+
+    @Override
+    public Optional<Err> validate() {
+        if (refTableKey == null) {
+            return Optional.of(InputValidationErr.error("Reference table must be specified"));
+        }
+
+        if (!KEY_REGEXP.matcher(refTableKey).matches()) {
+            return Optional.of(InputValidationErr.error("Invalid table reference %s".formatted(refTableKey)));
+        }
+
+        return Property.super.validate();
     }
 }
