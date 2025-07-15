@@ -41,7 +41,7 @@ public record DecimalProperty(
         private DecimalPropertyBuilder() {
         }
 
-        public static DecimalPropertyBuilder decimalProperty() {
+        public static DecimalPropertyBuilder builder() {
             return new DecimalPropertyBuilder();
         }
 

@@ -30,7 +30,7 @@ public record ReferenceProperty(
         private ReferencePropertyBuilder() {
         }
 
-        public static ReferencePropertyBuilder referencePropertyBuilder() {
+        public static ReferencePropertyBuilder builder() {
             return new ReferencePropertyBuilder();
         }
 

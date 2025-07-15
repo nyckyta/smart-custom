@@ -33,7 +33,7 @@ public record IntegerProperty(
         private IntegerPropertyBuilder() {
         }
 
-        public static IntegerPropertyBuilder anIntegerProperty() {
+        public static IntegerPropertyBuilder builder() {
             return new IntegerPropertyBuilder();
         }
 

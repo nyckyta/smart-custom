@@ -26,7 +26,7 @@ public record BooleanProperty(
         private BooleanPropertyBuilder() {
         }
 
-        public static BooleanPropertyBuilder aBooleanProperty() {
+        public static BooleanPropertyBuilder builder() {
             return new BooleanPropertyBuilder();
         }
 
