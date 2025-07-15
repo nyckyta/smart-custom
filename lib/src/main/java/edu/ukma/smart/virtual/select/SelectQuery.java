@@ -1,10 +1,13 @@
 package edu.ukma.smart.virtual.select;
 
 import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.EMPTY_TABLE_KEY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.Validated;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,7 +19,7 @@ public record SelectQuery(
 
     public SelectQuery(String tableKey, List<SelectProperty> propertyKeysToReturn, Predicate predicate) {
         this.tableKey = tableKey;
-        this.propertyKeysToReturn = propertyKeysToReturn;
+        this.propertyKeysToReturn = propertyKeysToReturn == null ? List.of() : Collections.unmodifiableList(propertyKeysToReturn);
         this.predicate = predicate;
     }
 
@@ -54,15 +57,11 @@ public record SelectQuery(
     @Override
     public Optional<Err> validate() {
         if (tableKey == null) {
-            return Optional.of(InputValidationErr.error("Table key must be specified"));
+            return Optional.of(InputValidationErr.error(EMPTY_TABLE_KEY));
         }
 
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
-            return Optional.of(InputValidationErr.error("Invalid table key format: %s".formatted(tableKey)));
-        }
-
-        if (propertyKeysToReturn == null) {
-            return Optional.of(InputValidationErr.error("Property keys must be specified or set to empty list"));
+            return Optional.of(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();

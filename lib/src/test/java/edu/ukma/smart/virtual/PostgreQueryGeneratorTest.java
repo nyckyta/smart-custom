@@ -192,6 +192,7 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent(), "No error on invalid key %s".formatted(invalidKey));
+        assertEquals(((InputValidationErr) result.error().get()).code(), InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT);
     }
 
     @DataProvider(name = "validTableKeys")
@@ -253,8 +254,12 @@ public class PostgreQueryGeneratorTest {
         Return<String> result = queryBuilder.createTable(newTable);
 
         // Then
-        assertTrue(result.error().isPresent());
+        assertTrue(result.error().isPresent(), "No error on invalid key %s".formatted(invalidKey));
         assertEquals(result.error().get().getClass(), InputValidationErr.class);
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT
+        );
     }
 
     @Test
@@ -299,6 +304,11 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT
+        );
+
     }
 
     // ========== DECIMAL PROPERTY VALIDATION ==========
@@ -325,6 +335,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.DECIMAL_PRECISION_IS_INVALID
+        );
     }
 
     @Test
@@ -349,6 +363,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.DECIMAL_SCALE_IS_INVALID
+        );
     }
 
     @Test
@@ -375,6 +393,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_MIN_LEN
+        );
     }
 
     @Test
@@ -401,32 +423,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
-    }
-
-    @Test
-    public void testCreateTableWithStringInvalidMinLength() {
-        // Given
-        List<Property<?>> properties = List.of(
-            StringProperty.builder()
-                .key("description")
-                .name("Description")
-                .defaultValue("default")
-                .minLength(0) // min = 0
-                .maxLength(null)
-                .build()
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_ONE
         );
-        NewTable newTable = NewTable.builder()
-            .key("items")
-            .name("Items Table")
-            .description("Test table for items")
-            .properties(properties)
-            .build();
-
-        // When
-        Return<String> result = queryBuilder.createTable(newTable);
-
-        // Then
-        assertTrue(result.error().isPresent());
     }
 
 // ========== DELETE TABLE TESTS ==========
@@ -448,6 +448,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT
+        );
     }
 
 // ========== INSERT INTO TABLE TESTS ==========
@@ -493,6 +497,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT
+        );
     }
 
     @Test(dataProvider = "invalidTableKeys")
@@ -505,6 +513,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT
+        );
     }
 
 // ========== SQL INJECTION PROTECTION TESTS ==========
@@ -540,6 +552,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT
+        );
     }
 
     @Test
@@ -554,6 +570,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT
+        );
     }
 
     @Test
@@ -605,6 +625,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT
+        );
     }
 
     @Test
@@ -614,6 +638,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.WRONG_ROW_ID_FORMAT
+        );
     }
 
 // ========== UNIQUE AND NOT NULL CONSTRAINT TESTS ==========
@@ -764,6 +792,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.DECIMAL_PRECISION_IS_INVALID
+        );
     }
 
     @Test
@@ -794,6 +826,10 @@ public class PostgreQueryGeneratorTest {
 
         // Then
         assertTrue(result.error().isPresent());
+        assertEquals(
+            ((InputValidationErr) result.error().get()).code(),
+            InputValidationErr.ErrorCode.DECIMAL_SCALE_IS_INVALID
+        );
     }
 
     @Test
@@ -940,7 +976,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.of("table", generateColumnList(100)),
                 SelectStatement.of(
                     "SELECT " + String.join(",",
-                        generateColumnList(100).stream().map(SelectProperty::propertyName).toList())
+                        generateColumnList(100).stream().map(SelectProperty::propertyKey).toList())
                         + " FROM public.table ;",
                     List.of())
             },

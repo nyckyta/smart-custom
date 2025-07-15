@@ -1,5 +1,9 @@
 package edu.ukma.smart.virtual.create;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_GREATER_MAX_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_MAX_VAL_LESS_MIN_VAL;
+
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Objects;
@@ -98,23 +102,17 @@ public record IntegerProperty(
 
         if (defaultValueSet) {
             if (isMinSet && defaultValue < min) {
-                return Optional.of(
-                    InputValidationErr.error("Property key '%s' default value can not be less that minimum".formatted(key))
-                );
+                return Optional.of(InputValidationErr.error(INTEGER_DEFAULT_LESS_MIN_VAL));
             }
 
             if (isMaxSet && defaultValue > max) {
-                return Optional.of(
-                    InputValidationErr.error("Property key '%s' default value can not be less than maximum".formatted(key))
-                );
+                return Optional.of(InputValidationErr.error(INTEGER_DEFAULT_GREATER_MAX_VAL));
             }
         }
 
 
         if (isMinSet && isMaxSet && max < min) {
-            return Optional.of(
-                InputValidationErr.error("Property key '%s' max can not be less than min".formatted(key))
-            );
+            return Optional.of(InputValidationErr.error(INTEGER_MAX_VAL_LESS_MIN_VAL));
         }
 
         return Property.super.validate();

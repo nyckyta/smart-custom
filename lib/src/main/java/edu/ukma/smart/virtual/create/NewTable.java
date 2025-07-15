@@ -1,6 +1,9 @@
 package edu.ukma.smart.virtual.create;
 
 import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_TABLE;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.EMPTY_TABLE_KEY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.Validated;
 import edu.ukma.smart.virtual.errors.Err;
@@ -21,7 +24,7 @@ public record NewTable(
         this.key = key;
         this.name = name;
         this.description = description;
-        this.properties = Collections.unmodifiableList(properties);
+        this.properties = properties == null ? List.of() : Collections.unmodifiableList(properties);
     }
 
     public static NewTableBuilder builder() {
@@ -70,19 +73,15 @@ public record NewTable(
     @Override
     public Optional<Err> validate() {
         if (key == null) {
-            return Optional.of(InputValidationErr.error("Table key must be specified"));
+            return Optional.of(InputValidationErr.error(EMPTY_TABLE_KEY));
         }
 
         if (!KEY_REGEXP.matcher(key).matches()) {
-            return Optional.of(InputValidationErr.error("Invalid table key format: %s".formatted(key)));
+            return Optional.of(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (name == null || name.isBlank()) {
-            return Optional.of(InputValidationErr.error("Table name must be specified"));
-        }
-
-        if (properties == null) {
-            return Optional.of(InputValidationErr.error("Table properties must be specified"));
+            return Optional.of(InputValidationErr.error(CREATE_TABLE_EMPTY_NAME_FOR_TABLE));
         }
 
         return Optional.empty();

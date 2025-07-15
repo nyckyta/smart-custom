@@ -62,8 +62,8 @@ public record BooleanProperty(
 
         public BooleanProperty build() {
             return new BooleanProperty(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
+                key,
+                name,
                 description,
                 defaultValue,
                 isRequired,

@@ -1,5 +1,8 @@
 package edu.ukma.smart.virtual.create;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT;
+
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Optional;
@@ -85,11 +88,11 @@ public record ReferenceProperty(
     @Override
     public Optional<Err> validate() {
         if (refTableKey == null) {
-            return Optional.of(InputValidationErr.error("Reference table must be specified"));
+            return Optional.of(InputValidationErr.error(REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY));
         }
 
         if (!KEY_REGEXP.matcher(refTableKey).matches()) {
-            return Optional.of(InputValidationErr.error("Invalid table reference %s".formatted(refTableKey)));
+            return Optional.of(InputValidationErr.error(WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT));
         }
 
         return Property.super.validate();

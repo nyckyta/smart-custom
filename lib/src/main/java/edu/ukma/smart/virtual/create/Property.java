@@ -1,5 +1,10 @@
 package edu.ukma.smart.virtual.create;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.EMPTY_PROPERTY_KEY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.FORBIDDEN_PROPERTY_KEY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT;
+
 import edu.ukma.smart.virtual.Validated;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
@@ -35,19 +40,19 @@ public interface Property<T> extends Validated {
     @Override
     default Optional<Err> validate() {
         if (key() == null) {
-            return Optional.of(InputValidationErr.error("Key must be specified"));
+            return Optional.of(InputValidationErr.error(EMPTY_PROPERTY_KEY));
         }
 
-        if (name() == null) {
-            return Optional.of(InputValidationErr.error("Name must be specified"));
+        if (name() == null || name().isBlank()) {
+            return Optional.of(InputValidationErr.error(CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY));
         }
 
         if (!KEY_REGEXP.matcher(key()).matches()) {
-            return Optional.of(InputValidationErr.error("Wrong table key %s".formatted(key())));
+            return Optional.of(InputValidationErr.error(WRONG_PROPERTY_KEY_FORMAT));
         }
 
         if (STATIC_FIELDS.contains(key()) || SYSTEM_EXCLUDED_FIELDS.contains(key())) {
-            return Optional.of(InputValidationErr.error("Property key %s is forbidden".formatted(key())));
+            return Optional.of(InputValidationErr.error(FORBIDDEN_PROPERTY_KEY));
         }
 
         return Optional.empty();

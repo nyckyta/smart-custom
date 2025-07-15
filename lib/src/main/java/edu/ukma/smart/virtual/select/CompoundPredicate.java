@@ -1,5 +1,9 @@
 package edu.ukma.smart.virtual.select;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
+
 import edu.ukma.smart.virtual.Validated;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
@@ -26,15 +30,15 @@ public record CompoundPredicate(
     @Override
     public Optional<Err> validate() {
         if (left == null) {
-            return Optional.of(InputValidationErr.error("Left predicate must be specified"));
+            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
         }
 
         if (right == null) {
-            return Optional.of(InputValidationErr.error("Right predicate must be specified"));
+            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
         }
 
         if (op == null) {
-            return Optional.of(InputValidationErr.error("Operator must be specified"));
+            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
         }
 
         return Optional.empty();

@@ -1,10 +1,11 @@
 package edu.ukma.smart.virtual.values;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.LIST_VALUE_MISSING_TYPE;
+
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 public record ListValue<V>(
@@ -15,7 +16,7 @@ public record ListValue<V>(
 
     public ListValue(String key, List<V> value, Type type) {
         this.key = key;
-        this.value = Collections.unmodifiableList(value);
+        this.value = value == null ? List.of() : Collections.unmodifiableList(value);
         this.type = type;
     }
 
@@ -29,12 +30,8 @@ public record ListValue<V>(
 
     @Override
     public Optional<Err> validate() {
-        if (value == null) {
-            return Optional.of(InputValidationErr.error("List value can not be null"));
-        }
-
         if (type == null) {
-            return Optional.of(InputValidationErr.error("Type can not be null"));
+            return Optional.of(InputValidationErr.error(LIST_VALUE_MISSING_TYPE));
         }
 
         return ColumnValue.super.validate();

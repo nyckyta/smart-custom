@@ -1,6 +1,9 @@
 package edu.ukma.smart.virtual;
 
 import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_NO_PROPERTIES;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_ROW_ID_FORMAT;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.create.BooleanProperty;
 import edu.ukma.smart.virtual.create.DecimalProperty;
@@ -143,7 +146,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 case BooleanProperty b -> addBooleanProperty(b, query);
                 case DecimalProperty d -> addDecimalProperty(d, query, constraints);
                 case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
-                default -> Optional.of(InputValidationErr.error("Create: not supported property"));
+                default -> throw new IllegalStateException("Unexpected property: " + property);
             }
 
         }
@@ -159,8 +162,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
             log.error("Drop: Table key '{}' does not match the required pattern '{}'", tableKey,
                 KEY_REGEXP);
-            return Return.error(InputValidationErr.error(
-                "Table key %s should consist only lower case english and '_'".formatted(tableKey)));
+            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
         }
         return Return.of("DROP TABLE %s;".formatted(tableKey));
     }
@@ -171,17 +173,17 @@ class PostgreQueryGenerator implements QueryGenerator {
         if (!KEY_REGEXP.matcher(updateRow.tableKey()).matches()) {
             log.error("Update row: Table key '{}' does not match the required pattern '{}'", updateRow.tableKey(),
                 KEY_REGEXP);
-            return Return.error(InputValidationErr.error("Wrong table key %s".formatted(updateRow.tableKey())));
+            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (updateRow.rowId() < 1) {
             log.error("Update row: row id is less than 1");
-            return Return.error(InputValidationErr.error("Row id cannot be less than 1"));
+            return Return.error(InputValidationErr.error(WRONG_ROW_ID_FORMAT));
         }
 
         if (updateRow.valuesToUpdate().isEmpty()) {
             log.error("Update row: no params provided to update row");
-            return Return.error(InputValidationErr.error("No params provided to update row"));
+            return Return.error(InputValidationErr.error(UPDATE_ROW_NO_PROPERTIES));
         }
 
         var queryBuilder = new StringBuilder()
@@ -206,7 +208,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         if (!KEY_REGEXP.matcher(tableKey).matches()) {
             log.error("Insert: Table key '{}' does not match the required pattern '{}'", tableKey,
                 KEY_REGEXP);
-            return Return.error(InputValidationErr.error("Wrong table key %s".formatted(tableKey)));
+            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (propertyValues.isEmpty()) {
@@ -252,7 +254,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                     return Return.error(err.get());
                 }
 
-                query.append("%s,".formatted(prop.propertyName()));
+                query.append("%s,".formatted(prop.propertyKey()));
             }
             // remove last comma
             query.delete(query.length() - 1, query.length());
@@ -268,7 +270,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         Return<String> where = switch (selectQuery.predicate()) {
             case CompoundPredicate c -> buildCompoundQuery(c, parameters);
             case RawPredicate<?> r -> buildRawQuery(r, parameters);
-            default -> Return.error(InputValidationErr.error("Select: Unknown predicate"));
+            default -> throw new IllegalStateException("Unexpected predicate " + selectQuery.predicate());
         };
 
         if (where.error().isPresent()) {

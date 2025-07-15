@@ -1,5 +1,9 @@
 package edu.ukma.smart.virtual.create;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_MIN_LEN;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_ONE;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MIN_LEN_LESS_ZERO;
+
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Optional;
@@ -93,23 +97,16 @@ public record StringProperty(
         boolean minLengthSet = minLength != null;
 
         if (maxLengthSet && maxLength < 1) {
-            return Optional.of(InputValidationErr.error(
-                "Property key '%s' max length can not be less than one".formatted(key()))
-            );
+            return Optional.of(InputValidationErr.error(STRING_MAX_LEN_LESS_ONE));
         }
 
-        if (minLengthSet && minLength < 1) {
-            return Optional.of(
-                InputValidationErr.error(
-                    "Property key '%s' min length can not be less than one".formatted(key()))
-            );
+        if (minLengthSet && minLength < 0) {
+            return Optional.of(InputValidationErr.error(STRING_MIN_LEN_LESS_ZERO));
         }
 
         if (minLengthSet && maxLengthSet) {
             if (maxLength() < minLength()) {
-                return Optional.of(
-                    InputValidationErr.error("Property key '%s' max length can not be less than min length".formatted(key()))
-                );
+                return Optional.of(InputValidationErr.error(STRING_MAX_LEN_LESS_MIN_LEN));
             }
         }
 

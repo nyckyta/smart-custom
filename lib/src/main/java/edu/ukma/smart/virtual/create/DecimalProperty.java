@@ -1,5 +1,11 @@
 package edu.ukma.smart.virtual.create;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_GREATER_MAX_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_MAX_VAL_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_PRECISION_IS_INVALID;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_SCALE_IS_INVALID;
+
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.math.BigDecimal;
@@ -97,8 +103,8 @@ public record DecimalProperty(
 
         public DecimalProperty build() {
             return new DecimalProperty(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
+                key,
+                name,
                 description,
                 defaultValue,
                 required,
@@ -114,13 +120,11 @@ public record DecimalProperty(
     @Override
     public Optional<Err> validate() {
         if (precision < 1 || precision > MAX_PRECISION) {
-            return Optional.of(InputValidationErr.error(
-                "Property %s has invalid precision".formatted(key)));
+            return Optional.of(InputValidationErr.error(DECIMAL_PRECISION_IS_INVALID));
         }
 
         if (scale < 1 || scale > MAX_SCALE) {
-            return Optional.of(InputValidationErr.error(
-                "Property %s has invalid scale".formatted(key)));
+            return Optional.of(InputValidationErr.error(DECIMAL_SCALE_IS_INVALID));
         }
 
         boolean maxSet = max != null;
@@ -130,23 +134,18 @@ public record DecimalProperty(
         if (defaultSet) {
             if (maxSet && defaultValue.compareTo(max) > 0) {
                 return Optional.of(
-                    InputValidationErr.error("Property key '%s' default value can not be greater than maximum".formatted(key))
+                    InputValidationErr.error(DECIMAL_DEFAULT_GREATER_MAX_VAL)
                 );
             }
 
             if (minSet && defaultValue.compareTo(min) < 0) {
-                return Optional.of(
-                    InputValidationErr.error("Property key '%s' default value can not be less than minimum".formatted(key))
-                );
+                return Optional.of(InputValidationErr.error(DECIMAL_DEFAULT_LESS_MIN_VAL));
             }
         }
 
         if (minSet && maxSet) {
             if (max.compareTo(min) < 0) {
-                return Optional.of(
-                    InputValidationErr.error(
-                        "Property key '%s' max can not be less than min".formatted(key))
-                );
+                return Optional.of(InputValidationErr.error(DECIMAL_MAX_VAL_LESS_MIN_VAL));
             }
         }
 

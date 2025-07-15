@@ -1,5 +1,8 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED;
+
 import edu.ukma.smart.virtual.create.NewTable;
 import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.errors.Err;
@@ -63,7 +66,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
-    // TODO: error handling for sql exceptions
     public Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue<?>> columnValues)
         throws SQLException {
         var query = queryBuilder.insertIntoTable(tableKey, columnValues);
@@ -80,9 +82,10 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     case BooleanValue b -> statement.setBoolean(index, b.value());
                     case DecimalValue d -> statement.setBigDecimal(index, d.value());
                     case ReferenceValue r -> statement.setInt(index, r.value());
-                    default -> {
-                        return Optional.of(InputValidationErr.error("Insert: not supported column value"));
+                    case ListValue<?> ignored -> {
+                        return Optional.of(InputValidationErr.error(ADD_ROW_LISTS_ARE_NOT_SUPPORTED));
                     }
+                    default -> throw new IllegalStateException("Add row: unknown value");
                 }
                 index += 1;
             }
@@ -108,9 +111,10 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     case BooleanValue b -> statement.setBoolean(index, b.value());
                     case DecimalValue d -> statement.setBigDecimal(index, d.value());
                     case ReferenceValue r -> statement.setInt(index, r.value());
-                    default -> {
-                        return Optional.of(InputValidationErr.error("Insert: not supported column value"));
+                    case ListValue<?> ignored -> {
+                        return Optional.of(InputValidationErr.error(UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED));
                     }
+                    default -> throw new IllegalStateException("Update: Unknown value " + value);
                 }
                 index += 1;
             }
@@ -149,9 +153,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     case DecimalValue d -> statement.setBigDecimal(index, d.value());
                     case ReferenceValue r -> statement.setInt(index, r.value());
                     case ListValue<?> l -> index = setListValue(statement, l, index);
-                    default -> {
-                        return Return.error(InputValidationErr.error("Insert: not supported column value"));
-                    }
+                    default -> throw new IllegalStateException("Select: Unknown value " + v);
                 }
                 index += 1;
             }

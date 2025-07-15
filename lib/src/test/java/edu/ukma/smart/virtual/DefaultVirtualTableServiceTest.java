@@ -174,6 +174,7 @@ class DefaultVirtualTableServiceTest {
             "Expected validation error for malicious table key: " + maliciousKey);
         assertTrue(result.get() instanceof InputValidationErr,
             "Expected InputValidationErr for malicious table key: " + maliciousKey);
+        assertEquals(((InputValidationErr) result.get()).code(), InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT);
     }
 
     @Test(dataProvider = "maliciousPropertyKeys")
@@ -201,6 +202,7 @@ class DefaultVirtualTableServiceTest {
             "Expected validation error for malicious property key: " + maliciousPropertyKey);
         assertTrue(result.get() instanceof InputValidationErr,
             "Expected InputValidationErr for malicious property key: " + maliciousPropertyKey);
+        assertEquals(((InputValidationErr) result.get()).code(), InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT);
     }
 
     @Test(dataProvider = "maliciousDefaultStringValue", enabled = false)

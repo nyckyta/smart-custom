@@ -14,7 +14,7 @@ public record Return<T>(T value, Optional<Err> error) {
 
     public static <T> Return<T> error(Err err) {
         if (err == null) {
-            throw new NullPointerException("Error must not be null on this call");
+            throw new NullPointerException("Error must not be null");
         }
         return new Return<>(null, Optional.of(err));
     }
