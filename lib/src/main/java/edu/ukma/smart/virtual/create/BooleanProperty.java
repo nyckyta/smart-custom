@@ -1,7 +1,5 @@
 package edu.ukma.smart.virtual.create;
 
-import java.util.Objects;
-
 public record BooleanProperty(
     String key,
     String name,

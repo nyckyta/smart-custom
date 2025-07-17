@@ -2,12 +2,11 @@ package edu.ukma.smart.virtual.errors;
 
 public record InputValidationErr(ErrorCode code) implements Err {
 
-    public static InputValidationErr error(ErrorCode err) {
+    public static InputValidationErr of(ErrorCode err) {
         return new InputValidationErr(err);
     }
 
     public enum ErrorCode {
-        EMPTY_TABLE_KEY("table.key.is.empty"),
         WRONG_TABLE_KEY_FORMAT("table.key.format.is.wrong"),
         EMPTY_PROPERTY_KEY("property.key.is.empty"),
         FORBIDDEN_PROPERTY_KEY("property.key.is.forbidden"),

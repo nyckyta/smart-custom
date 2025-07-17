@@ -4,7 +4,6 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_LESS_MIN_VAL;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_MAX_VAL_LESS_MIN_VAL;
 
-import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Objects;
 import java.util.Optional;
@@ -95,24 +94,24 @@ public record IntegerProperty(
     }
 
     @Override
-    public Optional<Err> validate() {
+    public Optional<InputValidationErr> validate() {
         boolean isMaxSet = max != null;
         boolean isMinSet = min != null;
         boolean defaultValueSet = defaultValue != null;
 
         if (defaultValueSet) {
             if (isMinSet && defaultValue < min) {
-                return Optional.of(InputValidationErr.error(INTEGER_DEFAULT_LESS_MIN_VAL));
+                return Optional.of(InputValidationErr.of(INTEGER_DEFAULT_LESS_MIN_VAL));
             }
 
             if (isMaxSet && defaultValue > max) {
-                return Optional.of(InputValidationErr.error(INTEGER_DEFAULT_GREATER_MAX_VAL));
+                return Optional.of(InputValidationErr.of(INTEGER_DEFAULT_GREATER_MAX_VAL));
             }
         }
 
 
         if (isMinSet && isMaxSet && max < min) {
-            return Optional.of(InputValidationErr.error(INTEGER_MAX_VAL_LESS_MIN_VAL));
+            return Optional.of(InputValidationErr.of(INTEGER_MAX_VAL_LESS_MIN_VAL));
         }
 
         return Property.super.validate();

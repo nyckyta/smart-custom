@@ -1,10 +1,5 @@
 package edu.ukma.smart.virtual;
 
-import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_NO_PROPERTIES;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_ROW_ID_FORMAT;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
-
 import edu.ukma.smart.virtual.create.BooleanProperty;
 import edu.ukma.smart.virtual.create.DecimalProperty;
 import edu.ukma.smart.virtual.create.IntegerProperty;
@@ -12,8 +7,9 @@ import edu.ukma.smart.virtual.create.NewTable;
 import edu.ukma.smart.virtual.create.ReferenceProperty;
 import edu.ukma.smart.virtual.create.StringProperty;
 import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.insert.InsertRow;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
@@ -33,7 +29,6 @@ import edu.ukma.smart.virtual.values.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +36,7 @@ import org.slf4j.LoggerFactory;
 class PostgreQueryGenerator implements QueryGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
+    private final InputValidator inputValidator = new PostgreInputValidator();
 
     private static void addIntegerProperty(
         IntegerProperty i,
@@ -49,7 +45,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            ",%s BIGINT DEFAULT %s %s %s%n".formatted(
+            ",\"%s\" BIGINT DEFAULT %s %s %s%n".formatted(
                 i.key(),
                 i.defaultValue() == null ? "NULL" : i.defaultValue(),
                 i.required() ? "NOT NULL" : "",
@@ -58,17 +54,17 @@ class PostgreQueryGenerator implements QueryGenerator {
         );
 
         if (i.max() != null && i.min() != null) {
-            checks.add("CHECK (%s BETWEEN %d AND %d)".formatted(i.key(), i.min(), i.max()));
+            checks.add("CHECK (\"%s\" BETWEEN %d AND %d)".formatted(i.key(), i.min(), i.max()));
             return;
         }
 
         if (i.max() != null) {
-            checks.add("CHECK (%s <= %d)".formatted(i.key(), i.max()));
+            checks.add("CHECK (\"%s\" <= %d)".formatted(i.key(), i.max()));
             return;
         }
 
         if (i.min() != null) {
-            checks.add("CHECK (%s >= %d)".formatted(i.key(), i.min()));
+            checks.add("CHECK (\"%s\" >= %d)".formatted(i.key(), i.min()));
             return;
         }
     }
@@ -79,7 +75,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> checks
     ) {
         statementBuilder.append(
-            ",%s TEXT DEFAULT %s %s %s%n".formatted(
+            ",\"%s\" TEXT DEFAULT %s %s %s%n".formatted(
                 s.key(),
                 s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
                 s.required() ? "NOT NULL" : "",
@@ -87,15 +83,15 @@ class PostgreQueryGenerator implements QueryGenerator {
         );
 
         if (s.maxLength() != null && s.minLength() != null) {
-            checks.add("CHECK (char_length(%s) BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
+            checks.add("CHECK (char_length(\"%s\") BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
         }
 
         if (s.maxLength() != null) {
-            checks.add("CHECK (char_length(%s) <= %d)".formatted(s.key(), s.maxLength()));
+            checks.add("CHECK (char_length(\"%s\") <= %d)".formatted(s.key(), s.maxLength()));
         }
 
         if (s.minLength() != null) {
-            checks.add("CHECK (char_length(%s) >= %d)".formatted(s.key(), s.minLength()));
+            checks.add("CHECK (char_length(\"%s\") >= %d)".formatted(s.key(), s.minLength()));
         }
     }
 
@@ -105,7 +101,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            ",%s BOOLEAN DEFAULT %s %s %s%n".formatted(
+            ",\"%s\" BOOLEAN DEFAULT %s %s %s%n".formatted(
                 b.key(),
                 b.defaultValue() == null ? "NULL" : b.defaultValue(),
                 b.required() ? "NOT NULL" : "",
@@ -117,7 +113,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     @Override
     public Return<String> createTable(NewTable newTable) {
-        var err = newTable.validate();
+        var err = inputValidator.validateNewTable(newTable);
         if (err.isPresent()) {
             return Return.error(err.get());
         }
@@ -135,7 +131,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         var constraints = new ArrayList<String>();
         for (var property : newTable.properties()) {
-            err = property.validate();
+            err = inputValidator.validateProperty(property);
             if (err.isPresent()) {
                 return Return.error(err.get());
             }
@@ -158,43 +154,30 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     @Override
-    public Return<String> deleteTable(String tableKey) {
-        if (!KEY_REGEXP.matcher(tableKey).matches()) {
-            log.error("Drop: Table key '{}' does not match the required pattern '{}'", tableKey,
-                KEY_REGEXP);
-            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
-        }
-        return Return.of("DROP TABLE %s;".formatted(tableKey));
+    public Return<String> deleteTable(DeleteTable deleteTable) {
+        var err = inputValidator.validateDeleteTable(deleteTable);
+        return err.<Return<String>>map(Return::error)
+            .orElseGet(() -> Return.of("DROP TABLE %s;".formatted(deleteTable.tableKey())));
+
     }
 
 
     @Override
     public Return<String> updateRow(UpdateRow updateRow) {
-        if (!KEY_REGEXP.matcher(updateRow.tableKey()).matches()) {
-            log.error("Update row: Table key '{}' does not match the required pattern '{}'", updateRow.tableKey(),
-                KEY_REGEXP);
-            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        if (updateRow.rowId() < 1) {
-            log.error("Update row: row id is less than 1");
-            return Return.error(InputValidationErr.error(WRONG_ROW_ID_FORMAT));
-        }
-
-        if (updateRow.valuesToUpdate().isEmpty()) {
-            log.error("Update row: no params provided to update row");
-            return Return.error(InputValidationErr.error(UPDATE_ROW_NO_PROPERTIES));
+        var err = inputValidator.validateUpdateRow(updateRow);
+        if (err.isPresent()) {
+            return Return.error(err.get());
         }
 
         var queryBuilder = new StringBuilder()
             .append("UPDATE public.%s SET ".formatted(updateRow.tableKey()));
         for (var column : updateRow.valuesToUpdate()) {
-            var err = column.validate();
+            err = inputValidator.validateColumnValue(column);
             if (err.isPresent()) {
                 return Return.error(err.get());
             }
 
-            queryBuilder.append("%s=?,".formatted(column.key()));
+            queryBuilder.append("\"%s\"=?,".formatted(column.key()));
         }
 
         // remove last comma
@@ -204,27 +187,26 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     @Override
-    public Return<String> insertIntoTable(String tableKey, List<? extends ColumnValue<?>> propertyValues) {
-        if (!KEY_REGEXP.matcher(tableKey).matches()) {
-            log.error("Insert: Table key '{}' does not match the required pattern '{}'", tableKey,
-                KEY_REGEXP);
-            return Return.error(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
+    public Return<String> insertIntoTable(InsertRow insertRow) {
+        var err = inputValidator.validateInsertRow(insertRow);
+        if (err.isPresent()) {
+            return Return.error(err.get());
         }
 
-        if (propertyValues.isEmpty()) {
-            return Return.of("INSERT INTO %s DEFAULT VALUES;".formatted(tableKey));
+        if (insertRow.columnValues().isEmpty()) {
+            return Return.of("INSERT INTO %s DEFAULT VALUES;".formatted(insertRow.tableKey()));
         }
 
         var propertiesPart = new StringBuilder("(");
         var valuesPart = new StringBuilder("VALUES (");
 
-        for (var property : propertyValues) {
-            var err = property.validate();
+        for (var v : insertRow.columnValues()) {
+            err = inputValidator.validateColumnValue(v);
             if (err.isPresent()) {
                 return Return.error(err.get());
             }
 
-            propertiesPart.append(property.key()).append(",");
+            propertiesPart.append("\"%s\"".formatted(v.key())).append(",");
             valuesPart.append("?,");
         }
         // Remove last comma
@@ -234,12 +216,12 @@ class PostgreQueryGenerator implements QueryGenerator {
         propertiesPart.append(")");
         valuesPart.append(")");
 
-        return Return.of("INSERT INTO %s %s %s;".formatted(tableKey, propertiesPart, valuesPart));
+        return Return.of("INSERT INTO %s %s %s;".formatted(insertRow.tableKey(), propertiesPart, valuesPart));
     }
 
     @Override
     public Return<SelectStatement> select(SelectQuery selectQuery) {
-        var err = selectQuery.validate();
+        var err = inputValidator.validateSelectQuery(selectQuery);
         if (err.isPresent()) {
             return Return.error(err.get());
         }
@@ -249,12 +231,12 @@ class PostgreQueryGenerator implements QueryGenerator {
             query.append("*");
         } else {
             for (final var prop : selectQuery.propertyKeysToReturn()) {
-                err = prop.validate();
+                err = inputValidator.validateSelectProperty(prop);
                 if (err.isPresent()) {
                     return Return.error(err.get());
                 }
 
-                query.append("%s,".formatted(prop.propertyKey()));
+                query.append("\"%s\",".formatted(prop.propertyKey()));
             }
             // remove last comma
             query.delete(query.length() - 1, query.length());
@@ -283,7 +265,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     @Override
     public Return<String> deleteFromTable(DeleteRow deleteRow) {
-        var err = deleteRow.validate();
+        var err = inputValidator.validateDeleteRow(deleteRow);
         if (err.isPresent()) {
             return Return.error(err.get());
         }
@@ -298,7 +280,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> constraints
     ) {
         statementBuilder.append(
-            ",%s INTEGER%s%s%s%n".formatted(
+            ",\"%s\" INTEGER%s%s%s%n".formatted(
                 r.key(),
                 r.required() ? " NOT NULL" : "",
                 r.unique() ? " UNIQUE" : "",
@@ -306,7 +288,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             )
         );
 
-        constraints.add("FOREIGN KEY (%s) REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
+        constraints.add("FOREIGN KEY (\"%s\") REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
                 r.key(),
                 r.refTableKey(),
@@ -321,7 +303,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> checks
     ) {
         statementBuilder.append(
-            ",%s NUMERIC(%d,%d) DEFAULT %s %s %s%n".formatted(
+            ",\"%s\" NUMERIC(%d,%d) DEFAULT %s %s %s%n".formatted(
                 d.key(),
                 d.precision(),
                 d.scale(),
@@ -332,44 +314,44 @@ class PostgreQueryGenerator implements QueryGenerator {
         );
 
         if (d.max() != null && d.min() != null) {
-            checks.add("CHECK (%s BETWEEN %f AND %f)".formatted(d.key(), d.min(), d.max()));
+            checks.add("CHECK (\"%s\" BETWEEN %f AND %f)".formatted(d.key(), d.min(), d.max()));
             return;
         }
 
         if (d.max() != null) {
-            checks.add("CHECK (%s <= %f)".formatted(d.key(), d.max()));
+            checks.add("CHECK (\"%s\" <= %f)".formatted(d.key(), d.max()));
             return;
         }
 
         if (d.min() != null) {
-            checks.add("CHECK (%s >= %f)".formatted(d.key(), d.min()));
+            checks.add("CHECK (\"%s\" >= %f)".formatted(d.key(), d.min()));
             return;
         }
     }
 
     private <V> Return<String> buildRawQuery(RawPredicate<V> pred, List<ColumnValue<?>> parameters) {
-        var err = pred.validate();
+        var err = inputValidator.validatePredicate(pred);
         return err.<Return<String>>map(Return::error).orElseGet(() -> switch (pred) {
             case IntegerPredicate i -> {
                 parameters.add(IntegerValue.of(i.propertyKey(), i.value()));
-                yield Return.of("%s%s?".formatted(i.propertyKey(), getIntegerOperator(i.op())));
+                yield Return.of("\"%s\"%s?".formatted(i.propertyKey(), getIntegerOperator(i.op())));
             }
             case DecimalPredicate d -> {
                 parameters.add(DecimalValue.of(d.propertyKey(), d.value()));
-                yield Return.of("%s%s?".formatted(d.propertyKey(), getDecimalOperator(d.op())));
+                yield Return.of("\"%s\"%s?".formatted(d.propertyKey(), getDecimalOperator(d.op())));
             }
             case BooleanPredicate b -> {
                 parameters.add(BooleanValue.of(b.propertyKey(), b.value()));
-                yield Return.of("%s%s?".formatted(b.propertyKey(), getBooleanOperator(b.op())));
+                yield Return.of("\"%s\"%s?".formatted(b.propertyKey(), getBooleanOperator(b.op())));
             }
             case StringPredicate s -> {
                 parameters.add(StringValue.of(s.propertyKey(), s.value()));
-                yield Return.of("%s%s?".formatted(s.propertyKey(), getStringOperator(s.op())));
+                yield Return.of("\"%s\"%s?".formatted(s.propertyKey(), getStringOperator(s.op())));
             }
             case ReferencePredicate r -> {
                 parameters.add(ListValue.of(r.propertyKey(), r.value(), Type.REFERENCE));
                 yield Return.of(
-                    "%s %s (%s)".formatted(
+                    "\"%s\" %s (%s)".formatted(
                         r.propertyKey(),
                         getReferenceOperator(r.op()),
                         r.value().stream().map(v -> "?").collect(Collectors.joining(","))
@@ -381,6 +363,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     private Return<String> buildCompoundQuery(CompoundPredicate c, List<ColumnValue<?>> parameters) {
+        var err = inputValidator.validateCompoundPredicate(c);
+        if (err.isPresent()) {
+            return Return.error(err.get());
+        }
+
         Return<String> leftSubquery = switch (c.left()) {
             case CompoundPredicate cl -> buildCompoundQuery(cl, parameters);
             case RawPredicate<?> rl -> buildRawQuery(rl, parameters);

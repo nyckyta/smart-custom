@@ -5,7 +5,6 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUN
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
 
 import edu.ukma.smart.virtual.Validated;
-import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Optional;
 
@@ -28,17 +27,17 @@ public record CompoundPredicate(
     }
 
     @Override
-    public Optional<Err> validate() {
+    public Optional<InputValidationErr> validate() {
         if (left == null) {
-            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
         }
 
         if (right == null) {
-            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
         }
 
         if (op == null) {
-            return Optional.of(InputValidationErr.error(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
         }
 
         return Optional.empty();

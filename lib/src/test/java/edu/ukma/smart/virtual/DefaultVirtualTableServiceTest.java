@@ -12,6 +12,7 @@ import edu.ukma.smart.virtual.create.NewTable;
 import edu.ukma.smart.virtual.create.ReferenceProperty;
 import edu.ukma.smart.virtual.create.StringProperty;
 import edu.ukma.smart.virtual.delete.DeleteRow;
+import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
@@ -84,49 +85,49 @@ class DefaultVirtualTableServiceTest {
     Object[][] maliciousTableKeys() {
         return new Object[][] {
             // Basic SQL injection attempts
-            {"users'; DROP TABLE test; --"},
-            {"users; DELETE FROM information_schema.tables; --"},
-            {"users') UNION SELECT * FROM pg_user; --"},
+            {"_users'; DROP TABLE test; --"},
+            {"_users; DELETE FROM information_schema.tables; --"},
+            {"_users') UNION SELECT * FROM pg_user; --"},
 
             // Schema manipulation attempts
-            {"users; CREATE TABLE malicious (id INT); --"},
-            {"users; ALTER TABLE existing_table DROP COLUMN important_col; --"},
-            {"users; GRANT ALL ON DATABASE TO public; --"},
+            {"_users; CREATE TABLE malicious (id INT); --"},
+            {"_users; ALTER TABLE existing_table DROP COLUMN important_col; --"},
+            {"_users; GRANT ALL ON DATABASE TO public; --"},
 
             // Information disclosure attempts
-            {"users'; SELECT * FROM pg_stat_activity; --"},
-            {"users UNION SELECT version(); --"},
-            {"users'; SELECT current_user; --"},
+            {"_users'; SELECT * FROM pg_stat_activity; --"},
+            {"_users UNION SELECT version(); --"},
+            {"_users'; SELECT current_user; --"},
 
             // Special characters and encoding
-            {"user\"; DROP TABLE test; --"},
-            {"user\\\"; DROP TABLE test; --"},
-            {"user%27; DROP TABLE test; --"},
-            {"user'; INSERT INTO log VALUES ('hacked'); --"},
+            {"_user\"; DROP TABLE test; --"},
+            {"_user\\\"; DROP TABLE test; --"},
+            {"_user%27; DROP TABLE test; --"},
+            {"_user'; INSERT INTO log VALUES ('hacked'); --"},
 
             // Case variations
-            {"Users"}, // uppercase
-            {"USERS"}, // all caps
-            {"UsErS"}, // mixed case
+            {"-Users"}, // uppercase
+            {"-USERS"}, // all caps
+            {"-UsErS"}, // mixed case
 
             // Invalid patterns that should be rejected
-            {"user-table"}, // contains dash
-            {"user table"}, // contains space
-            {"user@table"}, // contains @
-            {"9users"}, // starts with number
-            {"user.table"}, // contains dot
-            {"user#table"}, // contains hash
-            {"user$table"}, // contains dollar
-            {"user%table"}, // contains percent
-            {"user*table"}, // contains asterisk
+            {"-user_table"}, // contains underscore
+            {"_user table"}, // contains space
+            {"_user@table"}, // contains @
+            {"-9users"}, // starts with number
+            {"_user.table"}, // contains dot
+            {"_user#table"}, // contains hash
+            {"_user$table"}, // contains dollar
+            {"_user%table"}, // contains percent
+            {"_user*table"}, // contains asterisk
 
             // Boundary testing
-            {"u"}, // too short (less than 2 chars)
-            {"a" + "b".repeat(101)}, // too long (over 100 chars)
-            {""}, // empty string
-            {" users"}, // leading space
-            {"users "}, // trailing space
-            {"_users"}, // starts with underscore
+            {"_u"}, // too short (less than 2 chars)
+            {"_a" + "b".repeat(101)}, // too long (over 100 chars)
+            {"-"}, // empty string
+            {"- users"}, // leading space
+            {"_users "}, // trailing space
+            {"-users"}, // starts with dash
         };
     }
 
@@ -153,7 +154,7 @@ class DefaultVirtualTableServiceTest {
             {0, null}, // invalid, unset
             {1, 0}, // valid, invalid
             {-1, 1}, // invalid, valid
-            {-1, -1}, // invalid-negative, invalid negative
+            {-1, -1}, // invalid_negative, invalid negative
             {10, 9} // valid more than max, valid less than min
         };
     }
@@ -181,7 +182,7 @@ class DefaultVirtualTableServiceTest {
     void testErrorOnCreateWithMaliciousProperty(String maliciousPropertyKey) throws SQLException {
         final var maliciousProperty = new StringProperty(
             maliciousPropertyKey,
-            "default",
+            "_default",
             "desc",
             "default_value",
             true,
@@ -190,7 +191,7 @@ class DefaultVirtualTableServiceTest {
             null
         );
         final var maliciousTable = new NewTable(
-            "table_key",
+            "_table_key",
             "table key",
             "table description",
             List.of(maliciousProperty)
@@ -200,8 +201,6 @@ class DefaultVirtualTableServiceTest {
         // Assert
         assertTrue(result.isPresent(),
             "Expected validation error for malicious property key: " + maliciousPropertyKey);
-        assertTrue(result.get() instanceof InputValidationErr,
-            "Expected InputValidationErr for malicious property key: " + maliciousPropertyKey);
         assertEquals(((InputValidationErr) result.get()).code(), InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT);
     }
 
@@ -266,7 +265,7 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testTableCreation() throws SQLException {
         var newTable = new NewTable(
-            "table_key",
+            "_table_key",
             "Table table",
             "This is a test table",
             List.of(
@@ -288,13 +287,13 @@ class DefaultVirtualTableServiceTest {
                 """
                     SELECT table_schema, table_name, table_type, is_insertable_into 
                     FROM information_schema.tables
-                    WHERE table_name = 'table_key'"""
+                    WHERE table_name = '_table_key'"""
             ), "Statement must return result");
 
             var result = statement.getResultSet();
             assertTrue(result.next(), "Expected at least one result row");
             assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
-            assertEquals(result.getString(2), "table_key",
+            assertEquals(result.getString(2), "_table_key",
                 "Expected table name to be 'table_key'");
             assertEquals(result.getString(3), "BASE TABLE",
                 "Expected table type to be 'BASE TABLE'");
@@ -305,7 +304,7 @@ class DefaultVirtualTableServiceTest {
                 """
                     SELECT column_name, data_type, is_nullable, column_default
                     FROM information_schema.columns
-                    WHERE table_name = 'table_key'"""
+                    WHERE table_name = '_table_key'"""
             ), "Statement must return result");
             var columnsResult = columnsTest.getResultSet();
             columnsResult.next();
@@ -326,7 +325,7 @@ class DefaultVirtualTableServiceTest {
             );
             assertEquals(
                 columnsResult.getString("column_default"),
-                "nextval('table_key__id_seq'::regclass)",
+                "nextval('_table_key__id_seq'::regclass)",
                 "Expected column '_id' to have default value");
             columnsResult.next();
             assertEquals(
@@ -353,7 +352,7 @@ class DefaultVirtualTableServiceTest {
             assertEquals(
                 columnsResult.getString("column_name"),
                 "property_one",
-                "Expected column 'property1'"
+                "Expected column 'property_one'"
             );
             assertEquals(
                 columnsResult.getString("data_type"),
@@ -380,7 +379,7 @@ class DefaultVirtualTableServiceTest {
 
         // Create a table to delete
         var newTable = new NewTable(
-            "table_to_delete",
+            "_table_to_delete",
             "Table to Delete",
             "This table will be deleted",
             List.of(
@@ -395,10 +394,10 @@ class DefaultVirtualTableServiceTest {
             )
         );
         var err = service.createTable(newTable);
-        assertFalse(err.isPresent(), "Expected no error when creating table to delete");
+        assertFalse(err.isPresent(), "Expected no error when creating table to delete, got error " + err.orElse(null));
 
         // Delete the table
-        service.deleteTable("table_to_delete");
+        service.deleteTable(DeleteTable.of("_table_to_delete"));
 
         // Verify the table is deleted
         try (var statement = connection.createStatement()) {
@@ -406,12 +405,12 @@ class DefaultVirtualTableServiceTest {
                 """
                     
                        SELECT 1 FROM information_schema.tables 
-                     WHERE table_name = 'table_to_delete'
+                     WHERE table_name = '_table_to_delete'
                     
                     """
             );
 
-            assertFalse(statement.getResultSet().next(), "Expected no results for deld");
+            assertFalse(statement.getResultSet().next(), "Expected no results for _table_to_delete");
         }
     }
 
@@ -419,7 +418,7 @@ class DefaultVirtualTableServiceTest {
     void testRowAddingToTheVirtualTable() throws SQLException {
 
         var newTable = new NewTable(
-            "add_row_test",
+            "_add_row_test",
             "Table table",
             "This is a test table",
             List.of(
@@ -457,7 +456,7 @@ class DefaultVirtualTableServiceTest {
         );
 
         var err = service.createTable(newTable);
-        assertFalse(err.isPresent(), "Expected no error when creating table");
+        assertFalse(err.isPresent(), "Expected no error when creating table, got " + err.orElse(null));
         var columnValues = List.of(
             StringValue.of("property_one", "value1"),
             IntegerValue.of("property_two", 123L),
@@ -465,14 +464,15 @@ class DefaultVirtualTableServiceTest {
             DecimalValue.of("property_four", BigDecimal.valueOf(123.321))
         );
 
-        err = service.addRow("add_row_test", columnValues);
+        err = service.addRow("_add_row_test", columnValues);
         assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
         try (var statement = connection.createStatement()) {
-            statement.execute("SELECT 1 WHERE EXISTS(SELECT property_one" +
-                " FROM add_row_test" +
-                " WHERE property_one = 'value1' AND property_two = 123 AND property_three = true AND property_four = 123.321);");
+            statement.execute("""
+                SELECT 1 WHERE EXISTS(SELECT "property_one"\
+                 FROM _add_row_test\
+                 WHERE "property_one" = 'value1' AND "property_two" = 123 AND "property_three" = true AND "property_four" = 123.321);""");
             var hasNext = statement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
@@ -481,7 +481,7 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testLengthLimitValidationForTextProperties() throws SQLException {
         var newTable = new NewTable(
-            "table_key_add_row",
+            "_table_key_add_row",
             "Table table",
             "This is a test table",
             List.of(
@@ -516,15 +516,16 @@ class DefaultVirtualTableServiceTest {
             StringValue.of("property_four", "value12345")
         );
 
-        err = service.addRow("table_key_add_row", columnValues);
+        err = service.addRow("_table_key_add_row", columnValues);
         assertFalse(err.isPresent(),
-            "Expected no error when adding row to the virtual table");
+            "Expected no error when adding row to the virtual table " + err);
 
         try (var statement = connection.createStatement()) {
-            statement.execute("SELECT 1 WHERE EXISTS(" +
-                "SELECT property_two, property_three, property_four " +
-                "FROM table_key_add_row " +
-                "WHERE property_two = 'value' AND property_three = 'value' AND property_four = 'value12345');");
+            statement.execute("""
+                SELECT 1 WHERE EXISTS(\
+                SELECT "property_two", "property_three", "property_four" \
+                FROM _table_key_add_row \
+                WHERE "property_two" = 'value' AND "property_three" = 'value' AND "property_four" = 'value12345');""");
             var hasNext = statement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
 
@@ -535,13 +536,13 @@ class DefaultVirtualTableServiceTest {
                 StringValue.of("property_four", "value123456")
             );
             try {
-                service.addRow("table_key_add_row", fourthColumnFailureTooLow);
+                service.addRow("_table_key_add_row", fourthColumnFailureTooLow);
                 fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
 
             try {
-                service.addRow("table_key_add_row", fourthColumnFailureTooHigh);
+                service.addRow("_table_key_add_row", fourthColumnFailureTooHigh);
                 fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
@@ -551,7 +552,7 @@ class DefaultVirtualTableServiceTest {
             );
 
             try {
-                service.addRow("table_key_add_row", thirdColumnFailure);
+                service.addRow("_table_key_add_row", thirdColumnFailure);
                 fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
@@ -561,7 +562,7 @@ class DefaultVirtualTableServiceTest {
             );
 
             try {
-                service.addRow("table_key_add_row", secondColumnFailure);
+                service.addRow("_table_key_add_row", secondColumnFailure);
                 fail("Error should have been thrown");
             } catch (SQLException ex) {
             }
@@ -573,7 +574,7 @@ class DefaultVirtualTableServiceTest {
     void testMinMaxValidationForIntegerProperties() throws SQLException {
 
         var newTable = new NewTable(
-            "table_key_integer_add_row",
+            "_table_key_integer_add_row",
             "Table table",
             "This is a test table",
             List.of(
@@ -599,11 +600,11 @@ class DefaultVirtualTableServiceTest {
             ));
 
         var err = service.createTable(newTable);
-        assertFalse(err.isPresent(), "Table must be created without issues");
+        assertFalse(err.isPresent(), "Table must be created without issues, but found " + err.orElse(null));
 
         try {
             service.addRow(
-                "table_key_integer_add_row",
+                "_table_key_integer_add_row",
                 List.of(
                     IntegerValue.of("property_two", 6L)
                 )
@@ -614,7 +615,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_integer_add_row",
+                "_table_key_integer_add_row",
                 List.of(
                     IntegerValue.of("property_three", 4L)
                 )
@@ -625,7 +626,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_integer_add_row",
+                "_table_key_integer_add_row",
                 List.of(
                     IntegerValue.of("property_four", 11L)
                 )
@@ -636,7 +637,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_integer_add_row",
+                "_table_key_integer_add_row",
                 List.of(
                     IntegerValue.of("property_four", 4L)
                 )
@@ -646,7 +647,7 @@ class DefaultVirtualTableServiceTest {
         }
 
         err = service.addRow(
-            "table_key_integer_add_row",
+            "_table_key_integer_add_row",
             List.of(
                 IntegerValue.of("property_four", 10L),
                 IntegerValue.of("property_three", 6L),
@@ -660,8 +661,8 @@ class DefaultVirtualTableServiceTest {
         try (var assertStatement = connection.createStatement()) {
             assertStatement.execute("""   
                 SELECT 1 WHERE EXISTS(
-                    SELECT * FROM table_key_integer_add_row
-                    WHERE property_two = 2 AND property_three = 6 AND property_four = 10)""");
+                    SELECT * FROM _table_key_integer_add_row
+                    WHERE "property_two" = 2 AND "property_three" = 6 AND "property_four" = 10)""");
             boolean hasNext = assertStatement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
@@ -670,7 +671,7 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
         var newTable = new NewTable(
-            "table_key_decimal_add_row",
+            "_table_key_decimal_add_row",
             "Table table",
             "This is a test table",
             List.of(
@@ -706,7 +707,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_decimal_add_row",
+                "_table_key_decimal_add_row",
                 List.of(
                     DecimalValue.of("property_two", BigDecimal.valueOf(6))
                 )
@@ -717,7 +718,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_decimal_add_row",
+                "_table_key_decimal_add_row",
                 List.of(
                     DecimalValue.of("property_three", BigDecimal.valueOf(1))
                 )
@@ -728,7 +729,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_decimal_add_row",
+                "_table_key_decimal_add_row",
                 List.of(
                     DecimalValue.of("property_four", BigDecimal.valueOf(10)))
             );
@@ -738,7 +739,7 @@ class DefaultVirtualTableServiceTest {
 
         try {
             service.addRow(
-                "table_key_decimal_add_row",
+                "_table_key_decimal_add_row",
                 List.of(
                     DecimalValue.of("property_four", BigDecimal.valueOf(1)))
             );
@@ -747,7 +748,7 @@ class DefaultVirtualTableServiceTest {
         }
 
         err = service.addRow(
-            "table_key_decimal_add_row",
+            "_table_key_decimal_add_row",
             List.of(
                 DecimalValue.of("property_four", BigDecimal.valueOf(2.5)),
                 DecimalValue.of("property_three", BigDecimal.valueOf(1.2453)),
@@ -760,8 +761,8 @@ class DefaultVirtualTableServiceTest {
         try (var assertStatement = connection.createStatement()) {
             assertStatement.execute("""   
                 SELECT 1 WHERE EXISTS(
-                    SELECT * FROM table_key_decimal_add_row
-                    WHERE property_four = 2.5 AND property_three = 1.245 AND property_two = 1.126)""");
+                    SELECT * FROM _table_key_decimal_add_row
+                    WHERE "property_four" = 2.5 AND "property_three" = 1.245 AND "property_two" = 1.126)""");
             boolean hasNext = assertStatement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
@@ -770,7 +771,7 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testRowDeletionFromTheVirtualTable() throws SQLException {
         var newTable = new NewTable(
-            "table_key_delete_row",
+            "_table_key_delete_row",
             "Table table",
             "This is a test table",
             List.of(
@@ -789,20 +790,22 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
         try (var statement = connection.createStatement()) {
-            statement.execute("INSERT INTO table_key_delete_row (property_one) VALUES ('value1');");
+            statement.execute("""
+                INSERT INTO _table_key_delete_row ("property_one") VALUES ('value1');""");
             statement.execute(
-                "SELECT _id FROM table_key_delete_row WHERE property_one = 'value1';");
+                """
+                    SELECT _id FROM _table_key_delete_row WHERE "property_one" = 'value1';""");
             var resultSet = statement.getResultSet();
             var hasNext = resultSet.next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
             int rowId = resultSet.getInt("_id");
 
-            err = service.deleteRow(DeleteRow.of("table_key_delete_row", rowId));
+            err = service.deleteRow(DeleteRow.of("_table_key_delete_row", rowId));
             assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
             try (var assertStatement = connection.createStatement()) {
                 assertStatement.execute("""   
                     SELECT 1 WHERE EXISTS(
-                        SELECT property_one FROM table_key_delete_row WHERE property_one = 'value1')""");
+                        SELECT "property_one" FROM _table_key_delete_row WHERE "property_one" = 'value1')""");
                 hasNext = assertStatement.getResultSet().next();
                 assertFalse(hasNext,
                     "Expected the row to be deleted from the virtual table");
@@ -815,7 +818,7 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(
             NewTable
                 .builder()
-                .key("test_table_creation_with_reference_property")
+                .key("_test_table_creation_with_reference_property")
                 .description("test_table_creation_with_reference_property_description")
                 .name("test_table_creation_with_reference_property")
                 .properties(List.of(
@@ -827,13 +830,13 @@ class DefaultVirtualTableServiceTest {
                 .build()
         );
         assertFalse(err.isPresent(), "Expected no error when creating table");
-        err = service.addRow("test_table_creation_with_reference_property", List.of());
+        err = service.addRow("_test_table_creation_with_reference_property", List.of());
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
         err = service.createTable(
             NewTable
                 .builder()
-                .key("test_table_creation_with_reference_property_having_ref")
+                .key("_test_table_creation_with_reference_property_having_ref")
                 .name("test_table_creation_with_reference_property_having_ref")
                 .description("test_table_creation_with_reference_property_having_ref_description")
                 .properties(List.of(
@@ -841,7 +844,7 @@ class DefaultVirtualTableServiceTest {
                             .key("test_table_creation_with_reference_property_ref_property")
                             .name("test_table_creation_with_reference_property_ref_property")
                             .description("test_table_creation_with_reference_property_ref_description")
-                            .refTableKey("test_table_creation_with_reference_property")
+                            .refTableKey("_test_table_creation_with_reference_property")
                             .required(true)
                             .build()
                     )
@@ -851,8 +854,8 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
         try {
-            service.addRow(
-                "test_table_creation_with_reference_property_having_ref",
+            err = service.addRow(
+                "_test_table_creation_with_reference_property_having_ref",
                 List.of(
                     ReferenceValue.of("test_table_creation_with_reference_property_ref_property",
                         42))
@@ -862,22 +865,23 @@ class DefaultVirtualTableServiceTest {
         }
 
         try (final var statement = connection.createStatement()) {
-            statement.execute("SELECT _id FROM test_table_creation_with_reference_property");
+            statement.execute("SELECT _id FROM _test_table_creation_with_reference_property");
             statement.getResultSet().next();
             var parentId = statement.getResultSet().getInt(1);
 
-            service.addRow(
-                "test_table_creation_with_reference_property_having_ref",
-                List.of(
-                    ReferenceValue.of("test_table_creation_with_reference_property_ref_property",
-                        parentId))
+            err = service.addRow(
+                "_test_table_creation_with_reference_property_having_ref",
+                List.of(ReferenceValue.of("test_table_creation_with_reference_property_ref_property", parentId))
             );
 
+            assertFalse(err.isPresent(), "Expected no error when creating table, but got " + err.orElse(null));
+
             statement.clearBatch();
-            statement.execute("SELECT _id " +
-                "FROM test_table_creation_with_reference_property_having_ref " +
-                "WHERE test_table_creation_with_reference_property_ref_property = %d".formatted(
-                    parentId));
+            statement.execute("""
+                SELECT _id
+                FROM _test_table_creation_with_reference_property_having_ref
+                WHERE "test_table_creation_with_reference_property_ref_property" = %d""".formatted(
+                parentId));
             assertTrue(statement.getResultSet().next(),
                 "Expected the row being returned with reference");
         } catch (SQLException ex) {
@@ -890,7 +894,7 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(
             NewTable
                 .builder()
-                .key("test_table_row_update_base_table")
+                .key("_test_table_row_update_base_table")
                 .name("base_table_name")
                 .description("base_table_description")
                 .properties(List.of(
@@ -904,18 +908,18 @@ class DefaultVirtualTableServiceTest {
                 .build()
         );
 
-        err = service.addRow("test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 1L)));
-        assertFalse(err.isPresent());
-        err = service.addRow("test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 2L)));
-        assertFalse(err.isPresent());
+        err = service.addRow("_test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 1L)));
+        assertFalse(err.isPresent(), "Expected no error when creating table, but got " + err.orElse(null));
+        err = service.addRow("_test_table_row_update_base_table", List.of(IntegerValue.of("int_prop", 2L)));
+        assertFalse(err.isPresent(), "Expected no error when creating table, but got " + err.orElse(null));
 
 
         err = service.createTable(
             NewTable
                 .builder()
-                .key("test_table_row_update")
-                .description("test_table_row_update_description")
-                .name("test_table_row_update_name")
+                .key("_test_table_row_update")
+                .description("_test_table_row_update_description")
+                .name("_test_table_row_update_name")
                 .properties(List.of(
                     IntegerProperty
                         .builder()
@@ -945,7 +949,7 @@ class DefaultVirtualTableServiceTest {
                         .key("ref_prop")
                         .name("ref_name")
                         .description("ref_description")
-                        .refTableKey("test_table_row_update_base_table")
+                        .refTableKey("_test_table_row_update_base_table")
                         .build()
                 ))
                 .build()
@@ -953,7 +957,7 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent());
 
         err = service.addRow(
-            "test_table_row_update",
+            "_test_table_row_update",
             List.of(
                 IntegerValue.of("int_prop", 1L),
                 DecimalValue.of("decimal_prop", new BigDecimal(25.5)),
@@ -965,7 +969,7 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent());
 
         err = service.updateRow(
-            UpdateRow.of("test_table_row_update", 1, List.of(
+            UpdateRow.of("_test_table_row_update", 1, List.of(
                 IntegerValue.of("int_prop", 2L),
                 DecimalValue.of("decimal_prop", new BigDecimal(35.5)),
                 StringValue.of("string_prop", "321"),
@@ -977,8 +981,9 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent());
 
         try (final var statement = connection.createStatement()) {
-            statement.execute("SELECT _id FROM test_table_row_update" +
-                " WHERE int_prop = 2 AND decimal_prop = 35.5 AND string_prop = '321' AND boolean_prop = FALSE AND ref_prop = 2"
+            statement.execute("""
+                SELECT _id FROM _test_table_row_update\
+                 WHERE "int_prop" = 2 AND "decimal_prop" = 35.5 AND "string_prop" = '321' AND "boolean_prop" = FALSE AND "ref_prop" = 2"""
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
@@ -989,7 +994,7 @@ class DefaultVirtualTableServiceTest {
     Object[][] selectParameters() {
         return new Object[][] {
             {
-                SelectQuery.wildcard("test_table_select_faculty"),
+                SelectQuery.wildcard("_test_table_select_faculty"),
                 List.of(
                     List.of(IntegerValue.of("_id", 1L), IntegerValue.of("_created", System.currentTimeMillis()),
                         StringValue.of("name", "Law school")),
@@ -998,14 +1003,14 @@ class DefaultVirtualTableServiceTest {
                 )
             },
             {
-                SelectQuery.of("test_table_select_faculty", List.of(SelectProperty.of("name"))),
+                SelectQuery.of("_test_table_select_faculty", List.of(SelectProperty.of("name"))),
                 List.of(
                     List.of(StringValue.of("name", "Law school")),
                     List.of(StringValue.of("name", "Computer science"))
                 )
             },
             {
-                SelectQuery.of("test_table_select_faculty", List.of(SelectProperty.of("_id"), SelectProperty.of("name"))),
+                SelectQuery.of("_test_table_select_faculty", List.of(SelectProperty.of("_id"), SelectProperty.of("name"))),
                 List.of(
                     List.of(IntegerValue.of("_id", 1L), StringValue.of("name", "Law school")),
                     List.of(IntegerValue.of("_id", 2L), StringValue.of("name", "Computer science"))
@@ -1013,7 +1018,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_faculty",
+                    "_test_table_select_faculty",
                     List.of(SelectProperty.of("_id"), SelectProperty.of("name"))
                 ),
                 List.of(
@@ -1023,7 +1028,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1051,7 +1056,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1073,7 +1078,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1095,7 +1100,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1109,7 +1114,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1131,7 +1136,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1153,7 +1158,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1173,7 +1178,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1193,7 +1198,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1213,7 +1218,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1233,7 +1238,7 @@ class DefaultVirtualTableServiceTest {
             },
             {
                 SelectQuery.of(
-                    "test_table_select_teacher",
+                    "_test_table_select_teacher",
                     List.of(
                         SelectProperty.of("name"),
                         SelectProperty.of("age"),
@@ -1258,7 +1263,7 @@ class DefaultVirtualTableServiceTest {
     void selectTestsSetup() throws SQLException {
         var err = service.createTable(
             NewTable.builder()
-                .key("test_table_select_faculty")
+                .key("_test_table_select_faculty")
                 .name("Faculty")
                 .description("University faculty")
                 .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
@@ -1267,7 +1272,7 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error during creation faculty, got " + err.orElse(null));
         err = service.createTable(
             NewTable.builder()
-                .key("test_table_select_teacher")
+                .key("_test_table_select_teacher")
                 .name("Teacher")
                 .description("Teachers")
                 .properties(List.of(
@@ -1275,19 +1280,19 @@ class DefaultVirtualTableServiceTest {
                     IntegerProperty.builder().key("age").name("age").min(16L).build(),
                     DecimalProperty.builder().key("salary").name("salary").precision(10).scale(3).build(),
                     BooleanProperty.builder().key("married").name("married").build(),
-                    ReferenceProperty.builder().key("faculty").name("faculty").refTableKey("test_table_select_faculty")
+                    ReferenceProperty.builder().key("faculty").name("faculty").refTableKey("_test_table_select_faculty")
                         .required(true).name("Faculty teacher belongs to").build()
                 ))
                 .build()
         );
         assertFalse(err.isPresent(), "Expected no error during teacher creation, got " + err.orElse(null));
 
-        err = service.addRow("test_table_select_faculty", List.of(StringValue.of("name", "Law school")));
+        err = service.addRow("_test_table_select_faculty", List.of(StringValue.of("name", "Law school")));
         assertFalse(err.isPresent(), "Expected no error during adding faculty, got " + err.orElse(null));
-        err = service.addRow("test_table_select_faculty", List.of(StringValue.of("name", "Computer science")));
+        err = service.addRow("_test_table_select_faculty", List.of(StringValue.of("name", "Computer science")));
         assertFalse(err.isPresent(), "Expected no error during adding faculty, got " + err.orElse(null));
 
-        err = service.addRow("test_table_select_teacher", List.of(
+        err = service.addRow("_test_table_select_teacher", List.of(
             StringValue.of("name", "Charles Kingsfield"),
             IntegerValue.of("age", 60L),
             DecimalValue.of("salary", new BigDecimal("300000.595")),
@@ -1295,7 +1300,7 @@ class DefaultVirtualTableServiceTest {
         ));
         assertFalse(err.isPresent(), "Expected no error during adding teacher, got " + err.orElse(null));
 
-        err = service.addRow("test_table_select_teacher", List.of(
+        err = service.addRow("_test_table_select_teacher", List.of(
             StringValue.of("name", "Donald Knuth"),
             IntegerValue.of("age", 85L),
             BooleanValue.of("married", true),
@@ -1334,7 +1339,7 @@ class DefaultVirtualTableServiceTest {
     void testReferencedRowCantBeDroppedWhenOtherTableRequires() throws SQLException {
         var err = service.createTable(NewTable
             .builder()
-            .key("test_referenced_row_can_not_be_dropped")
+            .key("_test_referenced_row_can_not_be_dropped")
             .name("test_name")
             .description("test_description")
             .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
@@ -1342,12 +1347,12 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.addRow("test_referenced_row_can_not_be_dropped", List.of(StringValue.of("name", "123")));
+        err = service.addRow("_test_referenced_row_can_not_be_dropped", List.of(StringValue.of("name", "123")));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.createTable(NewTable
             .builder()
-            .key("test_referenced_table_with_reference")
+            .key("_test_referenced_table_with_reference")
             .name("with_reference")
             .description("with_reference")
             .properties(List.of(
@@ -1355,7 +1360,7 @@ class DefaultVirtualTableServiceTest {
                         .builder()
                         .key("name")
                         .name("name")
-                        .refTableKey("test_referenced_row_can_not_be_dropped")
+                        .refTableKey("_test_referenced_row_can_not_be_dropped")
                         .required(true)
                         .defaultValue(0)
                         .build()
@@ -1365,12 +1370,12 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.addRow("test_referenced_table_with_reference", List.of(ReferenceValue.of("name", 1)));
+        err = service.addRow("_test_referenced_table_with_reference", List.of(ReferenceValue.of("name", 1)));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         try {
-            err = service.deleteRow(DeleteRow.of("test_referenced_table_can_not_be_dropped", 1));
-            fail("Should not allow to delete table");
+            err = service.deleteRow(DeleteRow.of("_test_referenced_table_can_not_be_dropped", 1));
+            fail("Should not allow to delete row");
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -1380,7 +1385,7 @@ class DefaultVirtualTableServiceTest {
     void testReferencedRowDeleteSetsToNullWhenNotRequired() throws SQLException {
         var err = service.createTable(NewTable
             .builder()
-            .key("reference_row_delete_sets_to_null")
+            .key("_reference_row_delete_sets_to_null")
             .name("test_name")
             .description("test_description")
             .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
@@ -1389,14 +1394,14 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.addRow(
-            "reference_row_delete_sets_to_null",
+            "_reference_row_delete_sets_to_null",
             List.of(StringValue.of("name", "123"))
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.createTable(NewTable
             .builder()
-            .key("reference_row_delete_sets_to_null_reference")
+            .key("_reference_row_delete_sets_to_null_reference")
             .name("with_reference")
             .description("with_reference")
             .properties(List.of(
@@ -1404,7 +1409,7 @@ class DefaultVirtualTableServiceTest {
                         .builder()
                         .key("name")
                         .name("name")
-                        .refTableKey("reference_row_delete_sets_to_null")
+                        .refTableKey("_reference_row_delete_sets_to_null")
                         .build()
                 )
             )
@@ -1413,18 +1418,18 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.addRow(
-            "reference_row_delete_sets_to_null_reference",
+            "_reference_row_delete_sets_to_null_reference",
             List.of(ReferenceValue.of("name", 1))
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.deleteRow(DeleteRow.of("reference_row_delete_sets_to_null", 1));
+        err = service.deleteRow(DeleteRow.of("_reference_row_delete_sets_to_null", 1));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         try (final var statement = connection.createStatement()) {
             statement.execute("SELECT *" +
-                " FROM reference_row_delete_sets_to_null_reference" +
-                " WHERE _id=1 AND name IS NULL"
+                              " FROM _reference_row_delete_sets_to_null_reference" +
+                              " WHERE _id=1 AND name IS NULL"
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
@@ -1437,7 +1442,7 @@ class DefaultVirtualTableServiceTest {
     void testReferencedRowDeleteSetsToDefaultWhenDefaultValueSpecified() throws SQLException {
         var err = service.createTable(NewTable
             .builder()
-            .key("reference_row_delete_sets_to_default")
+            .key("_reference_row_delete_sets_to_default")
             .name("test_name")
             .description("test_description")
             .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
@@ -1445,16 +1450,16 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.addRow("reference_row_delete_sets_to_default",
+        err = service.addRow("_reference_row_delete_sets_to_default",
             List.of(StringValue.of("name", "123")));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
-        err = service.addRow("reference_row_delete_sets_to_default",
+        err = service.addRow("_reference_row_delete_sets_to_default",
             List.of(StringValue.of("name", "321")));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.createTable(NewTable
             .builder()
-            .key("reference_row_delete_sets_to_default_referencing")
+            .key("_reference_row_delete_sets_to_default_referencing")
             .name("with_reference")
             .description("with_reference")
             .properties(List.of(
@@ -1463,7 +1468,7 @@ class DefaultVirtualTableServiceTest {
                         .key("name")
                         .name("name")
                         .defaultValue(1)
-                        .refTableKey("reference_row_delete_sets_to_default")
+                        .refTableKey("_reference_row_delete_sets_to_default")
                         .build()
                 )
             )
@@ -1471,18 +1476,18 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
         err = service.addRow(
-            "reference_row_delete_sets_to_default_referencing",
+            "_reference_row_delete_sets_to_default_referencing",
             List.of(ReferenceValue.of("name", 2))
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.deleteRow(DeleteRow.of("reference_row_delete_sets_to_default", 2));
+        err = service.deleteRow(DeleteRow.of("_reference_row_delete_sets_to_default", 2));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         try (final var statement = connection.createStatement()) {
             statement.execute("SELECT *" +
-                " FROM reference_row_delete_sets_to_default_referencing" +
-                " WHERE _id=1 AND name=1"
+                              " FROM _reference_row_delete_sets_to_default_referencing" +
+                              " WHERE _id=1 AND name=1"
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
@@ -1493,7 +1498,7 @@ class DefaultVirtualTableServiceTest {
     void testUpdateOfReferencedRowIdIsRestricted() throws SQLException {
         var err = service.createTable(NewTable
             .builder()
-            .key("update_of_referenced_row_id_is_restricted")
+            .key("_update_of_referenced_row_id_is_restricted")
             .name("test_name")
             .description("test_description")
             .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
@@ -1501,13 +1506,13 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        err = service.addRow("update_of_referenced_row_id_is_restricted",
+        err = service.addRow("_update_of_referenced_row_id_is_restricted",
             List.of(StringValue.of("name", "123")));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         err = service.createTable(NewTable
             .builder()
-            .key("update_of_referenced_row_id_is_restricted_referencing")
+            .key("_update_of_referenced_row_id_is_restricted_referencing")
             .name("with_reference")
             .description("with_reference")
             .properties(List.of(
@@ -1516,7 +1521,7 @@ class DefaultVirtualTableServiceTest {
                         .key("name")
                         .name("name")
                         .defaultValue(1)
-                        .refTableKey("update_of_referenced_row_id_is_restricted")
+                        .refTableKey("_update_of_referenced_row_id_is_restricted")
                         .build()
                 )
             )
@@ -1524,16 +1529,16 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
         err = service.addRow(
-            "update_of_referenced_row_id_is_restricted_referencing",
+            "_update_of_referenced_row_id_is_restricted_referencing",
             List.of(ReferenceValue.of("name", 1))
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
         try {
             final var statement = connection.createStatement();
-            statement.executeUpdate("UPDATE update_of_referenced_row_id_is_restricted" +
-                " SET _id=2" +
-                " WHERE _id=1;"
+            statement.executeUpdate("UPDATE _update_of_referenced_row_id_is_restricted" +
+                                    " SET _id=2" +
+                                    " WHERE _id=1;"
             );
             statement.close();
             fail();

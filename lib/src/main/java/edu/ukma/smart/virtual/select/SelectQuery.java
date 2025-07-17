@@ -1,11 +1,8 @@
 package edu.ukma.smart.virtual.select;
 
-import static edu.ukma.smart.virtual.create.Property.KEY_REGEXP;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.EMPTY_TABLE_KEY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.Validated;
-import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Collections;
 import java.util.List;
@@ -18,7 +15,7 @@ public record SelectQuery(
 ) implements Validated {
 
     public SelectQuery(String tableKey, List<SelectProperty> propertyKeysToReturn, Predicate predicate) {
-        this.tableKey = tableKey;
+        this.tableKey = tableKey == null ? "" : tableKey;
         this.propertyKeysToReturn = propertyKeysToReturn == null ? List.of() : Collections.unmodifiableList(propertyKeysToReturn);
         this.predicate = predicate;
     }
@@ -55,13 +52,9 @@ public record SelectQuery(
     }
 
     @Override
-    public Optional<Err> validate() {
+    public Optional<InputValidationErr> validate() {
         if (tableKey == null) {
-            return Optional.of(InputValidationErr.error(EMPTY_TABLE_KEY));
-        }
-
-        if (!KEY_REGEXP.matcher(tableKey).matches()) {
-            return Optional.of(InputValidationErr.error(WRONG_TABLE_KEY_FORMAT));
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();

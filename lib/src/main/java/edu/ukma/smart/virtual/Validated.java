@@ -1,6 +1,6 @@
 package edu.ukma.smart.virtual;
 
-import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Optional;
 
 /**
@@ -22,5 +22,5 @@ import java.util.Optional;
  */
 public interface Validated {
 
-    Optional<Err> validate();
+    Optional<InputValidationErr> validate();
 }

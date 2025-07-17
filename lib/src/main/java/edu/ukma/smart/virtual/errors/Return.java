@@ -12,7 +12,7 @@ public record Return<T>(T value, Optional<Err> error) {
         return new Return<>(value, Optional.empty());
     }
 
-    public static <T> Return<T> error(Err err) {
+    public static <T, E extends Err> Return<T> error(E err) {
         if (err == null) {
             throw new NullPointerException("Error must not be null");
         }

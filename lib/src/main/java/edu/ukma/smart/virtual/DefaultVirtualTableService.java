@@ -5,9 +5,11 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_
 
 import edu.ukma.smart.virtual.create.NewTable;
 import edu.ukma.smart.virtual.delete.DeleteRow;
+import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.insert.InsertRow;
 import edu.ukma.smart.virtual.select.SelectQuery;
 import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.BooleanValue;
@@ -54,8 +56,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
-    public Optional<? extends Err> deleteTable(String tableKey) throws SQLException {
-        final var query = queryBuilder.deleteTable(tableKey);
+    public Optional<? extends Err> deleteTable(DeleteTable deleteTable) throws SQLException {
+        final var query = queryBuilder.deleteTable(deleteTable);
         if (query.error().isPresent()) {
             return query.error();
         }
@@ -66,16 +68,16 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
-    public Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue<?>> columnValues)
+    public Optional<? extends Err> addRow(InsertRow insertRow)
         throws SQLException {
-        var query = queryBuilder.insertIntoTable(tableKey, columnValues);
+        var query = queryBuilder.insertIntoTable(insertRow);
         if (query.error().isPresent()) {
             return query.error();
         }
 
         try (final var statement = connection.prepareStatement(query.value())) {
             int index = 1;
-            for (final var cv : columnValues) {
+            for (final var cv : insertRow.columnValues()) {
                 switch (cv) {
                     case StringValue s -> statement.setString(index, s.value());
                     case IntegerValue i -> statement.setLong(index, i.value());
@@ -83,7 +85,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     case DecimalValue d -> statement.setBigDecimal(index, d.value());
                     case ReferenceValue r -> statement.setInt(index, r.value());
                     case ListValue<?> ignored -> {
-                        return Optional.of(InputValidationErr.error(ADD_ROW_LISTS_ARE_NOT_SUPPORTED));
+                        return Optional.of(InputValidationErr.of(ADD_ROW_LISTS_ARE_NOT_SUPPORTED));
                     }
                     default -> throw new IllegalStateException("Add row: unknown value");
                 }
@@ -112,7 +114,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     case DecimalValue d -> statement.setBigDecimal(index, d.value());
                     case ReferenceValue r -> statement.setInt(index, r.value());
                     case ListValue<?> ignored -> {
-                        return Optional.of(InputValidationErr.error(UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED));
+                        return Optional.of(InputValidationErr.of(UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED));
                     }
                     default -> throw new IllegalStateException("Update: Unknown value " + value);
                 }

