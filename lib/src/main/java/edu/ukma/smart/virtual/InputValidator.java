@@ -12,13 +12,13 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_LESS_MIN_VAL;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_MAX_VAL_LESS_MIN_VAL;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.LIST_VALUE_MISSING_TYPE;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.SELECT_PREDICATE_VALUE_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_MIN_LEN;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_ONE;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MIN_LEN_LESS_ZERO;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_NO_PROPERTIES;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.create.BooleanProperty;
@@ -243,7 +243,7 @@ public interface InputValidator {
 
     default Optional<InputValidationErr> validateReferenceProperty(ReferenceProperty rp) {
         if (rp.refTableKey() == null) {
-            return Optional.of(InputValidationErr.of(REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY));
+            return Optional.of(InputValidationErr.of(WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();

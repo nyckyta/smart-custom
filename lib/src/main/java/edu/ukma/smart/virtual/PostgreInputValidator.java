@@ -163,12 +163,12 @@ public class PostgreInputValidator implements InputValidator {
             return err;
         }
 
-        if (!PROPERTY_KEY_REGEXP.matcher(property.key()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
-        }
-
         if (STATIC_FIELDS.contains(property.key()) || SYSTEM_EXCLUDED_FIELDS.contains(property.key())) {
             return Optional.of(InputValidationErr.of(FORBIDDEN_PROPERTY_KEY));
+        }
+
+        if (!PROPERTY_KEY_REGEXP.matcher(property.key()).matches()) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
         }
 
         err = switch (property) {
@@ -223,15 +223,13 @@ public class PostgreInputValidator implements InputValidator {
         return InputValidator.super.validateCompoundPredicate(p);
     }
 
-    private Optional<InputValidationErr> validateDecimal(DecimalProperty decimalProperty) {
-        if (decimalProperty instanceof DecimalProperty d) {
-            if (d.precision() < 1 || d.precision() > MAX_PRECISION) {
-                return Optional.of(InputValidationErr.of(DECIMAL_PRECISION_IS_INVALID));
-            }
+    private Optional<InputValidationErr> validateDecimal(DecimalProperty d) {
+        if (d.precision() < 1 || d.precision() > MAX_PRECISION) {
+            return Optional.of(InputValidationErr.of(DECIMAL_PRECISION_IS_INVALID));
+        }
 
-            if (d.scale() < 1 || d.scale() > MAX_SCALE) {
-                return Optional.of(InputValidationErr.of(DECIMAL_SCALE_IS_INVALID));
-            }
+        if (d.scale() < 1 || d.scale() > MAX_SCALE) {
+            return Optional.of(InputValidationErr.of(DECIMAL_SCALE_IS_INVALID));
         }
 
         return Optional.empty();

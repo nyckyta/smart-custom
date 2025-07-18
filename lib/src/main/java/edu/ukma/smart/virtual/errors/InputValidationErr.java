@@ -39,7 +39,6 @@ public record InputValidationErr(ErrorCode code) implements Err {
         STRING_MIN_LEN_LESS_ZERO("string.property.min.len.less.zero"),
 
         // references
-        REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY("reference.property.table.key.is.empty"),
         WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT("reference.property.table.key.format.is.wrong"),
 
         // integers

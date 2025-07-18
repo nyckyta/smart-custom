@@ -9,7 +9,7 @@ public record StringPredicate(
 ) implements RawPredicate<String> {
 
     public StringPredicate(String propertyKey, Operator op, String value) {
-        this.propertyKey = Objects.requireNonNull(propertyKey);
+        this.propertyKey = propertyKey;
         this.op = Objects.requireNonNull(op);
         this.value = value;
     }
