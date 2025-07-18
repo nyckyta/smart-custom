@@ -1,12 +1,6 @@
 package edu.ukma.smart.virtual.create;
 
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_GREATER_MAX_VAL;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_LESS_MIN_VAL;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_MAX_VAL_LESS_MIN_VAL;
-
-import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.math.BigDecimal;
-import java.util.Optional;
 
 public record DecimalProperty(
     String key,
@@ -108,33 +102,5 @@ public record DecimalProperty(
                 max
             );
         }
-    }
-
-    @Override
-    public Optional<InputValidationErr> validate() {
-
-        boolean maxSet = max != null;
-        boolean minSet = min != null;
-        boolean defaultSet = defaultValue != null;
-
-        if (defaultSet) {
-            if (maxSet && defaultValue.compareTo(max) > 0) {
-                return Optional.of(
-                    InputValidationErr.of(DECIMAL_DEFAULT_GREATER_MAX_VAL)
-                );
-            }
-
-            if (minSet && defaultValue.compareTo(min) < 0) {
-                return Optional.of(InputValidationErr.of(DECIMAL_DEFAULT_LESS_MIN_VAL));
-            }
-        }
-
-        if (minSet && maxSet) {
-            if (max.compareTo(min) < 0) {
-                return Optional.of(InputValidationErr.of(DECIMAL_MAX_VAL_LESS_MIN_VAL));
-            }
-        }
-
-        return Property.super.validate();
     }
 }

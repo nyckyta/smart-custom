@@ -48,7 +48,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateNewTable(NewTable newTable) {
-        var err = newTable.validate();
+        var err = InputValidator.super.validateNewTable(newTable);
         if (err.isPresent()) {
             return err;
         }
@@ -62,7 +62,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateDeleteRow(DeleteRow deleteRow) {
-        var err = deleteRow.validate();
+        var err = InputValidator.super.validateDeleteRow(deleteRow);
         if (err.isPresent()) {
             return err;
         }
@@ -80,6 +80,11 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateDeleteTable(DeleteTable deleteTable) {
+        var err = InputValidator.super.validateDeleteTable(deleteTable);
+        if (err.isPresent()) {
+            return err;
+        }
+
         if (!TABLE_KEY_REGEXP.matcher(deleteTable.tableKey()).matches()) {
             return Optional.of(InputValidationErr.of(InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT));
         }
@@ -89,7 +94,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateSelectQuery(SelectQuery selectQuery) {
-        var err = selectQuery.validate();
+        var err = InputValidator.super.validateSelectQuery(selectQuery);
         if (err.isPresent()) {
             return err;
         }
@@ -103,7 +108,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateInsertRow(InsertRow insertRow) {
-        var err = insertRow.validate();
+        var err = InputValidator.super.validateInsertRow(insertRow);
         if (err.isPresent()) {
             return err;
         }
@@ -117,7 +122,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateUpdateRow(UpdateRow updateRow) {
-        var err = updateRow.validate();
+        var err = InputValidator.super.validateUpdateRow(updateRow);
         if (err.isPresent()) {
             return err;
         }
@@ -135,7 +140,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public Optional<InputValidationErr> validateColumnValue(ColumnValue<?> columnValue) {
-        var err = columnValue.validate();
+        var err = InputValidator.super.validateColumnValue(columnValue);
         if (err.isPresent()) {
             return err;
         }
@@ -153,7 +158,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public <T> Optional<InputValidationErr> validateProperty(Property<T> property) {
-        var err = property.validate();
+        var err = InputValidator.super.validateProperty(property);
         if (err.isPresent()) {
             return err;
         }
@@ -176,8 +181,8 @@ public class PostgreInputValidator implements InputValidator {
     }
 
     @Override
-    public <T> Optional<InputValidationErr> validateSelectProperty(SelectProperty p) {
-        var err = p.validate();
+    public Optional<InputValidationErr> validateSelectProperty(SelectProperty p) {
+        var err = InputValidator.super.validateSelectProperty(p);
         if (err.isPresent()) {
             return err;
         }
@@ -195,7 +200,7 @@ public class PostgreInputValidator implements InputValidator {
 
     @Override
     public <T> Optional<InputValidationErr> validatePredicate(RawPredicate<T> p) {
-        var err = p.validate();
+        var err = InputValidator.super.validatePredicate(p);
         if (err.isPresent()) {
             return err;
         }
@@ -214,8 +219,8 @@ public class PostgreInputValidator implements InputValidator {
     }
 
     @Override
-    public <T> Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
-        return Optional.empty();
+    public Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
+        return InputValidator.super.validateCompoundPredicate(p);
     }
 
     private Optional<InputValidationErr> validateDecimal(DecimalProperty decimalProperty) {

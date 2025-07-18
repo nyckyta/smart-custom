@@ -1,12 +1,5 @@
 package edu.ukma.smart.virtual.create;
 
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_MIN_LEN;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_ONE;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MIN_LEN_LESS_ZERO;
-
-import edu.ukma.smart.virtual.errors.InputValidationErr;
-import java.util.Optional;
-
 public record StringProperty(
     String key,
     String name,
@@ -88,27 +81,5 @@ public record StringProperty(
                 minLength
             );
         }
-    }
-
-    @Override
-    public Optional<InputValidationErr> validate() {
-        boolean maxLengthSet = maxLength != null;
-        boolean minLengthSet = minLength != null;
-
-        if (maxLengthSet && maxLength < 1) {
-            return Optional.of(InputValidationErr.of(STRING_MAX_LEN_LESS_ONE));
-        }
-
-        if (minLengthSet && minLength < 0) {
-            return Optional.of(InputValidationErr.of(STRING_MIN_LEN_LESS_ZERO));
-        }
-
-        if (minLengthSet && maxLengthSet) {
-            if (maxLength() < minLength()) {
-                return Optional.of(InputValidationErr.of(STRING_MAX_LEN_LESS_MIN_LEN));
-            }
-        }
-
-        return Property.super.validate();
     }
 }

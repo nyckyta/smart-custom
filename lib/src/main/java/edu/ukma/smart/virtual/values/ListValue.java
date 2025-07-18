@@ -1,11 +1,7 @@
 package edu.ukma.smart.virtual.values;
 
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.LIST_VALUE_MISSING_TYPE;
-
-import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 public record ListValue<V>(
     String key,
@@ -27,12 +23,4 @@ public record ListValue<V>(
         return new ListValue<>(key, value, type);
     }
 
-    @Override
-    public Optional<InputValidationErr> validate() {
-        if (type == null) {
-            return Optional.of(InputValidationErr.of(LIST_VALUE_MISSING_TYPE));
-        }
-
-        return ColumnValue.super.validate();
-    }
 }

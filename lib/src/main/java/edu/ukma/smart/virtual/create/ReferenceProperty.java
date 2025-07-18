@@ -1,10 +1,5 @@
 package edu.ukma.smart.virtual.create;
 
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY;
-
-import edu.ukma.smart.virtual.errors.InputValidationErr;
-import java.util.Optional;
-
 public record ReferenceProperty(
     String key,
     String name,
@@ -81,14 +76,5 @@ public record ReferenceProperty(
                 refTableKey
             );
         }
-    }
-
-    @Override
-    public Optional<InputValidationErr> validate() {
-        if (refTableKey == null) {
-            return Optional.of(InputValidationErr.of(REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY));
-        }
-
-        return Property.super.validate();
     }
 }

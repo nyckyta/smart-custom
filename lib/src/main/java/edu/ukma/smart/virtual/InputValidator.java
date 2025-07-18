@@ -1,7 +1,33 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_TABLE;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_GREATER_MAX_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_DEFAULT_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.DECIMAL_MAX_VAL_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_GREATER_MAX_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_DEFAULT_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.INTEGER_MAX_VAL_LESS_MIN_VAL;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.LIST_VALUE_MISSING_TYPE;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.SELECT_PREDICATE_VALUE_IS_EMPTY;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_MIN_LEN;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MAX_LEN_LESS_ONE;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.STRING_MIN_LEN_LESS_ZERO;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_NO_PROPERTIES;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_PROPERTY_KEY_FORMAT;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
+
+import edu.ukma.smart.virtual.create.BooleanProperty;
+import edu.ukma.smart.virtual.create.DecimalProperty;
+import edu.ukma.smart.virtual.create.IntegerProperty;
 import edu.ukma.smart.virtual.create.NewTable;
 import edu.ukma.smart.virtual.create.Property;
+import edu.ukma.smart.virtual.create.ReferenceProperty;
+import edu.ukma.smart.virtual.create.StringProperty;
 import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
@@ -12,41 +38,214 @@ import edu.ukma.smart.virtual.select.SelectProperty;
 import edu.ukma.smart.virtual.select.SelectQuery;
 import edu.ukma.smart.virtual.update.UpdateRow;
 import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.values.ListValue;
 import java.util.Optional;
 
 /**
- * Provides vendor specific validation. Context independent validation happens inside {@link Validated} implementations for each
- * data type. This interface is supposed to be used with context dependent validation i.e. validation that is specific to
- * each vendor. Good example of such case can be check that table key does not intersect with system tables specific to vendor
- *
- * <p>Implementation of this interface should do shallow checks. It can call {@link Validated#validate()} for an object that
- * implements mentioned interface and directly passed to the method, but it SHOULD NOT call validation on subsequent objects e.g.
- * when validating {@link NewTable}, implementation should not call {@link this#validateProperty(Property)}
- * on {@link NewTable#properties()}.
+ * Provides basic entities validation.
  */
 public interface InputValidator {
 
-    Optional<InputValidationErr> validateNewTable(NewTable newTable);
+    default Optional<InputValidationErr> validateNewTable(NewTable newTable) {
+        if (newTable.key() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
 
-    Optional<InputValidationErr> validateDeleteRow(DeleteRow deleteRow);
+        if (newTable.name() == null || newTable.name().isBlank()) {
+            return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_TABLE));
+        }
 
-    Optional<InputValidationErr> validateDeleteTable(DeleteTable deleteTable);
+        return Optional.empty();
+    }
 
-    Optional<InputValidationErr> validateSelectQuery(SelectQuery selectQuery);
+    default Optional<InputValidationErr> validateDeleteRow(DeleteRow deleteRow) {
+        if (deleteRow.tableKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
 
-    Optional<InputValidationErr> validateInsertRow(InsertRow insertRow);
+        return Optional.empty();
+    }
 
-    Optional<InputValidationErr> validateUpdateRow(UpdateRow updateRow);
+    default Optional<InputValidationErr> validateDeleteTable(DeleteTable deleteTable) {
+        if (deleteTable.tableKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
 
-    Optional<InputValidationErr> validateColumnValue(ColumnValue<?> columnValue);
+        return Optional.empty();
+    }
 
-    <T> Optional<InputValidationErr> validateProperty(Property<T> p);
+    default Optional<InputValidationErr> validateSelectQuery(SelectQuery selectQuery) {
+        if (selectQuery.tableKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
 
-    <T> Optional<InputValidationErr> validateSelectProperty(SelectProperty p);
+        return Optional.empty();
+    }
 
-    <T> Optional<InputValidationErr> validatePredicate(RawPredicate<T> p);
+    default Optional<InputValidationErr> validateInsertRow(InsertRow insertRow) {
+        if (insertRow.tableKey() == null || insertRow.tableKey().isBlank()) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
 
-    default <T> Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
-        return p.validate();
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateUpdateRow(UpdateRow updateRow) {
+        if (updateRow.tableKey() == null || updateRow.tableKey().isEmpty()) {
+            return Optional.of(new InputValidationErr(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        if (updateRow.valuesToUpdate() == null || updateRow.valuesToUpdate().isEmpty()) {
+            return Optional.of(new InputValidationErr(UPDATE_ROW_NO_PROPERTIES));
+        }
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateColumnValue(ColumnValue<?> columnValue) {
+        if (columnValue.key() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+        }
+
+        if (columnValue instanceof ListValue<?> l) {
+            if (l.type() == null) {
+                return Optional.of(InputValidationErr.of(LIST_VALUE_MISSING_TYPE));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    default <T> Optional<InputValidationErr> validateProperty(Property<T> p) {
+        if (p.key() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+        }
+
+        if (p.name() == null || p.name().isBlank()) {
+            return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY));
+        }
+
+        return switch (p) {
+            case DecimalProperty d -> validateDecimalProperty(d);
+            case IntegerProperty i -> validateIntegerProperty(i);
+            case StringProperty s -> validateStringProperty(s);
+            case ReferenceProperty r -> validateReferenceProperty(r);
+            case BooleanProperty ignored -> Optional.empty();
+            case Property<?> ignored -> throw new IllegalStateException("Unexpected property value, must not happen ever");
+            case null -> throw new NullPointerException();
+        };
+    }
+
+    default Optional<InputValidationErr> validateSelectProperty(SelectProperty p) {
+        if (p.propertyKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+        }
+
+        return Optional.empty();
+    }
+
+    default <T> Optional<InputValidationErr> validatePredicate(RawPredicate<T> p) {
+        if (p.propertyKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+        }
+
+        if (p.value() == null) {
+            return Optional.of(InputValidationErr.of(SELECT_PREDICATE_VALUE_IS_EMPTY));
+        }
+
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
+        if (p.left() == null) {
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
+        }
+
+        if (p.right() == null) {
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
+        }
+
+        if (p.op() == null) {
+            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
+        }
+
+        return Optional.empty();
+    }
+
+    static Optional<InputValidationErr> validateDecimalProperty(DecimalProperty dp) {
+        boolean maxSet = dp.max() != null;
+        boolean minSet = dp.min() != null;
+        boolean defaultSet = dp.defaultValue() != null;
+
+        if (defaultSet) {
+            if (maxSet && dp.defaultValue().compareTo(dp.max()) > 0) {
+                return Optional.of(
+                    InputValidationErr.of(DECIMAL_DEFAULT_GREATER_MAX_VAL)
+                );
+            }
+
+            if (minSet && dp.defaultValue().compareTo(dp.min()) < 0) {
+                return Optional.of(InputValidationErr.of(DECIMAL_DEFAULT_LESS_MIN_VAL));
+            }
+        }
+
+        if (minSet && maxSet) {
+            if (dp.max().compareTo(dp.min()) < 0) {
+                return Optional.of(InputValidationErr.of(DECIMAL_MAX_VAL_LESS_MIN_VAL));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    static Optional<InputValidationErr> validateIntegerProperty(IntegerProperty ip) {
+        boolean isMaxSet = ip.max() != null;
+        boolean isMinSet = ip.min() != null;
+        boolean defaultValueSet = ip.defaultValue() != null;
+
+        if (defaultValueSet) {
+            if (isMinSet && ip.defaultValue() < ip.min()) {
+                return Optional.of(InputValidationErr.of(INTEGER_DEFAULT_LESS_MIN_VAL));
+            }
+
+            if (isMaxSet && ip.defaultValue() > ip.max()) {
+                return Optional.of(InputValidationErr.of(INTEGER_DEFAULT_GREATER_MAX_VAL));
+            }
+        }
+
+
+        if (isMinSet && isMaxSet && ip.max() < ip.min()) {
+            return Optional.of(InputValidationErr.of(INTEGER_MAX_VAL_LESS_MIN_VAL));
+        }
+
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateStringProperty(StringProperty sp) {
+        boolean maxLengthSet = sp.maxLength() != null;
+        boolean minLengthSet = sp.minLength() != null;
+
+        if (maxLengthSet && sp.maxLength() < 1) {
+            return Optional.of(InputValidationErr.of(STRING_MAX_LEN_LESS_ONE));
+        }
+
+        if (minLengthSet && sp.minLength() < 0) {
+            return Optional.of(InputValidationErr.of(STRING_MIN_LEN_LESS_ZERO));
+        }
+
+        if (minLengthSet && maxLengthSet) {
+            if (sp.maxLength() < sp.minLength()) {
+                return Optional.of(InputValidationErr.of(STRING_MAX_LEN_LESS_MIN_LEN));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateReferenceProperty(ReferenceProperty rp) {
+        if (rp.refTableKey() == null) {
+            return Optional.of(InputValidationErr.of(REFERENCE_PROPERTY_TABLE_KEY_IS_EMPTY));
+        }
+
+        return Optional.empty();
     }
 }

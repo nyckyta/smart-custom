@@ -1,21 +1,14 @@
 package edu.ukma.smart.virtual.create;
 
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_TABLE;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
-
-import edu.ukma.smart.virtual.Validated;
-import edu.ukma.smart.virtual.errors.InputValidationErr;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-// TODO: strict validation
 public record NewTable(
     String key,
     String name,
     String description,
     List<Property<?>> properties
-) implements Validated {
+) {
 
 
     public NewTable(String key, String name, String description, List<Property<?>> properties) {
@@ -66,18 +59,5 @@ public record NewTable(
                 properties
             );
         }
-    }
-
-    @Override
-    public Optional<InputValidationErr> validate() {
-        if (key == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        if (name == null || name.isBlank()) {
-            return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_TABLE));
-        }
-
-        return Optional.empty();
     }
 }
