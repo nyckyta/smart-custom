@@ -1,0 +1,31 @@
+package edu.ukma.smart.virtual;
+
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
+
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.FatalError;
+import edu.ukma.smart.virtual.errors.OperationError;
+import edu.ukma.smart.virtual.errors.SQLExceptionsHandler;
+import java.sql.SQLException;
+
+public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
+
+    // TODO: Make more sophisticated error check, not just all 23* errors
+    private static final String CHECK_VIOLATION = "23";
+    private static final String UNDEFINED_TABLE = "42P01";
+    private static final String NUMERIC_VALUE_OUT_OF_RANGE = "22003";
+
+    @Override
+    public Err handle(SQLException e) {
+        if (e.getSQLState().startsWith(CHECK_VIOLATION)) {
+            return OperationError.of(OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
+        }
+
+        return switch (e.getSQLState()) {
+            case UNDEFINED_TABLE -> OperationError.of(TABLE_DOES_NOT_EXIST);
+            case NUMERIC_VALUE_OUT_OF_RANGE -> OperationError.of(PROPERTY_CHECK_VIOLATED);
+            default -> throw new FatalError(e);
+        };
+    }
+}

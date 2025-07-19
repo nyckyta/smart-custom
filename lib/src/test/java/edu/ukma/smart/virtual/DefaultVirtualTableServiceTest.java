@@ -1,5 +1,7 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -15,6 +17,7 @@ import edu.ukma.smart.virtual.delete.DeleteRow;
 import edu.ukma.smart.virtual.delete.DeleteTable;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.errors.OperationError;
 import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
 import edu.ukma.smart.virtual.select.IntegerPredicate;
@@ -535,37 +538,29 @@ class DefaultVirtualTableServiceTest {
             var fourthColumnFailureTooHigh = List.of(
                 StringValue.of("property_four", "value123456")
             );
-            try {
-                service.addRow("_table_key_add_row", fourthColumnFailureTooLow);
-                fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
+            err = service.addRow("_table_key_add_row", fourthColumnFailureTooLow);
+            assertTrue(err.isPresent(), "Expected error, but got no errors");
+            assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-            try {
-                service.addRow("_table_key_add_row", fourthColumnFailureTooHigh);
-                fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
+            err = service.addRow("_table_key_add_row", fourthColumnFailureTooHigh);
+            assertTrue(err.isPresent(), "Expected error, but got no errors");
+            assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
             var thirdColumnFailure = List.of(
                 StringValue.of("property_three", "val")
             );
 
-            try {
-                service.addRow("_table_key_add_row", thirdColumnFailure);
-                fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
+            err = service.addRow("_table_key_add_row", thirdColumnFailure);
+            assertTrue(err.isPresent(), "Expected error, but got no errors");
+            assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
             var secondColumnFailure = List.of(
                 StringValue.of("property_two", "value123456")
             );
 
-            try {
-                service.addRow("_table_key_add_row", secondColumnFailure);
-                fail("Error should have been thrown");
-            } catch (SQLException ex) {
-            }
+            err = service.addRow("_table_key_add_row", secondColumnFailure);
+            assertTrue(err.isPresent(), "Expected error, but got no errors");
+            assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
         }
 
     }
@@ -602,49 +597,41 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Table must be created without issues, but found " + err.orElse(null));
 
-        try {
-            service.addRow(
-                "_table_key_integer_add_row",
-                List.of(
-                    IntegerValue.of("property_two", 6L)
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_integer_add_row",
+            List.of(
+                IntegerValue.of("property_two", 6L)
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_integer_add_row",
-                List.of(
-                    IntegerValue.of("property_three", 4L)
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_integer_add_row",
+            List.of(
+                IntegerValue.of("property_three", 4L)
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_integer_add_row",
-                List.of(
-                    IntegerValue.of("property_four", 11L)
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_integer_add_row",
+            List.of(
+                IntegerValue.of("property_four", 11L)
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_integer_add_row",
-                List.of(
-                    IntegerValue.of("property_four", 4L)
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_integer_add_row",
+            List.of(
+                IntegerValue.of("property_four", 4L)
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
         err = service.addRow(
             "_table_key_integer_add_row",
@@ -667,6 +654,7 @@ class DefaultVirtualTableServiceTest {
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
         }
     }
+
 
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
@@ -705,47 +693,39 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Table must be created without issues");
 
-        try {
-            service.addRow(
-                "_table_key_decimal_add_row",
-                List.of(
-                    DecimalValue.of("property_two", BigDecimal.valueOf(6))
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_decimal_add_row",
+            List.of(
+                DecimalValue.of("property_two", BigDecimal.valueOf(6))
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_decimal_add_row",
-                List.of(
-                    DecimalValue.of("property_three", BigDecimal.valueOf(1))
-                )
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_decimal_add_row",
+            List.of(
+                DecimalValue.of("property_three", BigDecimal.valueOf(1))
+            )
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_decimal_add_row",
-                List.of(
-                    DecimalValue.of("property_four", BigDecimal.valueOf(10)))
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_decimal_add_row",
+            List.of(
+                DecimalValue.of("property_four", BigDecimal.valueOf(10)))
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), PROPERTY_CHECK_VIOLATED);
 
-        try {
-            service.addRow(
-                "_table_key_decimal_add_row",
-                List.of(
-                    DecimalValue.of("property_four", BigDecimal.valueOf(1)))
-            );
-            fail("Error should have been thrown");
-        } catch (SQLException ex) {
-        }
+        err = service.addRow(
+            "_table_key_decimal_add_row",
+            List.of(
+                DecimalValue.of("property_four", BigDecimal.valueOf(1)))
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), PROPERTY_CHECK_VIOLATED);
 
         err = service.addRow(
             "_table_key_decimal_add_row",
@@ -853,16 +833,14 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
-        try {
-            err = service.addRow(
-                "_test_table_creation_with_reference_property_having_ref",
-                List.of(
-                    ReferenceValue.of("test_table_creation_with_reference_property_ref_property",
-                        42))
-            );
-            fail("Expected exception being thrown");
-        } catch (SQLException e) {
-        }
+        err = service.addRow(
+            "_test_table_creation_with_reference_property_having_ref",
+            List.of(
+                ReferenceValue.of("test_table_creation_with_reference_property_ref_property",
+                    42))
+        );
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
         try (final var statement = connection.createStatement()) {
             statement.execute("SELECT _id FROM _test_table_creation_with_reference_property");
@@ -960,7 +938,7 @@ class DefaultVirtualTableServiceTest {
             "_test_table_row_update",
             List.of(
                 IntegerValue.of("int_prop", 1L),
-                DecimalValue.of("decimal_prop", new BigDecimal(25.5)),
+                DecimalValue.of("decimal_prop", new BigDecimal("25.5")),
                 StringValue.of("string_prop", "123"),
                 BooleanValue.of("boolean_prop", true),
                 ReferenceValue.of("ref_prop", 1))
@@ -971,7 +949,7 @@ class DefaultVirtualTableServiceTest {
         err = service.updateRow(
             UpdateRow.of("_test_table_row_update", 1, List.of(
                 IntegerValue.of("int_prop", 2L),
-                DecimalValue.of("decimal_prop", new BigDecimal(35.5)),
+                DecimalValue.of("decimal_prop", new BigDecimal("35.5")),
                 StringValue.of("string_prop", "321"),
                 BooleanValue.of("boolean_prop", false),
                 ReferenceValue.of("ref_prop", 2)
@@ -1373,12 +1351,9 @@ class DefaultVirtualTableServiceTest {
         err = service.addRow("_test_referenced_table_with_reference", List.of(ReferenceValue.of("name", 1)));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        try {
-            err = service.deleteRow(DeleteRow.of("_test_referenced_table_can_not_be_dropped", 1));
-            fail("Should not allow to delete row");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+        err = service.deleteRow(DeleteRow.of("_test_referenced_row_can_not_be_dropped", 1));
+        assertTrue(err.isPresent(), "Expected error, but got no error");
+        assertEquals(((OperationError) err.get()).code(), PROPERTY_CHECK_VIOLATED);
     }
 
     @Test
@@ -1545,6 +1520,13 @@ class DefaultVirtualTableServiceTest {
         } catch (SQLException ex) {
 
         }
+    }
+
+    @Test
+    void testFailsToDropNonExistingTable() {
+        final var err = service.deleteTable(DeleteTable.of("_does_not_exist"));
+        assertTrue(err.isPresent(), "Expected error, but got no errors");
+        assertEquals(((OperationError) err.get()).code(), TABLE_DOES_NOT_EXIST);
     }
 
 

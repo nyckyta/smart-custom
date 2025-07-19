@@ -18,6 +18,8 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.postgresql)
+
     // Use TestNG framework, also requires calling test.useTestNG() below
     testImplementation(libs.testng)
     testImplementation(libs.testcontainers)

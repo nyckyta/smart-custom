@@ -38,38 +38,34 @@ public class DefaultVirtualTableService implements VirtualTableService {
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSX");
     private final Connection connection;
     private final QueryGenerator queryBuilder = new PostgreQueryGenerator();
+    private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
 
     public DefaultVirtualTableService(Connection connection) {
         this.connection = connection;
     }
 
     @Override
-    public Optional<? extends Err> createTable(NewTable newTable) throws SQLException {
+    public Optional<? extends Err> createTable(NewTable newTable) {
         final var query = queryBuilder.createTable(newTable);
         if (query.error().isPresent()) {
             return query.error();
         }
 
-        executeStatement(query.value());
-
-        return Optional.empty();
+        return executeStatement(query.value());
     }
 
     @Override
-    public Optional<? extends Err> deleteTable(DeleteTable deleteTable) throws SQLException {
+    public Optional<? extends Err> deleteTable(DeleteTable deleteTable) {
         final var query = queryBuilder.deleteTable(deleteTable);
         if (query.error().isPresent()) {
             return query.error();
         }
 
-        executeStatement(query.value());
-
-        return Optional.empty();
+        return executeStatement(query.value());
     }
 
     @Override
-    public Optional<? extends Err> addRow(InsertRow insertRow)
-        throws SQLException {
+    public Optional<? extends Err> addRow(InsertRow insertRow) {
         var query = queryBuilder.insertIntoTable(insertRow);
         if (query.error().isPresent()) {
             return query.error();
@@ -92,13 +88,15 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 index += 1;
             }
             statement.execute();
+        } catch (final SQLException e) {
+            return Optional.of(exceptionHandler.handle(e));
         }
 
         return Optional.empty();
     }
 
     @Override
-    public Optional<? extends Err> updateRow(UpdateRow updateRow) throws SQLException {
+    public Optional<? extends Err> updateRow(UpdateRow updateRow) {
         var query = queryBuilder.updateRow(updateRow);
         if (query.error().isPresent()) {
             return query.error();
@@ -122,24 +120,25 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
             statement.setInt(index, updateRow.rowId());
             statement.execute();
+        } catch (final SQLException e) {
+            return Optional.of(exceptionHandler.handle(e));
         }
 
         return Optional.empty();
     }
 
     @Override
-    public Optional<? extends Err> deleteRow(DeleteRow deleteRow) throws SQLException {
+    public Optional<? extends Err> deleteRow(DeleteRow deleteRow) {
         var query = queryBuilder.deleteFromTable(deleteRow);
         if (query.error().isPresent()) {
             return query.error();
         }
 
-        executeStatement(query.value());
-        return Optional.empty();
+        return executeStatement(query.value());
     }
 
     @Override
-    public Return<List<List<ColumnValue<?>>>> select(SelectQuery query) throws SQLException {
+    public Return<List<List<ColumnValue<?>>>> select(SelectQuery query) {
         var selectQuery = queryBuilder.select(query);
         if (selectQuery.error().isPresent()) {
             return Return.error(selectQuery.error().get());
@@ -187,6 +186,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
         } catch (ParseException e) {
             log.error("Failed to parse timestamp", e);
             throw new IllegalStateException("Failure during select. Unexpected time value.");
+        } catch (SQLException e) {
+            return Return.error(exceptionHandler.handle(e));
         }
     }
 
@@ -224,19 +225,24 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 }
             }
         }
-        ;
 
         return _index;
     }
 
-    private void executeStatement(String query) throws SQLException {
-        connection.beginRequest();
-        try (var statement = connection.createStatement()) {
-            log.debug("Executing SQL statement to add row: {}", query);
-            statement.execute(query);
-        } finally {
-            connection.endRequest();
+    private Optional<Err> executeStatement(String query) {
+        try {
+            connection.beginRequest();
+            try (var statement = connection.createStatement()) {
+                log.debug("Executing SQL statement to add row: {}", query);
+                statement.execute(query);
+            } finally {
+                connection.endRequest();
+            }
+        } catch (SQLException e) {
+            return Optional.of(exceptionHandler.handle(e));
         }
+
+        return Optional.empty();
     }
 }
 
