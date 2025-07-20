@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
@@ -21,19 +22,21 @@ public interface VirtualTableService {
      * @param newTable the details of the new table to create
      * @return the created table
      */
-    Optional<? extends Err> createTable(NewTable newTable) throws SQLException;
+    Optional<? extends Err> createTable(NewTable newTable);
 
-    Optional<? extends Err> dropTable(DropTable tableKey) throws SQLException;
+    Optional<? extends Err> dropTable(DropTable tableKey);
 
-    Optional<? extends Err> addRow(InsertRow insertRow) throws SQLException;
+    Optional<? extends Err> addProperty(AddProperty addProperty);
+
+    Optional<? extends Err> addRow(InsertRow insertRow);
 
     default Optional<? extends Err> addRow(String tableKey, List<? extends ColumnValue<?>> columnValues) throws SQLException {
         return addRow(InsertRow.of(tableKey, columnValues));
     }
 
-    Optional<? extends Err> updateRow(UpdateRow updateRow) throws SQLException;
+    Optional<? extends Err> updateRow(UpdateRow updateRow);
 
-    Optional<? extends Err> deleteRow(DeleteRow deleteRow) throws SQLException;
+    Optional<? extends Err> deleteRow(DeleteRow deleteRow);
 
-    Return<List<List<ColumnValue<?>>>> select(SelectQuery query) throws SQLException;
+    Return<List<List<ColumnValue<?>>>> select(SelectQuery query);
 }

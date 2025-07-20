@@ -16,6 +16,9 @@ public record InputValidationErr(ErrorCode code) implements Err {
         CREATE_TABLE_EMPTY_NAME_FOR_TABLE("create.table.name.is.empty"),
         CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY("create.table.property.is.empty"),
 
+        // alter table specific
+        ALTER_TABLE_PROPERTY_IS_NOT_SET("alter.table.property.is.not.set"),
+
         // add row specific
         ADD_ROW_LISTS_ARE_NOT_SUPPORTED("add.row.lists.are.not.supported"),
 

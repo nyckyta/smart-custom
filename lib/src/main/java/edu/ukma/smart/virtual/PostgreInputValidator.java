@@ -8,6 +8,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_R
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_ROW_ID_FORMAT;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.Property;
@@ -54,6 +55,20 @@ public class PostgreInputValidator implements InputValidator {
         }
 
         if (!TABLE_KEY_REGEXP.matcher(newTable.key()).matches()) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<InputValidationErr> validateAddProperty(AddProperty addProperty) {
+        var err = InputValidator.super.validateAddProperty(addProperty);
+        if (err.isPresent()) {
+            return err;
+        }
+
+        if (!TABLE_KEY_REGEXP.matcher(addProperty.tableKey()).matches()) {
             return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 

@@ -1,14 +1,14 @@
 package edu.ukma.smart.virtual;
 
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
-import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
-import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
 import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
 import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
@@ -27,6 +27,7 @@ import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.dml.values.Type;
+import edu.ukma.smart.virtual.errors.Return;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,9 +47,9 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            ",\"%s\" BIGINT DEFAULT %s %s %s%n".formatted(
+            "\"%s\" BIGINT %s %s %s%n".formatted(
                 i.key(),
-                i.defaultValue() == null ? "NULL" : i.defaultValue(),
+                i.defaultValue() == null ? "" : "DEFAULT %s".formatted(i.defaultValue()),
                 i.required() ? "NOT NULL" : "",
                 i.unique() ? "UNIQUE" : ""
             )
@@ -76,7 +77,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> checks
     ) {
         statementBuilder.append(
-            ",\"%s\" TEXT DEFAULT %s %s %s%n".formatted(
+            "\"%s\" TEXT DEFAULT %s %s %s%n".formatted(
                 s.key(),
                 s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
                 s.required() ? "NOT NULL" : "",
@@ -85,14 +86,17 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         if (s.maxLength() != null && s.minLength() != null) {
             checks.add("CHECK (char_length(\"%s\") BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
+            return;
         }
 
         if (s.maxLength() != null) {
             checks.add("CHECK (char_length(\"%s\") <= %d)".formatted(s.key(), s.maxLength()));
+            return;
         }
 
         if (s.minLength() != null) {
             checks.add("CHECK (char_length(\"%s\") >= %d)".formatted(s.key(), s.minLength()));
+            return;
         }
     }
 
@@ -102,7 +106,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            ",\"%s\" BOOLEAN DEFAULT %s %s %s%n".formatted(
+            "\"%s\" BOOLEAN DEFAULT %s %s %s%n".formatted(
                 b.key(),
                 b.defaultValue() == null ? "NULL" : b.defaultValue(),
                 b.required() ? "NOT NULL" : "",
@@ -137,6 +141,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 return Return.error(err.get());
             }
 
+            query.append(",");
             switch (property) {
                 case StringProperty s -> addStringProperty(s, query, constraints);
                 case IntegerProperty i -> addIntegerProperty(i, query, constraints);
@@ -145,7 +150,6 @@ class PostgreQueryGenerator implements QueryGenerator {
                 case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
                 default -> throw new IllegalStateException("Unexpected property: " + property);
             }
-
         }
 
         constraints.forEach(c -> query.append(",%s".formatted(c)));
@@ -160,6 +164,29 @@ class PostgreQueryGenerator implements QueryGenerator {
         return err.<Return<String>>map(Return::error)
             .orElseGet(() -> Return.of("DROP TABLE %s;".formatted(deleteTable.tableKey())));
 
+    }
+
+    @Override
+    public Return<String> addProperty(AddProperty addProperty) {
+        var err = inputValidator.validateAddProperty(addProperty);
+        if (err.isPresent()) {
+            return Return.error(err.get());
+        }
+
+        var query = new StringBuilder("ALTER TABLE %s ADD COLUMN%n".formatted(addProperty.tableKey()));
+
+        var constraints = new ArrayList<String>();
+        switch (addProperty.property()) {
+            case StringProperty s -> addStringProperty(s, query, constraints);
+            case IntegerProperty i -> addIntegerProperty(i, query, constraints);
+            case BooleanProperty b -> addBooleanProperty(b, query);
+            case DecimalProperty d -> addDecimalProperty(d, query, constraints);
+            case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
+            default -> throw new IllegalStateException("Unexpected property: " + addProperty.property());
+        }
+
+        query.append(" %s;".formatted(String.join(" ", constraints)));
+        return Return.of(query.toString());
     }
 
 
@@ -281,7 +308,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> constraints
     ) {
         statementBuilder.append(
-            ",\"%s\" INTEGER%s%s%s%n".formatted(
+            "\"%s\" INTEGER%s%s%s%n".formatted(
                 r.key(),
                 r.required() ? " NOT NULL" : "",
                 r.unique() ? " UNIQUE" : "",
@@ -304,7 +331,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> checks
     ) {
         statementBuilder.append(
-            ",\"%s\" NUMERIC(%d,%d) DEFAULT %s %s %s%n".formatted(
+            "\"%s\" NUMERIC(%d,%d) DEFAULT %s %s %s%n".formatted(
                 d.key(),
                 d.precision(),
                 d.scale(),

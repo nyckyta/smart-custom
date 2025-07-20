@@ -3,12 +3,10 @@ package edu.ukma.smart.virtual;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED;
 
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
-import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
-import edu.ukma.smart.virtual.errors.Err;
-import edu.ukma.smart.virtual.errors.InputValidationErr;
-import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
 import edu.ukma.smart.virtual.dml.update.UpdateRow;
@@ -19,6 +17,9 @@ import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.ReferenceValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.errors.Return;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -57,6 +58,16 @@ public class DefaultVirtualTableService implements VirtualTableService {
     @Override
     public Optional<? extends Err> dropTable(DropTable deleteTable) {
         final var query = queryBuilder.dropTable(deleteTable);
+        if (query.error().isPresent()) {
+            return query.error();
+        }
+
+        return executeStatement(query.value());
+    }
+
+    @Override
+    public Optional<? extends Err> addProperty(AddProperty addProperty) {
+        final var query = queryBuilder.addProperty(addProperty);
         if (query.error().isPresent()) {
             return query.error();
         }
@@ -239,6 +250,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 connection.endRequest();
             }
         } catch (SQLException e) {
+            log.debug("Error executing SQL statement", e);
             return Optional.of(exceptionHandler.handle(e));
         }
 

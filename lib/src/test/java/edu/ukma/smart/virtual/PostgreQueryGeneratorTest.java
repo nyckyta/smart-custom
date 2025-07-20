@@ -727,8 +727,8 @@ public class PostgreQueryGeneratorTest {
         assertTrue(result.error().isEmpty());
         String sql = result.value();
 
-        assertTrue(sql.contains("\"middle_name\" TEXT DEFAULT NULL"));
-        assertTrue(sql.contains("\"optional_number\" BIGINT DEFAULT NULL"));
+        assertTrue(sql.contains("\"middle_name\" TEXT"));
+        assertTrue(sql.contains("\"optional_number\" BIGINT"));
         // Should not contain NOT NULL for these columns
         assertFalse(sql.matches(".*\"middle_name\".*NOT NULL.*"));
         assertFalse(sql.matches(".*\"optional_number\".*NOT NULL.*"));

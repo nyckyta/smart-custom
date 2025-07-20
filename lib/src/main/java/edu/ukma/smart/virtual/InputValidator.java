@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ALTER_TABLE_PROPERTY_IS_NOT_SET;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
@@ -21,6 +22,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_P
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
@@ -53,6 +55,18 @@ public interface InputValidator {
 
         if (newTable.name() == null || newTable.name().isBlank()) {
             return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_TABLE));
+        }
+
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateAddProperty(AddProperty addProperty) {
+        if (addProperty.tableKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        if (addProperty.property() == null) {
+            return Optional.of(InputValidationErr.of(ALTER_TABLE_PROPERTY_IS_NOT_SET));
         }
 
         return Optional.empty();
