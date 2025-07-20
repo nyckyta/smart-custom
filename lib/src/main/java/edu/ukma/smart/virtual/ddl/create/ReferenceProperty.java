@@ -7,8 +7,29 @@ public record ReferenceProperty(
     boolean required,
     boolean unique,
     Integer defaultValue,
-    String refTableKey
-) implements Property<Integer> {
+    String refTableKey,
+    Type type
+) implements Property {
+
+    public ReferenceProperty(
+        String key,
+        String name,
+        String description,
+        boolean required,
+        boolean unique,
+        Integer defaultValue,
+        String refTableKey,
+        Type type
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.required = required;
+        this.unique = unique;
+        this.defaultValue = defaultValue;
+        this.refTableKey = refTableKey;
+        this.type = Type.REFERENCE;
+    }
 
     public static ReferencePropertyBuilder builder() {
         return new ReferencePropertyBuilder();
@@ -73,7 +94,8 @@ public record ReferenceProperty(
                 required,
                 unique,
                 defaultValue,
-                refTableKey
+                refTableKey,
+                Type.REFERENCE
             );
         }
     }

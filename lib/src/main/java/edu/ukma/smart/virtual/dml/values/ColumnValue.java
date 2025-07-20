@@ -4,4 +4,6 @@ public interface ColumnValue<T> {
     String key();
 
     T value();
+
+    Type type();
 }

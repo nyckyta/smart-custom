@@ -2,9 +2,9 @@ package edu.ukma.smart.virtual.ddl.alter;
 
 import edu.ukma.smart.virtual.ddl.create.Property;
 
-public record AddProperty(String tableKey, Property<?> property) {
+public record AddProperty(String tableKey, Property property) {
 
-    public AddProperty(String tableKey, Property<?> property) {
+    public AddProperty(String tableKey, Property property) {
         this.tableKey = tableKey;
         this.property = property;
     }
@@ -15,7 +15,7 @@ public record AddProperty(String tableKey, Property<?> property) {
 
     public static final class AddPropertyBuilder {
         private String tableKey;
-        private Property<?> property;
+        private Property property;
 
         private AddPropertyBuilder() {
         }
@@ -26,7 +26,7 @@ public record AddProperty(String tableKey, Property<?> property) {
             return this;
         }
 
-        public AddPropertyBuilder property(Property<?> property) {
+        public AddPropertyBuilder property(Property property) {
             this.property = property;
             return this;
         }

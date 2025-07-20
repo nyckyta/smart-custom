@@ -1,7 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
@@ -85,16 +85,16 @@ public class DefaultVirtualTableService implements VirtualTableService {
         try (final var statement = connection.prepareStatement(query.value())) {
             int index = 1;
             for (final var cv : insertRow.columnValues()) {
-                switch (cv) {
-                    case StringValue s -> statement.setString(index, s.value());
-                    case IntegerValue i -> statement.setLong(index, i.value());
-                    case BooleanValue b -> statement.setBoolean(index, b.value());
-                    case DecimalValue d -> statement.setBigDecimal(index, d.value());
-                    case ReferenceValue r -> statement.setInt(index, r.value());
-                    case ListValue<?> ignored -> {
+                switch (cv.type()) {
+                    case STRING -> statement.setString(index, ((StringValue) cv).value());
+                    case INTEGER -> statement.setLong(index, ((IntegerValue) cv).value());
+                    case BOOLEAN -> statement.setBoolean(index, ((BooleanValue) cv).value());
+                    case DECIMAL -> statement.setBigDecimal(index, ((DecimalValue) cv).value());
+                    case REFERENCE -> statement.setInt(index, ((ReferenceValue) cv).value());
+                    case LIST -> {
                         return Optional.of(InputValidationErr.of(ADD_ROW_LISTS_ARE_NOT_SUPPORTED));
                     }
-                    default -> throw new IllegalStateException("Add row: unknown value");
+                    case null -> throw new NullPointerException();
                 }
                 index += 1;
             }
@@ -116,16 +116,15 @@ public class DefaultVirtualTableService implements VirtualTableService {
         int index = 1;
         try (final var statement = connection.prepareStatement(query.value())) {
             for (var value : updateRow.valuesToUpdate()) {
-                switch (value) {
-                    case StringValue s -> statement.setString(index, s.value());
-                    case IntegerValue i -> statement.setLong(index, i.value());
-                    case BooleanValue b -> statement.setBoolean(index, b.value());
-                    case DecimalValue d -> statement.setBigDecimal(index, d.value());
-                    case ReferenceValue r -> statement.setInt(index, r.value());
-                    case ListValue<?> ignored -> {
-                        return Optional.of(InputValidationErr.of(UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED));
+                switch (value.type()) {
+                    case STRING -> statement.setString(index, ((StringValue) value).value());
+                    case INTEGER -> statement.setLong(index, ((IntegerValue) value).value());
+                    case BOOLEAN -> statement.setBoolean(index, ((BooleanValue) value).value());
+                    case DECIMAL -> statement.setBigDecimal(index, ((DecimalValue) value).value());
+                    case REFERENCE -> statement.setInt(index, ((ReferenceValue) value).value());
+                    case LIST -> {
+                        return Optional.of(InputValidationErr.of(UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED));
                     }
-                    default -> throw new IllegalStateException("Update: Unknown value " + value);
                 }
                 index += 1;
             }
@@ -158,14 +157,14 @@ public class DefaultVirtualTableService implements VirtualTableService {
         try (final var statement = connection.prepareStatement(selectQuery.value().preparedStatement())) {
             int index = 1;
             for (var v : selectQuery.value().params()) {
-                switch (v) {
-                    case StringValue s -> statement.setString(index, s.value());
-                    case IntegerValue i -> statement.setLong(index, i.value());
-                    case BooleanValue b -> statement.setBoolean(index, b.value());
-                    case DecimalValue d -> statement.setBigDecimal(index, d.value());
-                    case ReferenceValue r -> statement.setInt(index, r.value());
-                    case ListValue<?> l -> index = setListValue(statement, l, index);
-                    default -> throw new IllegalStateException("Select: Unknown value " + v);
+                switch (v.type()) {
+                    case STRING -> statement.setString(index, ((StringValue) v).value());
+                    case INTEGER -> statement.setLong(index, ((IntegerValue) v).value());
+                    case BOOLEAN -> statement.setBoolean(index, ((BooleanValue) v).value());
+                    case DECIMAL -> statement.setBigDecimal(index, ((DecimalValue) v).value());
+                    case REFERENCE -> statement.setInt(index, ((ReferenceValue) v).value());
+                    case LIST -> index = setListValue(statement, (ListValue<?>) v, index);
+                    case null -> throw new NullPointerException();
                 }
                 index += 1;
             }
@@ -204,7 +203,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     private Integer setListValue(PreparedStatement statement, ListValue<?> l, int index) throws SQLException {
         int _index = index - 1;
-        switch (l.type()) {
+        switch (l.elementsType()) {
             case STRING -> {
                 for (var v : l.value()) {
                     _index += 1;

@@ -8,5 +8,6 @@ public enum Type {
     INTEGER,
     DECIMAL,
     REFERENCE,
-    STRING
+    STRING,
+    LIST
 }

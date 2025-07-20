@@ -6,8 +6,38 @@ public record BooleanProperty(
     String description,
     Boolean defaultValue,
     boolean required,
-    boolean unique
-) implements Property<Boolean> {
+    boolean unique,
+    Type type
+) implements Property {
+
+    public BooleanProperty(
+        String key,
+        String name,
+        String description,
+        Boolean defaultValue,
+        boolean required,
+        boolean unique,
+        Type type
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.defaultValue = defaultValue;
+        this.required = required;
+        this.unique = unique;
+        this.type = Type.BOOLEAN;
+    }
+
+    public BooleanProperty(
+        String key,
+        String name,
+        String description,
+        Boolean defaultValue,
+        boolean required,
+        boolean unique
+    ) {
+        this(key, name, description, defaultValue, required, unique, Type.BOOLEAN);
+    }
 
     public static BooleanPropertyBuilder builder() {
         return new BooleanPropertyBuilder();

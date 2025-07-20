@@ -12,6 +12,7 @@ import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
@@ -193,7 +194,8 @@ class DefaultVirtualTableServiceTest {
             true,
             false,
             null,
-            null
+            null,
+            Property.Type.STRING
         );
         final var maliciousTable = new NewTable(
             "_table_key",
@@ -220,7 +222,8 @@ class DefaultVirtualTableServiceTest {
             true,
             false,
             null,
-            null
+            null,
+            Property.Type.STRING
         );
         final var maliciousTable = new NewTable(
             tableKey,

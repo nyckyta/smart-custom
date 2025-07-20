@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.ddl.create.Property.Type.DECIMAL;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
@@ -25,10 +26,12 @@ import static org.testng.Assert.assertTrue;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import edu.ukma.smart.virtual.dml.values.Type;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
 import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
@@ -198,8 +201,8 @@ public class PostgreInputValidatorTest {
     @DataProvider(name = "updateRowInvalidRowIds")
     Object[][] updateRowInvalidRowIds() {
         return new Object[][] {
-            {new UpdateRow("_valid_key", 0, List.of(new StringValue("test", "value")))},
-            {new UpdateRow("_valid_key", -1, List.of(new StringValue("test", "value")))}
+            {new UpdateRow("_valid_key", 0, List.of(new StringValue("test", "value", Type.STRING)))},
+            {new UpdateRow("_valid_key", -1, List.of(new StringValue("test", "value", Type.STRING)))}
         };
     }
 
@@ -214,13 +217,13 @@ public class PostgreInputValidatorTest {
     @DataProvider(name = "columnValueNullKeys")
     Object[][] columnValueNullKeys() {
         return new Object[][] {
-            {new StringValue(null, "value"), WRONG_PROPERTY_KEY_FORMAT}
+            {new StringValue(null, "value", Type.STRING), WRONG_PROPERTY_KEY_FORMAT}
         };
     }
 
     @Test
     void testColumnValueNullKeysAreNotAllowed() {
-        var result = validator.validateColumnValue(new StringValue(null, "value"));
+        var result = validator.validateColumnValue(new StringValue(null, "value", Type.STRING));
         assertTrue(result.isPresent(), "Expected no errors, but got %s".formatted(result.orElse(null)));
         assertEquals(result.get().code(), WRONG_PROPERTY_KEY_FORMAT);
     }
@@ -228,12 +231,12 @@ public class PostgreInputValidatorTest {
     @DataProvider(name = "columnValueInvalidKeys")
     Object[][] columnValueInvalidKeys() {
         return new Object[][] {
-            {new StringValue("", "value")},
-            {new StringValue("Invalid", "value")},
-            {new StringValue("9invalid", "value")},
-            {new StringValue("invalid-key", "value")},
-            {new StringValue("invalid.key", "value")},
-            {new StringValue("a" + "b".repeat(63), "value")} // too long
+            {new StringValue("", "value", Type.STRING)},
+            {new StringValue("Invalid", "value", Type.STRING)},
+            {new StringValue("9invalid", "value", Type.STRING)},
+            {new StringValue("invalid-key", "value", Type.STRING)},
+            {new StringValue("invalid.key", "value", Type.STRING)},
+            {new StringValue("a" + "b".repeat(63), "value", Type.STRING)} // too long
         };
     }
 
@@ -247,12 +250,12 @@ public class PostgreInputValidatorTest {
     @DataProvider(name = "columnValueForbiddenKeys")
     Object[][] columnValueForbiddenKeys() {
         return new Object[][] {
-            {new StringValue("tableoid", "value")},
-            {new StringValue("xmin", "value")},
-            {new StringValue("cmin", "value")},
-            {new StringValue("xmax", "value")},
-            {new StringValue("cmax", "value")},
-            {new StringValue("ctid", "value")}
+            {new StringValue("tableoid", "value", Type.STRING)},
+            {new StringValue("xmin", "value", Type.STRING)},
+            {new StringValue("cmin", "value", Type.STRING)},
+            {new StringValue("xmax", "value", Type.STRING)},
+            {new StringValue("cmax", "value", Type.STRING)},
+            {new StringValue("ctid", "value", Type.STRING)}
         };
     }
 
@@ -265,7 +268,7 @@ public class PostgreInputValidatorTest {
 
     @Test
     void testListValueMissingTypeIsNotAllowed() {
-        var result = validator.validateColumnValue(new ListValue<>("valid_key", List.of("value1", "value2"), null));
+        var result = validator.validateColumnValue(new ListValue<>("valid_key", List.of("value1", "value2"), null, null));
         assertTrue(result.isPresent());
         assertEquals(result.get().code(), LIST_VALUE_MISSING_TYPE);
     }
@@ -317,11 +320,11 @@ public class PostgreInputValidatorTest {
     Object[][] decimalPropertyInvalidPrecision() {
         return new Object[][] {
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, 0, 2, null, null)},
+                null, false, false, 0, 2, null, null, DECIMAL)},
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, -1, 2, null, null)},
+                null, false, false, -1, 2, null, null, DECIMAL)},
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, 131073, 2, null, null)} // MAX_PRECISION + 1
+                null, false, false, 131073, 2, null, null, DECIMAL)} // MAX_PRECISION + 1
         };
     }
 
@@ -336,11 +339,11 @@ public class PostgreInputValidatorTest {
     Object[][] decimalPropertyInvalidScale() {
         return new Object[][] {
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, 10, 0, null, null)},
+                null, false, false, 10, 0, null, null, DECIMAL)},
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, 10, -1, null, null)},
+                null, false, false, 10, -1, null, null, DECIMAL)},
             {new DecimalProperty("valid_key", "ValidName", "",
-                null, false, false, 20000, 16384, null, null)}
+                null, false, false, 20000, 16384, null, null, DECIMAL)}
         };
     }
 

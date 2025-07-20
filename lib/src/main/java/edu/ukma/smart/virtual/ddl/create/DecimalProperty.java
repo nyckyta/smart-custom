@@ -12,8 +12,35 @@ public record DecimalProperty(
     int precision,
     int scale,
     BigDecimal min,
-    BigDecimal max
-) implements Property<BigDecimal> {
+    BigDecimal max,
+    Type type
+) implements Property {
+
+    public DecimalProperty(
+        String key,
+        String name,
+        String description,
+        BigDecimal defaultValue,
+        boolean required,
+        boolean unique,
+        int precision,
+        int scale,
+        BigDecimal min,
+        BigDecimal max,
+        Type type
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.defaultValue = defaultValue;
+        this.required = required;
+        this.unique = unique;
+        this.precision = precision;
+        this.scale = scale;
+        this.min = min;
+        this.max = max;
+        this.type = Type.DECIMAL;
+    }
 
     public static DecimalPropertyBuilder builder() {
         return new DecimalPropertyBuilder();
@@ -99,7 +126,8 @@ public record DecimalProperty(
                 precision,
                 scale,
                 min,
-                max
+                max,
+                Type.DECIMAL
             );
         }
     }

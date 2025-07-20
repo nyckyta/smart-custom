@@ -24,7 +24,7 @@ public record InputValidationErr(ErrorCode code) implements Err {
 
         // update row specific
         UPDATE_ROW_NO_PROPERTIES("update.row.no.properties.set"),
-        UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED("update.row.lists.are.not.supported"),
+        UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED("update.row.lists.values.are.not.supported"),
 
         // select specific
         //  predicates:

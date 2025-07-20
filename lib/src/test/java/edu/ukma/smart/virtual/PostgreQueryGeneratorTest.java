@@ -57,7 +57,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithValidProperties() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("name")
                 .name("Name")
@@ -129,7 +129,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithReferenceProperty() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             ReferenceProperty.builder()
                 .key("user_id")
                 .name("User ID")
@@ -176,7 +176,7 @@ public class PostgreQueryGeneratorTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testCreateTableWithInvalidTableKey(String invalidKey) {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("_name")
                 .name("Name")
@@ -212,7 +212,7 @@ public class PostgreQueryGeneratorTest {
     @Test(dataProvider = "validTableKeys")
     public void testCreateTableWithValidTableKey(String validKey) {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("name")
                 .name("Name")
@@ -239,7 +239,7 @@ public class PostgreQueryGeneratorTest {
     @Test(dataProvider = "invalidTableKeys")
     public void testCreateTableWithInvalidPropertyKey(String invalidKey) {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key(invalidKey)
                 .name("Name")
@@ -268,7 +268,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithReferencePropertyRequiredNoDefault() {
         // Given - Reference properties are exempt from the default value requirement
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             ReferenceProperty.builder()
                 .key("user_id")
                 .name("User ID")
@@ -290,7 +290,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithInvalidReferenceTableKey() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             ReferenceProperty.builder()
                 .key("user_id")
                 .name("User ID")
@@ -319,7 +319,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithInvalidDecimalPrecision() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             DecimalProperty.builder()
                 .key("price")
                 .name("Price")
@@ -347,7 +347,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithInvalidDecimalScale() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             DecimalProperty.builder()
                 .key("price")
                 .name("Price")
@@ -375,7 +375,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithStringMaxLengthLessThanMin() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("description")
                 .name("Description")
@@ -405,7 +405,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithStringInvalidMaxLength() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("description")
                 .name("Description")
@@ -528,7 +528,7 @@ public class PostgreQueryGeneratorTest {
     public void testInsertWithSQLInjectionAttemptInStringValue() {
         // Given - Malicious SQL injection attempt in string value
         List<ColumnValue<?>> columnValues = List.of(
-            new StringValue("name", "'; DROP TABLE users; --")
+            new StringValue("name", "'; DROP TABLE users; --", Type.STRING)
         );
 
         // When
@@ -546,7 +546,7 @@ public class PostgreQueryGeneratorTest {
     public void testInsertWithSQLInjectionAttemptInTableKey() {
         // Given - Malicious SQL injection attempt in table key should be rejected
         List<ColumnValue<?>> columnValues = List.of(
-            new StringValue("name", "John")
+            new StringValue("name", "John", Type.STRING)
         );
 
         // When
@@ -565,7 +565,7 @@ public class PostgreQueryGeneratorTest {
     public void testInsertWithSQLInjectionAttemptInpropertyKey() {
         // Given - Malicious SQL injection attempt in column key should be rejected
         List<ColumnValue<?>> columnValues = List.of(
-            new StringValue("name; DROP TABLE users; --", "John")
+            new StringValue("name; DROP TABLE users; --", "John", Type.STRING)
         );
 
         // When
@@ -582,7 +582,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithSQLInjectionInStringDefault() {
         // Given - Test that string default params are properly escaped
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("description")
                 .name("description")
@@ -652,7 +652,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithUniqueConstraints() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("email")
                 .name("email")
@@ -693,7 +693,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithNullableColumns() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             StringProperty.builder()
                 .key("middle_name")
                 .name("Middle Name Table")
@@ -739,7 +739,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithMaxPrecisionAndScale() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             DecimalProperty.builder()
                 .key("big_decimal")
                 .name("Big Decimal Table")
@@ -770,7 +770,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithExceededPrecision() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             DecimalProperty.builder()
                 .key("big_decimal")
                 .name("Big Decimal Table")
@@ -804,7 +804,7 @@ public class PostgreQueryGeneratorTest {
     @Test
     public void testCreateTableWithExceededScale() {
         // Given
-        List<Property<?>> properties = List.of(
+        List<Property> properties = List.of(
             DecimalProperty.builder()
                 .key("big_decimal")
                 .name("Big Decimal Table")
@@ -1084,14 +1084,14 @@ public class PostgreQueryGeneratorTest {
                 SelectQuery.wildcard("_user_profile", ReferencePredicate.in("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
                     "SELECT * FROM public._user_profile WHERE \"foot_size\" IN (?,?,?,?) ;",
-                    List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
+                    List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), ListValue.ListType.REFERENCE))
                 )
             },
             {
                 SelectQuery.wildcard("_user_profile", ReferencePredicate.notIn("foot_size", List.of(4, 2, 3, 1))),
                 SelectStatement.of(
                     "SELECT * FROM public._user_profile WHERE \"foot_size\" NOT IN (?,?,?,?) ;",
-                    List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), Type.REFERENCE))
+                    List.of(ListValue.of("foot_size", List.of(4, 2, 3, 1), ListValue.ListType.REFERENCE))
                 )
             },
             {

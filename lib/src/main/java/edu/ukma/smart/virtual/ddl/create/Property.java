@@ -1,6 +1,6 @@
 package edu.ukma.smart.virtual.ddl.create;
 
-public interface Property<T> {
+public interface Property {
 
     String key();
 
@@ -12,5 +12,13 @@ public interface Property<T> {
 
     boolean required();
 
-    T defaultValue();
+    Type type();
+
+    enum Type {
+        STRING,
+        INTEGER,
+        DECIMAL,
+        REFERENCE,
+        BOOLEAN
+    }
 }

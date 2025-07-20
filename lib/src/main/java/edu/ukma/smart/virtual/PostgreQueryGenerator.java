@@ -26,7 +26,6 @@ import edu.ukma.smart.virtual.dml.values.DecimalValue;
 import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
-import edu.ukma.smart.virtual.dml.values.Type;
 import edu.ukma.smart.virtual.errors.Return;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -142,13 +141,12 @@ class PostgreQueryGenerator implements QueryGenerator {
             }
 
             query.append(",");
-            switch (property) {
-                case StringProperty s -> addStringProperty(s, query, constraints);
-                case IntegerProperty i -> addIntegerProperty(i, query, constraints);
-                case BooleanProperty b -> addBooleanProperty(b, query);
-                case DecimalProperty d -> addDecimalProperty(d, query, constraints);
-                case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
-                default -> throw new IllegalStateException("Unexpected property: " + property);
+            switch (property.type()) {
+                case STRING -> addStringProperty((StringProperty) property, query, constraints);
+                case INTEGER -> addIntegerProperty((IntegerProperty) property, query, constraints);
+                case BOOLEAN -> addBooleanProperty((BooleanProperty) property, query);
+                case DECIMAL -> addDecimalProperty((DecimalProperty) property, query, constraints);
+                case REFERENCE -> addReferenceProperty((ReferenceProperty) property, query, constraints);
             }
         }
 
@@ -176,13 +174,13 @@ class PostgreQueryGenerator implements QueryGenerator {
         var query = new StringBuilder("ALTER TABLE %s ADD COLUMN%n".formatted(addProperty.tableKey()));
 
         var constraints = new ArrayList<String>();
-        switch (addProperty.property()) {
-            case StringProperty s -> addStringProperty(s, query, constraints);
-            case IntegerProperty i -> addIntegerProperty(i, query, constraints);
-            case BooleanProperty b -> addBooleanProperty(b, query);
-            case DecimalProperty d -> addDecimalProperty(d, query, constraints);
-            case ReferenceProperty r -> addReferenceProperty(r, query, constraints);
-            default -> throw new IllegalStateException("Unexpected property: " + addProperty.property());
+        var prop = addProperty.property();
+        switch (prop.type()) {
+            case STRING -> addStringProperty((StringProperty) prop, query, constraints);
+            case INTEGER -> addIntegerProperty((IntegerProperty) prop, query, constraints);
+            case BOOLEAN -> addBooleanProperty((BooleanProperty) prop, query);
+            case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query, constraints);
+            case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, constraints);
         }
 
         query.append(" %s;".formatted(String.join(" ", constraints)));
@@ -377,7 +375,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 yield Return.of("\"%s\"%s?".formatted(s.propertyKey(), getStringOperator(s.op())));
             }
             case ReferencePredicate r -> {
-                parameters.add(ListValue.of(r.propertyKey(), r.value(), Type.REFERENCE));
+                parameters.add(ListValue.of(r.propertyKey(), r.value(), ListValue.ListType.REFERENCE));
                 yield Return.of(
                     "\"%s\" %s (%s)".formatted(
                         r.propertyKey(),

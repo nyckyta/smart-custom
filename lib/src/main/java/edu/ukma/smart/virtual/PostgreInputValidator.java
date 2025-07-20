@@ -83,7 +83,7 @@ public class PostgreInputValidator implements InputValidator {
         }
 
         if (!TABLE_KEY_REGEXP.matcher(deleteRow.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT));
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (deleteRow.rowId() < 1) {
@@ -101,7 +101,7 @@ public class PostgreInputValidator implements InputValidator {
         }
 
         if (!TABLE_KEY_REGEXP.matcher(deleteTable.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT));
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();
@@ -172,7 +172,7 @@ public class PostgreInputValidator implements InputValidator {
     }
 
     @Override
-    public <T> Optional<InputValidationErr> validateProperty(Property<T> property) {
+    public Optional<InputValidationErr> validateProperty(Property property) {
         var err = InputValidator.super.validateProperty(property);
         if (err.isPresent()) {
             return err;
@@ -186,10 +186,11 @@ public class PostgreInputValidator implements InputValidator {
             return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
         }
 
-        err = switch (property) {
-            case DecimalProperty d -> validateDecimal(d);
-            case ReferenceProperty r -> validateReference(r);
-            default -> Optional.empty();
+        err = switch (property.type()) {
+            case DECIMAL -> validateDecimal((DecimalProperty) property);
+            case REFERENCE -> validateReference((ReferenceProperty) property);
+            case INTEGER, STRING, BOOLEAN -> Optional.empty();
+            case null -> throw new NullPointerException("Null type specified, something is broken.");
         };
 
         return err;

@@ -23,7 +23,6 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_R
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
@@ -121,7 +120,7 @@ public interface InputValidator {
         }
 
         if (columnValue instanceof ListValue<?> l) {
-            if (l.type() == null) {
+            if (l.elementsType() == null) {
                 return Optional.of(InputValidationErr.of(LIST_VALUE_MISSING_TYPE));
             }
         }
@@ -129,7 +128,7 @@ public interface InputValidator {
         return Optional.empty();
     }
 
-    default <T> Optional<InputValidationErr> validateProperty(Property<T> p) {
+    default <T> Optional<InputValidationErr> validateProperty(Property p) {
         if (p.key() == null) {
             return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
         }
@@ -138,13 +137,12 @@ public interface InputValidator {
             return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY));
         }
 
-        return switch (p) {
-            case DecimalProperty d -> validateDecimalProperty(d);
-            case IntegerProperty i -> validateIntegerProperty(i);
-            case StringProperty s -> validateStringProperty(s);
-            case ReferenceProperty r -> validateReferenceProperty(r);
-            case BooleanProperty ignored -> Optional.empty();
-            case Property<?> ignored -> throw new IllegalStateException("Unexpected property value, must not happen ever");
+        return switch (p.type()) {
+            case DECIMAL -> validateDecimalProperty((DecimalProperty) p);
+            case INTEGER -> validateIntegerProperty((IntegerProperty) p);
+            case STRING -> validateStringProperty((StringProperty) p);
+            case REFERENCE -> validateReferenceProperty((ReferenceProperty) p);
+            case BOOLEAN -> Optional.empty();
             case null -> throw new NullPointerException();
         };
     }

@@ -8,8 +8,31 @@ public record StringProperty(
     boolean required,
     boolean unique,
     Integer maxLength,
-    Integer minLength
-) implements Property<String> {
+    Integer minLength,
+    Type type
+) implements Property {
+
+    public StringProperty(
+        String key,
+        String name,
+        String description,
+        String defaultValue,
+        boolean required,
+        boolean unique,
+        Integer maxLength,
+        Integer minLength,
+        Type type
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.defaultValue = defaultValue;
+        this.required = required;
+        this.unique = unique;
+        this.maxLength = maxLength;
+        this.minLength = minLength;
+        this.type = Type.STRING;
+    }
 
     public static PropertyBuilder builder() {
         return new PropertyBuilder();
@@ -78,7 +101,8 @@ public record StringProperty(
                 isRequired,
                 isUnique,
                 maxLength,
-                minLength
+                minLength,
+                Type.STRING
             );
         }
     }

@@ -10,8 +10,31 @@ public record IntegerProperty(
     boolean required,
     boolean unique,
     Long max,
-    Long min
-) implements Property<Long> {
+    Long min,
+    Type type
+) implements Property {
+
+    public IntegerProperty(
+        String key,
+        String name,
+        String description,
+        Long defaultValue,
+        boolean required,
+        boolean unique,
+        Long max,
+        Long min,
+        Type type
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.defaultValue = defaultValue;
+        this.required = required;
+        this.unique = unique;
+        this.max = max;
+        this.min = min;
+        this.type = Type.INTEGER;
+    }
 
     public static IntegerPropertyBuilder builder() {
         return new IntegerPropertyBuilder();
@@ -83,7 +106,9 @@ public record IntegerProperty(
                 required,
                 unique,
                 max,
-                min);
+                min,
+                Type.INTEGER
+            );
         }
     }
 }

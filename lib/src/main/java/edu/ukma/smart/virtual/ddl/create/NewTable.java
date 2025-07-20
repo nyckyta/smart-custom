@@ -7,11 +7,10 @@ public record NewTable(
     String key,
     String name,
     String description,
-    List<Property<?>> properties
+    List<Property> properties
 ) {
 
-
-    public NewTable(String key, String name, String description, List<Property<?>> properties) {
+    public NewTable(String key, String name, String description, List<Property> properties) {
         this.key = key;
         this.name = name;
         this.description = description;
@@ -26,7 +25,7 @@ public record NewTable(
         private String key;
         private String name;
         private String description;
-        private List<Property<?>> properties;
+        private List<Property> properties;
 
         private NewTableBuilder() {
         }
@@ -46,7 +45,7 @@ public record NewTable(
             return this;
         }
 
-        public NewTableBuilder properties(List<Property<?>> properties) {
+        public NewTableBuilder properties(List<Property> properties) {
             this.properties = properties;
             return this;
         }
