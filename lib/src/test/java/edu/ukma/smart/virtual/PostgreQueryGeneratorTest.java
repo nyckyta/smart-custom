@@ -20,6 +20,7 @@ import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
 import edu.ukma.smart.virtual.select.IntegerPredicate;
+import edu.ukma.smart.virtual.select.NullablePredicate;
 import edu.ukma.smart.virtual.select.ReferencePredicate;
 import edu.ukma.smart.virtual.select.SelectProperty;
 import edu.ukma.smart.virtual.select.SelectQuery;
@@ -1221,6 +1222,20 @@ public class PostgreQueryGeneratorTest {
                         DecimalValue.of("salary", new BigDecimal("25505.5"))
                     )
                 )
+            },
+            {
+                SelectQuery.wildcard(
+                    "_user_profile",
+                    NullablePredicate.isNull("name")
+                ),
+                SelectStatement.of("SELECT * FROM public._user_profile WHERE \"name\" IS NULL ;", List.of())
+            },
+            {
+                SelectQuery.wildcard(
+                    "_user_profile",
+                    NullablePredicate.isNotNull("name")
+                ),
+                SelectStatement.of("SELECT * FROM public._user_profile WHERE \"name\" IS NOT NULL ;", List.of())
             }
         };
     }

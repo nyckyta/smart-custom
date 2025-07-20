@@ -14,6 +14,7 @@ import edu.ukma.smart.virtual.select.BooleanPredicate;
 import edu.ukma.smart.virtual.select.CompoundPredicate;
 import edu.ukma.smart.virtual.select.DecimalPredicate;
 import edu.ukma.smart.virtual.select.IntegerPredicate;
+import edu.ukma.smart.virtual.select.NullablePredicate;
 import edu.ukma.smart.virtual.select.RawPredicate;
 import edu.ukma.smart.virtual.select.ReferencePredicate;
 import edu.ukma.smart.virtual.select.SelectQuery;
@@ -358,6 +359,9 @@ class PostgreQueryGenerator implements QueryGenerator {
                     )
                 );
             }
+            case NullablePredicate p -> Return.of(
+                "\"%s\" IS%sNULL".formatted(p.propertyKey(), p.op() == NullablePredicate.Operator.IS_NULL ? " " : " NOT ")
+            );
             default -> throw new IllegalStateException("Unexpected predicate " + pred);
         });
     }
