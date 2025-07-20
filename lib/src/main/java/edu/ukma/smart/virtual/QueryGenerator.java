@@ -1,18 +1,18 @@
 package edu.ukma.smart.virtual;
 
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.dml.insert.InsertRow;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.insert.InsertRow;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.update.UpdateRow;
 
 interface QueryGenerator {
 
     Return<String> createTable(NewTable newTable);
 
-    Return<String> deleteTable(DeleteTable tableKey);
+    Return<String> dropTable(DropTable tableKey);
 
     Return<String> insertIntoTable(InsertRow insertRow);
 

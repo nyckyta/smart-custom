@@ -3,22 +3,22 @@ package edu.ukma.smart.virtual;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_ARE_NOT_SUPPORTED;
 
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.insert.InsertRow;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.update.UpdateRow;
-import edu.ukma.smart.virtual.values.BooleanValue;
-import edu.ukma.smart.virtual.values.ColumnValue;
-import edu.ukma.smart.virtual.values.DecimalValue;
-import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.ListValue;
-import edu.ukma.smart.virtual.values.ReferenceValue;
-import edu.ukma.smart.virtual.values.StringValue;
+import edu.ukma.smart.virtual.dml.insert.InsertRow;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
+import edu.ukma.smart.virtual.dml.values.BooleanValue;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.DecimalValue;
+import edu.ukma.smart.virtual.dml.values.IntegerValue;
+import edu.ukma.smart.virtual.dml.values.ListValue;
+import edu.ukma.smart.virtual.dml.values.ReferenceValue;
+import edu.ukma.smart.virtual.dml.values.StringValue;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -55,8 +55,8 @@ public class DefaultVirtualTableService implements VirtualTableService {
     }
 
     @Override
-    public Optional<? extends Err> deleteTable(DeleteTable deleteTable) {
-        final var query = queryBuilder.deleteTable(deleteTable);
+    public Optional<? extends Err> dropTable(DropTable deleteTable) {
+        final var query = queryBuilder.dropTable(deleteTable);
         if (query.error().isPresent()) {
             return query.error();
         }

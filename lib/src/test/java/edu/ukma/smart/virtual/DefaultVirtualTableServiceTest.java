@@ -7,31 +7,31 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import edu.ukma.smart.virtual.create.BooleanProperty;
-import edu.ukma.smart.virtual.create.DecimalProperty;
-import edu.ukma.smart.virtual.create.IntegerProperty;
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.create.ReferenceProperty;
-import edu.ukma.smart.virtual.create.StringProperty;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.OperationError;
-import edu.ukma.smart.virtual.select.BooleanPredicate;
-import edu.ukma.smart.virtual.select.DecimalPredicate;
-import edu.ukma.smart.virtual.select.IntegerPredicate;
-import edu.ukma.smart.virtual.select.ReferencePredicate;
-import edu.ukma.smart.virtual.select.SelectProperty;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.select.StringPredicate;
-import edu.ukma.smart.virtual.update.UpdateRow;
-import edu.ukma.smart.virtual.values.BooleanValue;
-import edu.ukma.smart.virtual.values.ColumnValue;
-import edu.ukma.smart.virtual.values.DecimalValue;
-import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.ReferenceValue;
-import edu.ukma.smart.virtual.values.StringValue;
+import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
+import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
+import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
+import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
+import edu.ukma.smart.virtual.dml.select.SelectProperty;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.select.StringPredicate;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
+import edu.ukma.smart.virtual.dml.values.BooleanValue;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.DecimalValue;
+import edu.ukma.smart.virtual.dml.values.IntegerValue;
+import edu.ukma.smart.virtual.dml.values.ReferenceValue;
+import edu.ukma.smart.virtual.dml.values.StringValue;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -400,7 +400,7 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(), "Expected no error when creating table to delete, got error " + err.orElse(null));
 
         // Delete the table
-        service.deleteTable(DeleteTable.of("_table_to_delete"));
+        service.dropTable(DropTable.of("_table_to_delete"));
 
         // Verify the table is deleted
         try (var statement = connection.createStatement()) {
@@ -1524,7 +1524,7 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testFailsToDropNonExistingTable() {
-        final var err = service.deleteTable(DeleteTable.of("_does_not_exist"));
+        final var err = service.dropTable(DropTable.of("_does_not_exist"));
         assertTrue(err.isPresent(), "Expected error, but got no errors");
         assertEquals(((OperationError) err.get()).code(), TABLE_DOES_NOT_EXIST);
     }

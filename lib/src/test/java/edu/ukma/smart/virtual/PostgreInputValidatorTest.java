@@ -22,23 +22,23 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_T
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import edu.ukma.smart.virtual.create.DecimalProperty;
-import edu.ukma.smart.virtual.create.IntegerProperty;
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.create.ReferenceProperty;
-import edu.ukma.smart.virtual.create.StringProperty;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
-import edu.ukma.smart.virtual.insert.InsertRow;
-import edu.ukma.smart.virtual.select.CompoundPredicate;
-import edu.ukma.smart.virtual.select.SelectProperty;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.select.StringPredicate;
-import edu.ukma.smart.virtual.update.UpdateRow;
-import edu.ukma.smart.virtual.values.ColumnValue;
-import edu.ukma.smart.virtual.values.ListValue;
-import edu.ukma.smart.virtual.values.StringValue;
+import edu.ukma.smart.virtual.dml.insert.InsertRow;
+import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
+import edu.ukma.smart.virtual.dml.select.SelectProperty;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.select.StringPredicate;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.ListValue;
+import edu.ukma.smart.virtual.dml.values.StringValue;
 import java.math.BigDecimal;
 import java.util.List;
 import org.testng.annotations.DataProvider;
@@ -102,7 +102,7 @@ public class PostgreInputValidatorTest {
 
     @Test(dataProvider = "invalidTableKey")
     void testDeleteTableNullValuesAreNotAllowed(String key) {
-        var delete = new DeleteTable(key);
+        var delete = new DropTable(key);
         var result = validator.validateDeleteTable(delete);
         assertTrue(result.isPresent(), "Expected error, but no error returned, parameter: " + delete);
         assertEquals(result.get().code(), WRONG_TABLE_KEY_FORMAT);

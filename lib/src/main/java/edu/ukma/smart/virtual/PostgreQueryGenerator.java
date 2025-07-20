@@ -1,32 +1,32 @@
 package edu.ukma.smart.virtual;
 
-import edu.ukma.smart.virtual.create.BooleanProperty;
-import edu.ukma.smart.virtual.create.DecimalProperty;
-import edu.ukma.smart.virtual.create.IntegerProperty;
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.create.ReferenceProperty;
-import edu.ukma.smart.virtual.create.StringProperty;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.insert.InsertRow;
-import edu.ukma.smart.virtual.select.BooleanPredicate;
-import edu.ukma.smart.virtual.select.CompoundPredicate;
-import edu.ukma.smart.virtual.select.DecimalPredicate;
-import edu.ukma.smart.virtual.select.IntegerPredicate;
-import edu.ukma.smart.virtual.select.NullablePredicate;
-import edu.ukma.smart.virtual.select.RawPredicate;
-import edu.ukma.smart.virtual.select.ReferencePredicate;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.select.StringPredicate;
-import edu.ukma.smart.virtual.update.UpdateRow;
-import edu.ukma.smart.virtual.values.BooleanValue;
-import edu.ukma.smart.virtual.values.ColumnValue;
-import edu.ukma.smart.virtual.values.DecimalValue;
-import edu.ukma.smart.virtual.values.IntegerValue;
-import edu.ukma.smart.virtual.values.ListValue;
-import edu.ukma.smart.virtual.values.StringValue;
-import edu.ukma.smart.virtual.values.Type;
+import edu.ukma.smart.virtual.dml.insert.InsertRow;
+import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
+import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
+import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
+import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
+import edu.ukma.smart.virtual.dml.select.NullablePredicate;
+import edu.ukma.smart.virtual.dml.select.RawPredicate;
+import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.select.StringPredicate;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
+import edu.ukma.smart.virtual.dml.values.BooleanValue;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.DecimalValue;
+import edu.ukma.smart.virtual.dml.values.IntegerValue;
+import edu.ukma.smart.virtual.dml.values.ListValue;
+import edu.ukma.smart.virtual.dml.values.StringValue;
+import edu.ukma.smart.virtual.dml.values.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -155,7 +155,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     @Override
-    public Return<String> deleteTable(DeleteTable deleteTable) {
+    public Return<String> dropTable(DropTable deleteTable) {
         var err = inputValidator.validateDeleteTable(deleteTable);
         return err.<Return<String>>map(Return::error)
             .orElseGet(() -> Return.of("DROP TABLE %s;".formatted(deleteTable.tableKey())));

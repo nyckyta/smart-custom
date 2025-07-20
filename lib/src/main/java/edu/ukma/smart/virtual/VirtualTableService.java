@@ -1,14 +1,14 @@
 package edu.ukma.smart.virtual;
 
-import edu.ukma.smart.virtual.create.NewTable;
-import edu.ukma.smart.virtual.delete.DeleteRow;
-import edu.ukma.smart.virtual.delete.DeleteTable;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
+import edu.ukma.smart.virtual.dml.insert.InsertRow;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.update.UpdateRow;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.Return;
-import edu.ukma.smart.virtual.insert.InsertRow;
-import edu.ukma.smart.virtual.select.SelectQuery;
-import edu.ukma.smart.virtual.update.UpdateRow;
-import edu.ukma.smart.virtual.values.ColumnValue;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +23,7 @@ public interface VirtualTableService {
      */
     Optional<? extends Err> createTable(NewTable newTable) throws SQLException;
 
-    Optional<? extends Err> deleteTable(DeleteTable tableKey) throws SQLException;
+    Optional<? extends Err> dropTable(DropTable tableKey) throws SQLException;
 
     Optional<? extends Err> addRow(InsertRow insertRow) throws SQLException;
 

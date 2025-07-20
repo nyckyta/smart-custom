@@ -1,6 +1,6 @@
 package edu.ukma.smart.virtual;
 
-import edu.ukma.smart.virtual.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
 import java.util.List;
 import java.util.Objects;
 
