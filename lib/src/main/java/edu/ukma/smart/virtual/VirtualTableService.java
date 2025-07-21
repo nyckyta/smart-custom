@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
@@ -27,6 +28,8 @@ public interface VirtualTableService {
     Optional<? extends Err> dropTable(DropTable tableKey);
 
     Optional<? extends Err> addProperty(AddProperty addProperty);
+
+    Optional<? extends Err> dropProperty(DropProperty dropProperty);
 
     Optional<? extends Err> addRow(InsertRow insertRow);
 

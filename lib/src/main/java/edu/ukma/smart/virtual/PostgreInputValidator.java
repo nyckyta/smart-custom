@@ -9,6 +9,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_R
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.Property;
@@ -70,6 +71,28 @@ public class PostgreInputValidator implements InputValidator {
 
         if (!TABLE_KEY_REGEXP.matcher(addProperty.tableKey()).matches()) {
             return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<InputValidationErr> validateDropProperty(DropProperty dropProperty) {
+        var err = InputValidator.super.validateDropProperty(dropProperty);
+        if (err.isPresent()) {
+            return err;
+        }
+
+        if (SYSTEM_EXCLUDED_FIELDS.contains(dropProperty.columnKey())) {
+            return Optional.of(InputValidationErr.of(FORBIDDEN_PROPERTY_KEY));
+        }
+
+        if (!TABLE_KEY_REGEXP.matcher(dropProperty.tableKey()).matches()) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        if (!PROPERTY_KEY_REGEXP.matcher(dropProperty.columnKey()).matches()) {
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
         }
 
         return Optional.empty();

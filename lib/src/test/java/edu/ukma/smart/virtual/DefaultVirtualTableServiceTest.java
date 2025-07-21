@@ -8,6 +8,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
@@ -15,12 +16,9 @@ import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
-import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
-import edu.ukma.smart.virtual.errors.Err;
-import edu.ukma.smart.virtual.errors.InputValidationErr;
-import edu.ukma.smart.virtual.errors.OperationError;
 import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
 import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
 import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
@@ -35,6 +33,9 @@ import edu.ukma.smart.virtual.dml.values.DecimalValue;
 import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ReferenceValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
+import edu.ukma.smart.virtual.errors.Err;
+import edu.ukma.smart.virtual.errors.InputValidationErr;
+import edu.ukma.smart.virtual.errors.OperationError;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -1566,6 +1567,32 @@ class DefaultVirtualTableServiceTest {
         assertEquals(res.value().get(0).size(), 1);
         assertEquals(res.value().get(0).get(0).key(), "added_prop");
         assertEquals(res.value().get(0).get(0).value(), 20L);
+    }
+
+    @Test
+    void testDroppingPropertyFromTable() {
+        var err = service.createTable(NewTable
+            .builder()
+            .key("_drop_property_from_table")
+            .name("test_name")
+            .description("test_description")
+            .properties(List.of(StringProperty.builder().key("name").name("name").build()))
+            .build()
+        );
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.addRow(InsertRow.of("_drop_property_from_table", List.of(StringValue.of("name", "Johm"))));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        err = service.dropProperty(DropProperty.of("_drop_property_from_table", "name"));
+        assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        var res = service.select(SelectQuery.wildcard("_drop_property_from_table"));
+        assertFalse(res.error().isPresent(), "Expected no error during creation, got " + res.error().orElse(null));
+
+        assertEquals(res.value().size(), 1);
+        assertEquals(res.value().get(0).size(), 2);
+        assertFalse(res.value().get(0).stream().map(ColumnValue::key).anyMatch(k -> k.equals("name")));
     }
 
     private Connection createConnection() throws SQLException {

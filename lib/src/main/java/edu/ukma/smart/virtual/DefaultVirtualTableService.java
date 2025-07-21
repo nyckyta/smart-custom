@@ -4,6 +4,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
@@ -68,6 +69,16 @@ public class DefaultVirtualTableService implements VirtualTableService {
     @Override
     public Optional<? extends Err> addProperty(AddProperty addProperty) {
         final var query = queryBuilder.addProperty(addProperty);
+        if (query.error().isPresent()) {
+            return query.error();
+        }
+
+        return executeStatement(query.value());
+    }
+
+    @Override
+    public Optional<? extends Err> dropProperty(DropProperty dropProperty) {
+        final var query = queryBuilder.dropProperty(dropProperty);
         if (query.error().isPresent()) {
             return query.error();
         }

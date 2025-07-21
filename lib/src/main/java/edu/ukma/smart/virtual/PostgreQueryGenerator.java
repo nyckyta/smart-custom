@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
@@ -185,6 +186,17 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         query.append(" %s;".formatted(String.join(" ", constraints)));
         return Return.of(query.toString());
+    }
+
+    @Override
+    public Return<String> dropProperty(DropProperty dropProperty) {
+        var err = inputValidator.validateDropProperty(dropProperty);
+        if (err.isPresent()) {
+            return Return.error(err.get());
+        }
+
+        var query = "ALTER TABLE %s DROP COLUMN %s;".formatted(dropProperty.tableKey(), dropProperty.columnKey());
+        return Return.of(query);
     }
 
 

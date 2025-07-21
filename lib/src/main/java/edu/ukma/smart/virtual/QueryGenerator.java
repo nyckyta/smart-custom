@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
@@ -16,6 +17,8 @@ interface QueryGenerator {
     Return<String> dropTable(DropTable tableKey);
 
     Return<String> addProperty(AddProperty addProperty);
+
+    Return<String> dropProperty(DropProperty dropProperty);
 
     Return<String> insertIntoTable(InsertRow insertRow);
 

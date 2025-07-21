@@ -23,6 +23,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_R
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_TABLE_KEY_FORMAT;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
+import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
@@ -66,6 +67,18 @@ public interface InputValidator {
 
         if (addProperty.property() == null) {
             return Optional.of(InputValidationErr.of(ALTER_TABLE_PROPERTY_IS_NOT_SET));
+        }
+
+        return Optional.empty();
+    }
+
+    default Optional<InputValidationErr> validateDropProperty(DropProperty dropProperty) {
+        if (dropProperty.tableKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        if (dropProperty.columnKey() == null) {
+            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();
