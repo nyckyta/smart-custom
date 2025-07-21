@@ -17,7 +17,7 @@ import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
-import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
+import edu.ukma.smart.virtual.dml.select.Predicate;
 import edu.ukma.smart.virtual.dml.select.RawPredicate;
 import edu.ukma.smart.virtual.dml.select.SelectProperty;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
@@ -238,28 +238,25 @@ public class PostgreInputValidator implements InputValidator {
     }
 
     @Override
-    public <T> Optional<InputValidationErr> validatePredicate(RawPredicate<T> p) {
-        var err = InputValidator.super.validatePredicate(p);
+    public Optional<InputValidationErr> validatePredicate(Predicate prop) {
+        var err = InputValidator.super.validatePredicate(prop);
         if (err.isPresent()) {
             return err;
         }
 
-        if (!PROPERTY_KEY_REGEXP.matcher(p.propertyKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
-        }
+        if (prop instanceof RawPredicate<?> p) {
+            if (!PROPERTY_KEY_REGEXP.matcher(p.propertyKey()).matches()) {
+                return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+            }
 
-        if (SYSTEM_EXCLUDED_FIELDS.contains(p.propertyKey())) {
-            return Optional.of(
-                InputValidationErr.of(FORBIDDEN_PROPERTY_KEY)
-            );
+            if (SYSTEM_EXCLUDED_FIELDS.contains(p.propertyKey())) {
+                return Optional.of(
+                    InputValidationErr.of(FORBIDDEN_PROPERTY_KEY)
+                );
+            }
         }
 
         return Optional.empty();
-    }
-
-    @Override
-    public Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
-        return InputValidator.super.validateCompoundPredicate(p);
     }
 
     private Optional<InputValidationErr> validateDecimal(DecimalProperty d) {

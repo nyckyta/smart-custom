@@ -31,6 +31,7 @@ import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import edu.ukma.smart.virtual.dml.select.Predicate;
 import edu.ukma.smart.virtual.dml.values.Type;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
@@ -477,21 +478,22 @@ public class PostgreInputValidatorTest {
 
     @Test
     void testCompoundValidatorShouldNotHaveNulls() {
-        var err = validator.validateCompoundPredicate(CompoundPredicate.and(null, null));
+        var err = validator.validatePredicate(CompoundPredicate.and(null, null));
         assertTrue(err.isPresent(), "Expected error, but found no errors;");
         assertEquals(err.get().code(), COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY);
 
-        err = validator.validateCompoundPredicate(
+        err = validator.validatePredicate(
             CompoundPredicate.and(StringPredicate.like("string", "123"), null)
         );
         assertTrue(err.isPresent(), "Expected error, but found no errors;");
         assertEquals(err.get().code(), COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY);
 
-        err = validator.validateCompoundPredicate(
+        err = validator.validatePredicate(
             new CompoundPredicate(
                 StringPredicate.like("string", "123"),
                 StringPredicate.like("string", "123"),
-                null
+                null,
+                Predicate.Type.COMPOUND
             )
         );
 

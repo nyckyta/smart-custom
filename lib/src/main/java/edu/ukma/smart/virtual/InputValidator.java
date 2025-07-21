@@ -34,6 +34,7 @@ import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
 import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
+import edu.ukma.smart.virtual.dml.select.Predicate;
 import edu.ukma.smart.virtual.dml.select.RawPredicate;
 import edu.ukma.smart.virtual.dml.select.SelectProperty;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
@@ -168,30 +169,35 @@ public interface InputValidator {
         return Optional.empty();
     }
 
-    default <T> Optional<InputValidationErr> validatePredicate(RawPredicate<T> p) {
-        if (p.propertyKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+    default Optional<InputValidationErr> validatePredicate(Predicate prop) {
+
+        switch (prop.type()) {
+            case REFERENCE, INTEGER, STRING, DECIMAL, NULL, BOOLEAN -> {
+                final var p = (RawPredicate<?>) prop;
+                if (p.propertyKey() == null) {
+                    return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
+                }
+
+                if (p.value() == null) {
+                    return Optional.of(InputValidationErr.of(SELECT_PREDICATE_VALUE_IS_EMPTY));
+                }
+            }
+            case COMPOUND -> {
+                final var p = (CompoundPredicate) prop;
+                if (p.left() == null) {
+                    return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
+                }
+
+                if (p.right() == null) {
+                    return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
+                }
+
+                if (p.op() == null) {
+                    return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
+                }
+            }
         }
 
-        if (p.value() == null) {
-            return Optional.of(InputValidationErr.of(SELECT_PREDICATE_VALUE_IS_EMPTY));
-        }
-
-        return Optional.empty();
-    }
-
-    default Optional<InputValidationErr> validateCompoundPredicate(CompoundPredicate p) {
-        if (p.left() == null) {
-            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY));
-        }
-
-        if (p.right() == null) {
-            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY));
-        }
-
-        if (p.op() == null) {
-            return Optional.of(InputValidationErr.of(COMPOUND_PREDICATE_OPERATOR_IS_EMPTY));
-        }
 
         return Optional.empty();
     }

@@ -1,15 +1,21 @@
 package edu.ukma.smart.virtual.dml.select;
 
-public record NullablePredicate(String propertyKey, Operator op) implements RawPredicate<Object> {
+public record NullablePredicate(String propertyKey, Operator op, Type type) implements RawPredicate<Object> {
 
     private static final Object NULL = new Object();
 
+    public NullablePredicate(String propertyKey, Operator op, Type type) {
+        this.propertyKey = propertyKey;
+        this.op = op;
+        this.type = Type.NULL;
+    }
+
     public static NullablePredicate isNull(String propertyName) {
-        return new NullablePredicate(propertyName, Operator.IS_NULL);
+        return new NullablePredicate(propertyName, Operator.IS_NULL, Type.NULL);
     }
 
     public static NullablePredicate isNotNull(String propertyName) {
-        return new NullablePredicate(propertyName, Operator.IS_NOT_NULL);
+        return new NullablePredicate(propertyName, Operator.IS_NOT_NULL, Type.NULL);
     }
 
     @Override

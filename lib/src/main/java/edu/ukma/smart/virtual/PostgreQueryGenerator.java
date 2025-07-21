@@ -16,7 +16,7 @@ import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
 import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
 import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
 import edu.ukma.smart.virtual.dml.select.NullablePredicate;
-import edu.ukma.smart.virtual.dml.select.RawPredicate;
+import edu.ukma.smart.virtual.dml.select.Predicate;
 import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
 import edu.ukma.smart.virtual.dml.select.StringPredicate;
@@ -287,11 +287,8 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         List<ColumnValue<?>> parameters = new ArrayList<>();
-        Return<String> where = switch (selectQuery.predicate()) {
-            case CompoundPredicate c -> buildCompoundQuery(c, parameters);
-            case RawPredicate<?> r -> buildRawQuery(r, parameters);
-            default -> throw new IllegalStateException("Unexpected predicate " + selectQuery.predicate());
-        };
+        var predicate = selectQuery.predicate();
+        var where = buildPredicate(predicate, parameters);
 
         if (where.error().isPresent()) {
             return Return.error(where.error().get());
@@ -367,26 +364,31 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
     }
 
-    private <V> Return<String> buildRawQuery(RawPredicate<V> pred, List<ColumnValue<?>> parameters) {
+    private Return<String> buildPredicate(Predicate pred, List<ColumnValue<?>> parameters) {
         var err = inputValidator.validatePredicate(pred);
-        return err.<Return<String>>map(Return::error).orElseGet(() -> switch (pred) {
-            case IntegerPredicate i -> {
+        return err.<Return<String>>map(Return::error).orElseGet(() -> switch (pred.type()) {
+            case INTEGER -> {
+                final var i = (IntegerPredicate) pred;
                 parameters.add(IntegerValue.of(i.propertyKey(), i.value()));
                 yield Return.of("\"%s\"%s?".formatted(i.propertyKey(), getIntegerOperator(i.op())));
             }
-            case DecimalPredicate d -> {
+            case DECIMAL -> {
+                final var d = (DecimalPredicate) pred;
                 parameters.add(DecimalValue.of(d.propertyKey(), d.value()));
                 yield Return.of("\"%s\"%s?".formatted(d.propertyKey(), getDecimalOperator(d.op())));
             }
-            case BooleanPredicate b -> {
+            case BOOLEAN -> {
+                final var b = (BooleanPredicate) pred;
                 parameters.add(BooleanValue.of(b.propertyKey(), b.value()));
                 yield Return.of("\"%s\"%s?".formatted(b.propertyKey(), getBooleanOperator(b.op())));
             }
-            case StringPredicate s -> {
+            case STRING -> {
+                final var s = (StringPredicate) pred;
                 parameters.add(StringValue.of(s.propertyKey(), s.value()));
                 yield Return.of("\"%s\"%s?".formatted(s.propertyKey(), getStringOperator(s.op())));
             }
-            case ReferencePredicate r -> {
+            case REFERENCE -> {
+                final var r = (ReferencePredicate) pred;
                 parameters.add(ListValue.of(r.propertyKey(), r.value(), ListValue.ListType.REFERENCE));
                 yield Return.of(
                     "\"%s\" %s (%s)".formatted(
@@ -396,35 +398,34 @@ class PostgreQueryGenerator implements QueryGenerator {
                     )
                 );
             }
-            case NullablePredicate p -> Return.of(
-                "\"%s\" IS%sNULL".formatted(p.propertyKey(), p.op() == NullablePredicate.Operator.IS_NULL ? " " : " NOT ")
-            );
-            default -> throw new IllegalStateException("Unexpected predicate " + pred);
+            case NULL -> {
+                final var n = (NullablePredicate) pred;
+                yield Return.of(
+                    "\"%s\" IS%sNULL".formatted(n.propertyKey(), n.op() == NullablePredicate.Operator.IS_NULL ? " " : " NOT ")
+                );
+            }
+            case COMPOUND -> {
+                final var c = (CompoundPredicate) pred;
+                yield buildCompoundQuery(c, parameters);
+            }
+
         });
     }
 
     private Return<String> buildCompoundQuery(CompoundPredicate c, List<ColumnValue<?>> parameters) {
-        var err = inputValidator.validateCompoundPredicate(c);
+        var err = inputValidator.validatePredicate(c);
         if (err.isPresent()) {
             return Return.error(err.get());
         }
 
-        Return<String> leftSubquery = switch (c.left()) {
-            case CompoundPredicate cl -> buildCompoundQuery(cl, parameters);
-            case RawPredicate<?> rl -> buildRawQuery(rl, parameters);
-            default -> throw new IllegalStateException("Select: unknown left sub predicate");
-        };
+        final var leftSubquery = buildPredicate(c.left(), parameters);
 
         if (leftSubquery.error().isPresent()) {
             log.error("Select: left subquery of compound query is invalid");
             return leftSubquery;
         }
 
-        Return<String> rightSubquery = switch (c.right()) {
-            case CompoundPredicate cr -> buildCompoundQuery(cr, parameters);
-            case RawPredicate<?> rr -> buildRawQuery(rr, parameters);
-            default -> throw new IllegalStateException("Select: unknown right sub predicate");
-        };
+        final var rightSubquery = buildPredicate(c.right(), parameters);
 
         if (rightSubquery.error().isPresent()) {
             log.error("Select: right subquery of compound query is invalid");
