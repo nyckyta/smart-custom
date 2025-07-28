@@ -16,6 +16,8 @@ interface QueryGenerator {
 
     Return<String> dropTable(DropTable tableKey);
 
+    Return<String> getTables();
+
     Return<String> addProperty(AddProperty addProperty);
 
     Return<String> dropProperty(DropProperty dropProperty);

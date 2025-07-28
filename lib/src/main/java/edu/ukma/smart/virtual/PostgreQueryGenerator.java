@@ -6,6 +6,7 @@ import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
@@ -135,12 +136,15 @@ class PostgreQueryGenerator implements QueryGenerator {
             );
 
         var constraints = new ArrayList<String>();
+        var comments = new ArrayList<String>();
+        comments.add(buildTableComment(newTable));
         for (var property : newTable.properties()) {
             err = inputValidator.validateProperty(property);
             if (err.isPresent()) {
                 return Return.error(err.get());
             }
 
+            comments.add(buildPropertyComment(newTable, property));
             query.append(",");
             switch (property.type()) {
                 case STRING -> addStringProperty((StringProperty) property, query, constraints);
@@ -152,7 +156,8 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         constraints.forEach(c -> query.append(",%s".formatted(c)));
-        query.append(");");
+        query.append(");\n");
+        query.append(String.join(";\n", comments));
 
         return Return.of(query.toString());
     }
@@ -163,6 +168,15 @@ class PostgreQueryGenerator implements QueryGenerator {
         return err.<Return<String>>map(Return::error)
             .orElseGet(() -> Return.of("DROP TABLE %s;".formatted(deleteTable.tableKey())));
 
+    }
+
+    @Override
+    public Return<String> getTables() {
+        return Return.of("""
+            SELECT t.tablename, obj_description(t.tablename::regclass::oid, 'pg_class')
+            FROM (SELECT schemaname, tablename FROM pg_tables WHERE schemaname = '%s') AS t;
+            """.formatted("public")
+        );
     }
 
     @Override
@@ -486,5 +500,20 @@ class PostgreQueryGenerator implements QueryGenerator {
             case ReferencePredicate.Operator.IN -> "IN";
             case ReferencePredicate.Operator.NOT_IN -> "NOT IN";
         };
+    }
+
+    private static String buildTableComment(NewTable newTable) {
+        return "COMMENT ON TABLE public.%s IS '%s'".formatted(
+            newTable.key(),
+            JsonUtils.generateComment(newTable.name(), newTable.description())
+        );
+    }
+
+    private static String buildPropertyComment(NewTable newTable, Property property) {
+        return "COMMENT ON COLUMN public.%s.%s IS '%s'".formatted(
+            newTable.key(),
+            property.key(),
+            JsonUtils.generateComment(property.name(), property.description())
+        );
     }
 }

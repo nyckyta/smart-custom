@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.JsonUtils.parseComment;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
 
@@ -21,6 +22,7 @@ import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.metadata.Table;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -64,6 +66,34 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
 
         return executeStatement(query.value());
+    }
+
+    @Override
+    public Return<List<Table>> getTables() {
+        final var query = queryBuilder.getTables();
+        if (query.error().isPresent()) {
+            return Return.error(query.error().get());
+        }
+
+        var tables = new ArrayList<Table>();
+        try (var statement = connection.createStatement()) {
+            boolean hasResult = statement.execute(query.value());
+            if (!hasResult) {
+                return Return.of(List.of());
+            }
+
+            var resultSet = statement.getResultSet();
+            while (resultSet.next()) {
+                var tableKey = resultSet.getString(1);
+                var nameDesc = parseComment(resultSet.getString(2));
+                tables.add(Table.of(tableKey, nameDesc.left(), nameDesc.right()));
+            }
+        } catch (SQLException e) {
+            var err = exceptionHandler.handle(e);
+            return Return.error(err);
+        }
+
+        return Return.of(tables);
     }
 
     @Override

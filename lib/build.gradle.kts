@@ -19,6 +19,8 @@ repositories {
 
 dependencies {
     implementation(libs.postgresql)
+    // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core
+    implementation(libs.jackson)
 
     // Use TestNG framework, also requires calling test.useTestNG() below
     testImplementation(libs.testng)

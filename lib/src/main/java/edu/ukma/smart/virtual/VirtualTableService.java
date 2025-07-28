@@ -11,6 +11,7 @@ import edu.ukma.smart.virtual.dml.update.UpdateRow;
 import edu.ukma.smart.virtual.dml.values.ColumnValue;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.Return;
+import edu.ukma.smart.virtual.metadata.Table;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,8 @@ public interface VirtualTableService {
     Optional<? extends Err> createTable(NewTable newTable);
 
     Optional<? extends Err> dropTable(DropTable tableKey);
+
+    Return<List<Table>> getTables();
 
     Optional<? extends Err> addProperty(AddProperty addProperty);
 
