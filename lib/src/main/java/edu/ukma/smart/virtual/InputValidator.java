@@ -49,9 +49,17 @@ import java.util.Optional;
  */
 public interface InputValidator {
 
-    default Optional<InputValidationErr> validateNewTable(NewTable newTable) {
-        if (newTable.key() == null) {
+    default Optional<InputValidationErr> validateTableKey(String tableKey) {
+        if (tableKey == null || tableKey.isBlank()) {
             return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        }
+
+        return Optional.empty();
+    }
+    default Optional<InputValidationErr> validateNewTable(NewTable newTable) {
+        var err = validateTableKey(newTable.key());
+        if (err.isPresent()) {
+            return err;
         }
 
         if (newTable.name() == null || newTable.name().isBlank()) {
@@ -62,8 +70,9 @@ public interface InputValidator {
     }
 
     default Optional<InputValidationErr> validateAddProperty(AddProperty addProperty) {
-        if (addProperty.tableKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        var err = validateTableKey(addProperty.tableKey());
+        if (err.isPresent()) {
+            return err;
         }
 
         if (addProperty.property() == null) {
@@ -74,52 +83,39 @@ public interface InputValidator {
     }
 
     default Optional<InputValidationErr> validateDropProperty(DropProperty dropProperty) {
-        if (dropProperty.tableKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+        var err = validateTableKey(dropProperty.tableKey());
+        if (err.isPresent()) {
+            return err;
         }
 
         if (dropProperty.columnKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
+            return Optional.of(InputValidationErr.of(WRONG_PROPERTY_KEY_FORMAT));
         }
 
         return Optional.empty();
     }
 
     default Optional<InputValidationErr> validateDeleteRow(DeleteRow deleteRow) {
-        if (deleteRow.tableKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
+        return validateTableKey(deleteRow.tableKey());
 
-        return Optional.empty();
     }
 
     default Optional<InputValidationErr> validateDeleteTable(DropTable deleteTable) {
-        if (deleteTable.tableKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
+        return validateTableKey(deleteTable.tableKey());
     }
 
     default Optional<InputValidationErr> validateSelectQuery(SelectQuery selectQuery) {
-        if (selectQuery.tableKey() == null) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
+        return validateTableKey(selectQuery.tableKey());
     }
 
     default Optional<InputValidationErr> validateInsertRow(InsertRow insertRow) {
-        if (insertRow.tableKey() == null || insertRow.tableKey().isBlank()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
+        return validateTableKey(insertRow.tableKey());
     }
 
     default Optional<InputValidationErr> validateUpdateRow(UpdateRow updateRow) {
-        if (updateRow.tableKey() == null || updateRow.tableKey().isEmpty()) {
-            return Optional.of(new InputValidationErr(WRONG_TABLE_KEY_FORMAT));
+        var err = validateTableKey(updateRow.tableKey());
+        if (err.isPresent()) {
+            return err;
         }
 
         if (updateRow.valuesToUpdate() == null || updateRow.valuesToUpdate().isEmpty()) {
@@ -273,7 +269,8 @@ public interface InputValidator {
     }
 
     default Optional<InputValidationErr> validateReferenceProperty(ReferenceProperty rp) {
-        if (rp.refTableKey() == null) {
+        var err = validateTableKey(rp.refTableKey());
+        if (err.isPresent()) {
             return Optional.of(InputValidationErr.of(WRONG_REFERENCE_PROPERTY_TABLE_KEY_FORMAT));
         }
 

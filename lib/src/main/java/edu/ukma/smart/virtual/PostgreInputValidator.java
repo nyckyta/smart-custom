@@ -49,32 +49,19 @@ public class PostgreInputValidator implements InputValidator {
     private static final int MAX_SCALE = 16383;
 
     @Override
-    public Optional<InputValidationErr> validateNewTable(NewTable newTable) {
-        var err = InputValidator.super.validateNewTable(newTable);
+    public Optional<InputValidationErr> validateTableKey(String tableKey) {
+        var err = InputValidator.super.validateTableKey(tableKey);
         if (err.isPresent()) {
             return err;
         }
 
-        if (!TABLE_KEY_REGEXP.matcher(newTable.key()).matches()) {
+        if (!TABLE_KEY_REGEXP.matcher(tableKey).matches()) {
             return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();
     }
 
-    @Override
-    public Optional<InputValidationErr> validateAddProperty(AddProperty addProperty) {
-        var err = InputValidator.super.validateAddProperty(addProperty);
-        if (err.isPresent()) {
-            return err;
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(addProperty.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
-    }
 
     @Override
     public Optional<InputValidationErr> validateDropProperty(DropProperty dropProperty) {
@@ -85,10 +72,6 @@ public class PostgreInputValidator implements InputValidator {
 
         if (SYSTEM_EXCLUDED_FIELDS.contains(dropProperty.columnKey())) {
             return Optional.of(InputValidationErr.of(FORBIDDEN_PROPERTY_KEY));
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(dropProperty.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (!PROPERTY_KEY_REGEXP.matcher(dropProperty.columnKey()).matches()) {
@@ -105,54 +88,8 @@ public class PostgreInputValidator implements InputValidator {
             return err;
         }
 
-        if (!TABLE_KEY_REGEXP.matcher(deleteRow.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
         if (deleteRow.rowId() < 1) {
             return Optional.of(InputValidationErr.of(WRONG_ROW_ID_FORMAT));
-        }
-
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<InputValidationErr> validateDeleteTable(DropTable deleteTable) {
-        var err = InputValidator.super.validateDeleteTable(deleteTable);
-        if (err.isPresent()) {
-            return err;
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(deleteTable.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<InputValidationErr> validateSelectQuery(SelectQuery selectQuery) {
-        var err = InputValidator.super.validateSelectQuery(selectQuery);
-        if (err.isPresent()) {
-            return err;
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(selectQuery.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
-        }
-
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<InputValidationErr> validateInsertRow(InsertRow insertRow) {
-        var err = InputValidator.super.validateInsertRow(insertRow);
-        if (err.isPresent()) {
-            return err;
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(insertRow.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         return Optional.empty();
@@ -163,10 +100,6 @@ public class PostgreInputValidator implements InputValidator {
         var err = InputValidator.super.validateUpdateRow(updateRow);
         if (err.isPresent()) {
             return err;
-        }
-
-        if (!TABLE_KEY_REGEXP.matcher(updateRow.tableKey()).matches()) {
-            return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
         if (updateRow.rowId() < 1) {
