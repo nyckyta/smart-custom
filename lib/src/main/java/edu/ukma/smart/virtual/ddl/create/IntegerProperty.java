@@ -1,7 +1,5 @@
 package edu.ukma.smart.virtual.ddl.create;
 
-import java.util.Objects;
-
 public record IntegerProperty(
     String key,
     String name,
@@ -99,8 +97,8 @@ public record IntegerProperty(
 
         public IntegerProperty build() {
             return new IntegerProperty(
-                Objects.requireNonNull(key),
-                Objects.requireNonNull(name),
+                key,
+                name,
                 description,
                 defaultValue,
                 required,
