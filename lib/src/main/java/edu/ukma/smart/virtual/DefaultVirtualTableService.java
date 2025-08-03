@@ -3,10 +3,13 @@ package edu.ukma.smart.virtual;
 import static edu.ukma.smart.virtual.JsonUtils.parseComment;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
+import static javax.swing.UIManager.getString;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
@@ -26,6 +29,7 @@ import edu.ukma.smart.virtual.metadata.Table;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.text.ParseException;
@@ -94,6 +98,67 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
 
         return Return.of(tables);
+    }
+
+//    @Override
+//    public Return<List<? extends Property>> getProperties(String tableKey) {
+//        var query = queryBuilder.getProperties(tableKey);
+//        if (query.error().isPresent()) {
+//            return Return.error(query.error().get());
+//        }
+//
+//        try (var preparedStatement = connection.prepareStatement(query.value())) {
+//            preparedStatement.setString(1, tableKey);
+//            preparedStatement.execute();
+//
+//            var resultSet = preparedStatement.getResultSet();
+//            var properties = new ArrayList<Property>()
+//            var propName = resultSet.getString(2);
+//            boolean isNullable = resultSet.getBoolean(4);
+//            while(resultSet.next()) {
+//                switch (resultSet.getString(1)) {
+//                    case "text" -> createStringProperty(resultSet,);
+//                    case "int8" -> createIntegerProperty(resultSet);
+//                    case "numeric" -> createDecimalProperty(resultSet);
+//                    case "bool" -> createBooleanProperty(resultSet);
+//                    case "int4" -> createReferenceProperty(resultSet);
+//                }
+//            }
+//        } catch (SQLException e) {
+//            return Return.error(exceptionHandler.handle(e));
+//        }
+//
+////        try (var statement = connection.createStatement()) {
+////            boolean hasResult = statement.execute(query.value());
+////            if (!hasResult) {
+////                return Return.of(List.of());
+////            }
+////
+////            var resultSet = statement.getResultSet();
+////            while (resultSet.next()) {
+////                var tableKey = resultSet.getString(1);
+////                var nameDesc = parseComment(resultSet.getString(2));
+////                tables.add(Table.of(tableKey, nameDesc.left(), nameDesc.right()));
+////            }
+////        } catch (SQLException e) {
+////            var err = exceptionHandler.handle(e);
+////            return Return.error(err);
+////        }
+//        return null;
+//    }
+
+    private Return<StringProperty> createStringProperty(ResultSet resultSet, String name, boolean isNullable) {
+        // TODO: this is very dumb way to extract constraints, because they are hardcoded to the property so it is
+        //  expected to have certain patterns. The issue lays in the fact that constraints are bound to properties and
+        //  being their part. Instead, constraint must be a separate entity bound to table. This way, constraint may be
+        //  parsed as AST and put into model without need to do additional checks like constraint does not involve other fields
+        //  being checked, though check that overall constraint actually validated only dynamically fields exclusively may be done.
+        try {
+            var constraintDef = resultSet.getString(8);
+
+        } catch (SQLException e) {
+            return Return.error(exceptionHandler.handle(e));
+        }
     }
 
     @Override

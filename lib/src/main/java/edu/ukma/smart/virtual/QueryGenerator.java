@@ -18,6 +18,8 @@ interface QueryGenerator {
 
     Return<String> getTables();
 
+//    Return<String> getProperties(String tableKey);
+
     Return<String> addProperty(AddProperty addProperty);
 
     Return<String> dropProperty(DropProperty dropProperty);
@@ -29,5 +31,6 @@ interface QueryGenerator {
     Return<String> updateRow(UpdateRow updateRow);
 
     Return<String> deleteFromTable(DeleteRow deleteRow);
+
     // TODO: extend
 }

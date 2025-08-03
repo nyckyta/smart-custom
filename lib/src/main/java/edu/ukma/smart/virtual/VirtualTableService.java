@@ -3,6 +3,7 @@ package edu.ukma.smart.virtual;
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
@@ -29,6 +30,8 @@ public interface VirtualTableService {
     Optional<? extends Err> dropTable(DropTable tableKey);
 
     Return<List<Table>> getTables();
+
+    Return<List<? extends Property>> getProperties(String tableKey);
 
     Optional<? extends Err> addProperty(AddProperty addProperty);
 

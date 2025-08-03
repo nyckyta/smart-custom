@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,6 +177,82 @@ class PostgreQueryGenerator implements QueryGenerator {
             SELECT t.tablename, obj_description(t.tablename::regclass::oid, 'pg_class')
             FROM (SELECT schemaname, tablename FROM pg_tables WHERE schemaname = '%s') AS t;
             """.formatted("public")
+        );
+    }
+
+    @Override
+    public Return<String> getProperties(String tableKey) {
+        var err = inputValidator.validateTableKey(tableKey);
+        if (err.isPresent()) {
+            return Return.error(err.get());
+        }
+
+        /*
+       SELECT
+            attr.attrelid,
+            attr.attname,
+            col_description(attr.attrelid::regclass::oid, attr.attnum),
+            attr.attnotnull,
+            typ.typname,
+            (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
+            (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
+            pg_get_constraintdef(dep.objid)
+        FROM
+            pg_attribute attr
+            INNER JOIN pg_type typ ON attr.atttypid = typ.oid
+            LEFT JOIN pg_depend dep ON dep.refobjid = attr.attrelid
+                AND (dep.refclassid = ('pg_class'::regclass)::oid)
+                AND (dep.classid = ('pg_constraint'::regclass)::oid)
+                AND (dep.refobjid = attr.attrelid)
+                AND (dep.refobjsubid = attr.attnum)
+                AND (dep.deptype = 'a')
+        WHERE
+            (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname='_add_row_test'))
+          AND
+            (attr.attname NOT IN ('tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
+          AND
+            (attr.attisdropped <> TRUE)
+        ORDER BY attr.attname ASC;
+
+        (d.refclassid = ('pg_class'::regclass)::oid) AND (d.refobjid = r.oid) AND (d.refobjsubid = a.attnum) AND (d.classid = ('pg_constraint'::regclass)::oid) AND (d.objid = c.oid)
+         */
+
+
+        // exclude system tables as well as static fields that users do not want to see
+        var ignoredProperties = Stream.concat(
+            PostgreInputValidator.SYSTEM_EXCLUDED_FIELDS.stream(),
+            PostgreInputValidator.STATIC_FIELDS.stream()
+        ).map("'%s'"::formatted).collect(Collectors.joining(","));
+        return Return.of(
+            """
+                SELECT
+                     attr.attrelid,
+                     attr.attname,
+                     col_description(attr.attrelid::regclass::oid, attr.attnum),
+                     attr.attnotnull,
+                     typ.typname,
+                     (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
+                     (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
+                     pg_get_constraintdef(dep.objid)
+                FROM
+                     pg_attribute attr
+                     INNER JOIN pg_type typ ON attr.atttypid = typ.oid
+                     LEFT JOIN pg_depend dep ON dep.refobjid = attr.attrelid
+                         AND (dep.refclassid = ('pg_class'::regclass)::oid)
+                         AND (dep.classid = ('pg_constraint'::regclass)::oid)
+                         AND (dep.refobjid = attr.attrelid)
+                         AND (dep.refobjsubid = attr.attnum)
+                         AND (dep.deptype = 'a')
+                WHERE
+                     (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname = ?))
+                  AND
+                     (attr.attname NOT IN (%s))
+                  AND
+                     (attr.attisdropped <> TRUE)
+                ORDER BY attr.attname ASC;
+                     (d.refclassid = ('pg_class'::regclass)::oid) AND (d.refobjid = r.oid) AND (d.refobjsubid = a.attnum) AND (d.classid = ('pg_constraint'::regclass)::oid) AND (d.objid = c.oid)
+                
+                """.formatted(tableKey, ignoredProperties)
         );
     }
 

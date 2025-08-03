@@ -34,8 +34,8 @@ public class PostgreInputValidator implements InputValidator {
     //
     private static final Pattern TABLE_KEY_REGEXP = Pattern.compile("^_[a-z][a-z_]{1,62}$");
     private static final Pattern PROPERTY_KEY_REGEXP = Pattern.compile("^[a-z][a-z_]{1,62}$");
-    private static final Set<String> STATIC_FIELDS = Set.of("_id", "_created");
-    private static final Set<String> SYSTEM_EXCLUDED_FIELDS = Set.of(
+    public static final Set<String> STATIC_FIELDS = Set.of("_id", "_created");
+    public static final Set<String> SYSTEM_EXCLUDED_FIELDS = Set.of(
         "tableoid",
         "xmin",
         "cmin",
