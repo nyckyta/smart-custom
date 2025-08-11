@@ -1,5 +1,8 @@
 package edu.ukma.smart.virtual.ddl.create;
 
+import edu.ukma.smart.virtual.ddl.constraints.Constraint;
+import java.util.List;
+
 public interface Property {
 
     String key();
@@ -8,9 +11,9 @@ public interface Property {
 
     String description();
 
-    boolean unique();
+    boolean notNull();
 
-    boolean required();
+    List<Constraint> constraints();
 
     Type type();
 

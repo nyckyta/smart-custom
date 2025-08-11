@@ -4,7 +4,7 @@ public interface Predicate {
 
     Type type();
 
-    public enum Type {
+    enum Type {
         COMPOUND,
         BOOLEAN,
         DECIMAL,

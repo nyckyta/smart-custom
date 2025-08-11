@@ -16,6 +16,14 @@ public record InputValidationErr(ErrorCode code) implements Err {
         CREATE_TABLE_EMPTY_NAME_FOR_TABLE("create.table.name.is.empty"),
         CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY("create.table.property.is.empty"),
 
+        CONSTRAINT_IS_INVALID("create.table.constraint.is.invalid"),
+        CONSTRAINT_PROPERTY_KEY_IS_INVALID("constraint.property.key.is.invalid"),
+        CONSTRAINT_DOES_NOT_BELONG_TO_PROPERTY("constraint.does.not.belong.to.property"),
+        CONSTRAINT_MISSING_VALUE("constraint.missing.value"),
+        CONSTRAINT_PROPERTY_TYPE_MISMATCH("constraint.property.type.mismatch"),
+        CONSTRAINT_VALUE_TYPE_MISMATCH("constraint.value.type.mismatch"),
+        UNIQUE_CONSTRAINT_HAS_NO_PROPERTIES("unique.constraint.has.no.properties"),
+
         // alter table specific
         ALTER_TABLE_PROPERTY_IS_NOT_SET("alter.table.property.is.not.set"),
 
@@ -51,10 +59,7 @@ public record InputValidationErr(ErrorCode code) implements Err {
 
         // decimals
         DECIMAL_PRECISION_IS_INVALID("decimal.precision.is.invalid"),
-        DECIMAL_SCALE_IS_INVALID("decimal.scale.is.invalid"),
-        DECIMAL_MAX_VAL_LESS_MIN_VAL("decimal.max.less.min"),
-        DECIMAL_DEFAULT_LESS_MIN_VAL("decimal.default.less.min"),
-        DECIMAL_DEFAULT_GREATER_MAX_VAL("DECIMAL.default.greater.max");
+        DECIMAL_SCALE_IS_INVALID("decimal.scale.is.invalid");
 
         public final String errorCode;
 

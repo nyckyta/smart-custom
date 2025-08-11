@@ -8,8 +8,12 @@ import edu.ukma.smart.virtual.errors.FatalError;
 import edu.ukma.smart.virtual.errors.OperationError;
 import edu.ukma.smart.virtual.errors.SQLExceptionsHandler;
 import java.sql.SQLException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
+
+    private static Logger logger = LoggerFactory.getLogger(PostgreSQLExceptionHandler.class);
 
     // TODO: Make more sophisticated error check, not just all 23* errors
     private static final String CHECK_VIOLATION = "23";
@@ -18,10 +22,10 @@ public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
 
     @Override
     public Err handle(SQLException e) {
+        logger.debug(e.getMessage(), e);
         if (e.getSQLState().startsWith(CHECK_VIOLATION)) {
             return OperationError.of(OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
         }
-
         return switch (e.getSQLState()) {
             case UNDEFINED_TABLE -> OperationError.of(TABLE_DOES_NOT_EXIST);
             case NUMERIC_VALUE_OUT_OF_RANGE -> OperationError.of(PROPERTY_CHECK_VIOLATED);

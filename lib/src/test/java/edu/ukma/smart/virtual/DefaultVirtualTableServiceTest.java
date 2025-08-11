@@ -9,11 +9,11 @@ import static org.testng.Assert.fail;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
+import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
-import edu.ukma.smart.virtual.ddl.create.Property;
 import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
 import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
@@ -193,10 +193,7 @@ class DefaultVirtualTableServiceTest {
             "desc",
             "default_value",
             true,
-            false,
-            null,
-            null,
-            Property.Type.STRING
+            List.of()
         );
         final var maliciousTable = new NewTable(
             "_table_key",
@@ -221,10 +218,7 @@ class DefaultVirtualTableServiceTest {
             "desc",
             defaultValue,
             true,
-            false,
-            null,
-            null,
-            Property.Type.STRING
+            List.of()
         );
         final var maliciousTable = new NewTable(
             tableKey,
@@ -247,30 +241,6 @@ class DefaultVirtualTableServiceTest {
         }
     }
 
-    @Test(dataProvider = "invalidMinMaxStringLengthInput")
-    void testErrorWhenMinMaxConstrainsAreInvalid(Integer[] boundaries) throws SQLException {
-        var newTable = new NewTable(
-            "table_key_1",
-            "Table table",
-            "This is a test table",
-            List.of(
-                StringProperty.builder()
-                    .key("property_one")
-                    .name("Property 1")
-                    .description("This is property 1")
-                    .defaultValue("default_value_1")
-                    .required(true)
-                    .unique(false)
-                    .minLength(boundaries[0])
-                    .maxLength(boundaries[1])
-                    .build()
-            )
-        );
-
-        var err = service.createTable(newTable);
-        assertTrue(err.isPresent(), "Expected no error when creating table");
-    }
-
     @Test
     void testTableCreation() throws SQLException {
         var newTable = new NewTable(
@@ -284,7 +254,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 1")
                     .defaultValue("default_value_1")
                     .required(true)
-                    .unique(false)
                     .build()
             )
         );
@@ -294,7 +263,7 @@ class DefaultVirtualTableServiceTest {
         try (var statement = connection.createStatement()) {
             assertTrue(statement.execute(
                 """
-                    SELECT table_schema, table_name, table_type, is_insertable_into 
+                    SELECT table_schema, table_name, table_type, is_insertable_into
                     FROM information_schema.tables
                     WHERE table_name = '_table_key'"""
             ), "Statement must return result");
@@ -398,7 +367,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 1")
                     .defaultValue("default_value_1")
                     .required(true)
-                    .unique(false)
                     .build()
             )
         );
@@ -413,7 +381,7 @@ class DefaultVirtualTableServiceTest {
             statement.execute(
                 """
                     
-                       SELECT 1 FROM information_schema.tables 
+                       SELECT 1 FROM information_schema.tables
                      WHERE table_name = '_table_to_delete'
                     
                     """
@@ -437,7 +405,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 1")
                     .defaultValue("default_value_1")
                     .required(true)
-                    .unique(false)
                     .build(),
                 IntegerProperty.builder()
                     .key("property_two")
@@ -445,7 +412,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 2")
                     .defaultValue(42L)
                     .required(true)
-                    .unique(false)
                     .build(),
                 BooleanProperty.builder()
                     .key("property_three")
@@ -453,7 +419,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 3")
                     .defaultValue(true)
                     .required(true)
-                    .unique(false)
                     .build(),
                 DecimalProperty.builder()
                     .key("property_four")
@@ -498,21 +463,23 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .maxLength(5)
+                    .constraints(List.of(PropertyConstraint.maxLength(5)))
                     .build(),
                 StringProperty.builder()
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .minLength(5)
+                    .constraints(List.of(PropertyConstraint.minLength(5)))
                     .build(),
                 StringProperty.builder()
                     .key("property_four")
                     .name("Property 4")
                     .description("This is property 3")
                     .defaultValue("default_value_3")
-                    .maxLength(10)
-                    .minLength(5)
+                    .constraints(List.of(
+                        PropertyConstraint.maxLength(10),
+                        PropertyConstraint.minLength(5))
+                    )
                     .build()
             )
         );
@@ -583,20 +550,22 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .max(5L)
+                    .constraints(List.of(PropertyConstraint.lessOrEqual(5L)))
                     .build(),
                 IntegerProperty.builder()
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .min(5L)
+                    .constraints(List.of(PropertyConstraint.greaterOrEqual(5L)))
                     .build(),
                 IntegerProperty.builder()
                     .key("property_four")
                     .name("Property 4")
                     .description("This is property four")
-                    .min(5L)
-                    .max(10L)
+                    .constraints(List.of(
+                        PropertyConstraint.greaterOrEqual(5L),
+                        PropertyConstraint.lessOrEqual(10L))
+                    )
                     .build()
             ));
 
@@ -652,7 +621,7 @@ class DefaultVirtualTableServiceTest {
             "Expected no error when adding row to the virtual table");
 
         try (var assertStatement = connection.createStatement()) {
-            assertStatement.execute("""   
+            assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
                     SELECT * FROM _table_key_integer_add_row
                     WHERE "property_two" = 2 AND "property_three" = 6 AND "property_four" = 10)""");
@@ -673,7 +642,7 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .max(BigDecimal.valueOf(2.5))
+                    .constraints(List.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))))
                     .precision(4)
                     .scale(3)
                     .build(),
@@ -681,7 +650,7 @@ class DefaultVirtualTableServiceTest {
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .min(BigDecimal.valueOf(1.125))
+                    .constraints(List.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125))))
                     .precision(4)
                     .scale(3)
                     .build(),
@@ -691,8 +660,11 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property four")
                     .precision(4)
                     .scale(3)
-                    .min(BigDecimal.valueOf(1.125))
-                    .max(BigDecimal.valueOf(2.5))
+                    .constraints(List.of(
+                            PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125)),
+                            PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))
+                        )
+                    )
                     .build()
             ));
 
@@ -745,7 +717,7 @@ class DefaultVirtualTableServiceTest {
             "Expected no error when adding row to the virtual table");
 
         try (var assertStatement = connection.createStatement()) {
-            assertStatement.execute("""   
+            assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
                     SELECT * FROM _table_key_decimal_add_row
                     WHERE "property_four" = 2.5 AND "property_three" = 1.245 AND "property_two" = 1.126)""");
@@ -767,7 +739,6 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 1")
                     .defaultValue("default_value_1")
                     .required(true)
-                    .unique(false)
                     .build()
             )
         );
@@ -789,7 +760,7 @@ class DefaultVirtualTableServiceTest {
             err = service.deleteRow(DeleteRow.of("_table_key_delete_row", rowId));
             assertFalse(err.isPresent(), "Expected no error when deleting row from the virtual table");
             try (var assertStatement = connection.createStatement()) {
-                assertStatement.execute("""   
+                assertStatement.execute("""
                     SELECT 1 WHERE EXISTS(
                         SELECT "property_one" FROM _table_key_delete_row WHERE "property_one" = 'value1')""");
                 hasNext = assertStatement.getResultSet().next();
@@ -831,7 +802,7 @@ class DefaultVirtualTableServiceTest {
                             .name("test_table_creation_with_reference_property_ref_property")
                             .description("test_table_creation_with_reference_property_ref_description")
                             .refTableKey("_test_table_creation_with_reference_property")
-                            .required(true)
+                            .notNull(true)
                             .build()
                     )
                 )
@@ -1260,12 +1231,15 @@ class DefaultVirtualTableServiceTest {
                 .name("Teacher")
                 .description("Teachers")
                 .properties(List.of(
-                    StringProperty.builder().key("name").name("name").maxLength(100).minLength(2).build(),
-                    IntegerProperty.builder().key("age").name("age").min(16L).build(),
+                    StringProperty.builder().key("name").name("name")
+                        .constraints(List.of(PropertyConstraint.maxLength(100), PropertyConstraint.minLength(2)))
+                        .build(),
+                    IntegerProperty.builder().key("age").name("age")
+                        .constraints(List.of(PropertyConstraint.greaterOrEqual(16L))).build(),
                     DecimalProperty.builder().key("salary").name("salary").precision(10).scale(3).build(),
                     BooleanProperty.builder().key("married").name("married").build(),
                     ReferenceProperty.builder().key("faculty").name("faculty").refTableKey("_test_table_select_faculty")
-                        .required(true).name("Faculty teacher belongs to").build()
+                        .notNull(true).name("Faculty teacher belongs to").build()
                 ))
                 .build()
         );
@@ -1345,7 +1319,7 @@ class DefaultVirtualTableServiceTest {
                         .key("name")
                         .name("name")
                         .refTableKey("_test_referenced_row_can_not_be_dropped")
-                        .required(true)
+                        .notNull(true)
                         .defaultValue(0)
                         .build()
                 )
@@ -1551,7 +1525,8 @@ class DefaultVirtualTableServiceTest {
             AddProperty
                 .builder()
                 .tableKey("_add_property_to_table")
-                .property(IntegerProperty.builder().key("added_prop").name("added_prop").required(true).max(25L).build())
+                .property(IntegerProperty.builder().key("added_prop").name("added_prop").required(true)
+                    .constraints(List.of(PropertyConstraint.lessOrEqual(25L))).build())
                 .build()
         );
 

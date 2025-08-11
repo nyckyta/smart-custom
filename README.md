@@ -124,4 +124,3 @@
 - - Add interface configuring the lib.
 
 ### Read/Write operation
-

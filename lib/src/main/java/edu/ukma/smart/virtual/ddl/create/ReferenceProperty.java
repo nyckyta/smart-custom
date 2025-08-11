@@ -1,22 +1,27 @@
 package edu.ukma.smart.virtual.ddl.create;
 
-public record ReferenceProperty(
-    String key,
-    String name,
-    String description,
-    boolean required,
-    boolean unique,
-    Integer defaultValue,
-    String refTableKey,
-    Type type
-) implements Property {
+import edu.ukma.smart.virtual.ddl.constraints.Constraint;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
-    public ReferenceProperty(
+public final class ReferenceProperty implements Property {
+    private final String key;
+    private final String name;
+    private final String description;
+    private final boolean notNull;
+    private final List<Constraint> constraints;
+    private final Integer defaultValue;
+    private final String refTableKey;
+    private final Type type;
+
+
+    private ReferenceProperty(
         String key,
         String name,
         String description,
-        boolean required,
-        boolean unique,
+        boolean notNull,
+        List<Constraint> constraints,
         Integer defaultValue,
         String refTableKey,
         Type type
@@ -24,10 +29,10 @@ public record ReferenceProperty(
         this.key = key;
         this.name = name;
         this.description = description;
-        this.required = required;
-        this.unique = unique;
+        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
         this.defaultValue = defaultValue;
         this.refTableKey = refTableKey;
+        this.notNull = notNull;
         this.type = Type.REFERENCE;
     }
 
@@ -35,14 +40,72 @@ public record ReferenceProperty(
         return new ReferencePropertyBuilder();
     }
 
+    @Override
+    public String key() {
+        return key;
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public String description() {
+        return description;
+    }
+
+    @Override
+    public boolean notNull() {
+        return notNull;
+    }
+
+    @Override
+    public List<Constraint> constraints() {
+        return constraints;
+    }
+
+    public Integer defaultValue() {
+        return defaultValue;
+    }
+
+    public String refTableKey() {
+        return refTableKey;
+    }
+
+    @Override
+    public Type type() {
+        return type;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
+        var that = (ReferenceProperty) obj;
+        return Objects.equals(this.key, that.key) &&
+               Objects.equals(this.name, that.name) &&
+               Objects.equals(this.description, that.description) &&
+               this.notNull == that.notNull &&
+               Objects.equals(this.constraints, that.constraints) &&
+               Objects.equals(this.defaultValue, that.defaultValue) &&
+               Objects.equals(this.refTableKey, that.refTableKey) &&
+               Objects.equals(this.type, that.type);
+    }
+
+
     public static final class ReferencePropertyBuilder {
         private String refTableKey;
-        private boolean unique;
-        private boolean required;
+        private boolean notNull;
         private String key;
         private String description;
         private String name;
         private Integer defaultValue;
+        private List<Constraint> constraints;
 
         private ReferencePropertyBuilder() {
         }
@@ -56,13 +119,8 @@ public record ReferenceProperty(
             return this;
         }
 
-        public ReferencePropertyBuilder unique(boolean isUnique) {
-            this.unique = isUnique;
-            return this;
-        }
-
-        public ReferencePropertyBuilder required(boolean isRequired) {
-            this.required = isRequired;
+        public ReferencePropertyBuilder notNull(boolean isRequired) {
+            this.notNull = isRequired;
             return this;
         }
 
@@ -86,13 +144,18 @@ public record ReferenceProperty(
             return this;
         }
 
+        public ReferencePropertyBuilder constraints(List<Constraint> constraints) {
+            this.constraints = constraints;
+            return this;
+        }
+
         public ReferenceProperty build() {
             return new ReferenceProperty(
                 key,
                 name,
                 description,
-                required,
-                unique,
+                notNull,
+                constraints,
                 defaultValue,
                 refTableKey,
                 Type.REFERENCE

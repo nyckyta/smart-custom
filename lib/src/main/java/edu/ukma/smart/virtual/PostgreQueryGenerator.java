@@ -2,6 +2,8 @@ package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
+import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
@@ -29,7 +31,9 @@ import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Return;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,62 +47,29 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static void addIntegerProperty(
         IntegerProperty i,
-        StringBuilder statementBuilder,
-        List<String> checks
+        StringBuilder statementBuilder
     ) {
 
         statementBuilder.append(
-            "\"%s\" BIGINT %s %s %s%n".formatted(
+            "\"%s\" BIGINT %s %s%n".formatted(
                 i.key(),
                 i.defaultValue() == null ? "" : "DEFAULT %s".formatted(i.defaultValue()),
-                i.required() ? "NOT NULL" : "",
-                i.unique() ? "UNIQUE" : ""
+                i.notNull() ? "NOT NULL" : ""
             )
         );
-
-        if (i.max() != null && i.min() != null) {
-            checks.add("CHECK (\"%s\" BETWEEN %d AND %d)".formatted(i.key(), i.min(), i.max()));
-            return;
-        }
-
-        if (i.max() != null) {
-            checks.add("CHECK (\"%s\" <= %d)".formatted(i.key(), i.max()));
-            return;
-        }
-
-        if (i.min() != null) {
-            checks.add("CHECK (\"%s\" >= %d)".formatted(i.key(), i.min()));
-            return;
-        }
     }
 
     private static void addStringProperty(
         StringProperty s,
-        StringBuilder statementBuilder,
-        List<String> checks
+        StringBuilder statementBuilder
     ) {
         statementBuilder.append(
-            "\"%s\" TEXT DEFAULT %s %s %s%n".formatted(
+            "\"%s\" TEXT DEFAULT %s %s%n".formatted(
                 s.key(),
                 s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
-                s.required() ? "NOT NULL" : "",
-                s.unique() ? "UNIQUE" : "")
+                s.notNull() ? "NOT NULL" : ""
+            )
         );
-
-        if (s.maxLength() != null && s.minLength() != null) {
-            checks.add("CHECK (char_length(\"%s\") BETWEEN %d AND %d)".formatted(s.key(), s.minLength(), s.maxLength()));
-            return;
-        }
-
-        if (s.maxLength() != null) {
-            checks.add("CHECK (char_length(\"%s\") <= %d)".formatted(s.key(), s.maxLength()));
-            return;
-        }
-
-        if (s.minLength() != null) {
-            checks.add("CHECK (char_length(\"%s\") >= %d)".formatted(s.key(), s.minLength()));
-            return;
-        }
     }
 
     private static void addBooleanProperty(
@@ -107,12 +78,10 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            "\"%s\" BOOLEAN DEFAULT %s %s %s%n".formatted(
+            "\"%s\" BOOLEAN DEFAULT %s %s%n".formatted(
                 b.key(),
                 b.defaultValue() == null ? "NULL" : b.defaultValue(),
-                b.required() ? "NOT NULL" : "",
-                b.unique() ? "UNIQUE" : ""
-            )
+                b.notNull() ? "NOT NULL" : "")
         );
 
     }
@@ -139,19 +108,29 @@ class PostgreQueryGenerator implements QueryGenerator {
         var comments = new ArrayList<String>();
         comments.add(buildTableComment(newTable));
         for (var property : newTable.properties()) {
-            err = inputValidator.validateProperty(property);
-            if (err.isPresent()) {
-                return Return.error(err.get());
-            }
-
             comments.add(buildPropertyComment(newTable, property));
             query.append(",");
             switch (property.type()) {
-                case STRING -> addStringProperty((StringProperty) property, query, constraints);
-                case INTEGER -> addIntegerProperty((IntegerProperty) property, query, constraints);
+                case STRING -> addStringProperty((StringProperty) property, query);
+                case INTEGER -> addIntegerProperty((IntegerProperty) property, query);
                 case BOOLEAN -> addBooleanProperty((BooleanProperty) property, query);
-                case DECIMAL -> addDecimalProperty((DecimalProperty) property, query, constraints);
+                case DECIMAL -> addDecimalProperty((DecimalProperty) property, query);
                 case REFERENCE -> addReferenceProperty((ReferenceProperty) property, query, constraints);
+            }
+
+            for (var c : property.constraints()) {
+                switch (c.type()) {
+                    case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                    case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(property, (PropertyConstraint) c));
+                    case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(property, (PropertyConstraint) c));
+                    case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(property, (PropertyConstraint) c));
+                    case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(property, (PropertyConstraint) c));
+                    case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(property, (PropertyConstraint) c));
+                    case GREATER_OR_EQUAL_THAN_VALUE ->
+                        constraints.add(buildGreaterOrEqualThanValue(property, (PropertyConstraint) c));
+                    case IN -> constraints.add(buildIn(property, (PropertyConstraint) c));
+                    case NOT_IN -> constraints.add(buildNotIn(property, (PropertyConstraint) c));
+                }
             }
         }
 
@@ -161,6 +140,95 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         return Return.of(query.toString());
     }
+
+    private String buildMinLengthConstraint(Property property, PropertyConstraint c) {
+        return "CHECK( char_length(\"%s\") >= %d )".formatted(property.key(), c.castValue(Integer.class));
+    }
+
+    private static String buildMaxLengthConstraint(Property property, PropertyConstraint c) {
+        return "CHECK( char_length(\"%s\") <= %d )".formatted(property.key(), c.castValue(Integer.class));
+    }
+
+    private static String buildUniqueConstraint(UniqueConstraint c) {
+        return "UNIQUE (\"%s\")".formatted(String.join("\",\"", c.properties));
+    }
+
+    private static String buildLessThanValue(Property property, PropertyConstraint p) {
+        return switch (property.type()) {
+            case INTEGER -> "CHECK( \"%s\" < %d )".formatted(property.key(), p.castValue(Long.class));
+            case REFERENCE -> "CHECK( \"%s\" < %d )".formatted(property.key(), p.castValue(Integer.class));
+            case DECIMAL -> "CHECK( \"%s\" < %f )".formatted(property.key(), p.castValue(BigDecimal.class));
+            case STRING -> "CHECK( \"%s\" < \"%s\" )".formatted(property.key(), p.castValue(String.class));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String buildLessOrEqualValue(Property property, PropertyConstraint cons) {
+        return switch (property.type()) {
+            case INTEGER -> "CHECK( \"%s\" <= %d )".formatted(property.key(), cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( \"%s\" <= %d )".formatted(property.key(), cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( \"%s\" <= %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( \"%s\" <= \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String buildGreaterThanValue(Property property, PropertyConstraint cons) {
+        return switch (property.type()) {
+            case INTEGER -> "CHECK( \"%s\" > %d )".formatted(property.key(), cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( \"%s\" > %d )".formatted(property.key(), cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( \"%s\" > %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( \"%s\" > \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String buildGreaterOrEqualThanValue(Property property, PropertyConstraint cons) {
+        return switch (property.type()) {
+            case INTEGER -> "CHECK( \"%s\" >= %d )".formatted(property.key(), cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( \"%s\" >= %d )".formatted(property.key(), cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( \"%s\" >= %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( \"%s\" >= \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String buildIn(Property property, PropertyConstraint cons) {
+        return switch (property.type()) {
+            case STRING ->
+                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
+            case REFERENCE ->
+                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
+            case INTEGER ->
+                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( \"%s\" IN (%s)".formatted(property.key(),
+                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String buildNotIn(Property property, PropertyConstraint cons) {
+        return switch (property.type()) {
+            case STRING -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
+                convertArrayToInParameter(cons.castValue(String[].class)));
+            case REFERENCE -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
+                convertArrayToInParameter(cons.castValue(Integer[].class)));
+            case INTEGER ->
+                "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
+                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+            case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
+        };
+    }
+
+    private static String convertArrayToInParameter(String[] arr) {
+        return "\"" + String.join("\",\"", arr) + "\"";
+    }
+
+    private static <T> String convertArrayToInParameter(T[] arr) {
+        return Arrays.stream(arr).map(Object::toString).collect(Collectors.joining(","));
+    }
+
 
     @Override
     public Return<String> dropTable(DropTable deleteTable) {
@@ -191,11 +259,25 @@ class PostgreQueryGenerator implements QueryGenerator {
         var constraints = new ArrayList<String>();
         var prop = addProperty.property();
         switch (prop.type()) {
-            case STRING -> addStringProperty((StringProperty) prop, query, constraints);
-            case INTEGER -> addIntegerProperty((IntegerProperty) prop, query, constraints);
+            case STRING -> addStringProperty((StringProperty) prop, query);
+            case INTEGER -> addIntegerProperty((IntegerProperty) prop, query);
             case BOOLEAN -> addBooleanProperty((BooleanProperty) prop, query);
-            case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query, constraints);
+            case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query);
             case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, constraints);
+        }
+
+        for (var c : prop.constraints()) {
+            switch (c.type()) {
+                case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(prop, (PropertyConstraint) c));
+                case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(prop, (PropertyConstraint) c));
+                case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(prop, (PropertyConstraint) c));
+                case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(prop, (PropertyConstraint) c));
+                case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(prop, (PropertyConstraint) c));
+                case GREATER_OR_EQUAL_THAN_VALUE -> constraints.add(buildGreaterOrEqualThanValue(prop, (PropertyConstraint) c));
+                case IN -> constraints.add(buildIn(prop, (PropertyConstraint) c));
+                case NOT_IN -> constraints.add(buildNotIn(prop, (PropertyConstraint) c));
+            }
         }
 
         query.append(" %s;".formatted(String.join(" ", constraints)));
@@ -224,11 +306,6 @@ class PostgreQueryGenerator implements QueryGenerator {
         var queryBuilder = new StringBuilder()
             .append("UPDATE public.%s SET ".formatted(updateRow.tableKey()));
         for (var column : updateRow.valuesToUpdate()) {
-            err = inputValidator.validateColumnValue(column);
-            if (err.isPresent()) {
-                return Return.error(err.get());
-            }
-
             queryBuilder.append("\"%s\"=?,".formatted(column.key()));
         }
 
@@ -253,11 +330,6 @@ class PostgreQueryGenerator implements QueryGenerator {
         var valuesPart = new StringBuilder("VALUES (");
 
         for (var v : insertRow.columnValues()) {
-            err = inputValidator.validateColumnValue(v);
-            if (err.isPresent()) {
-                return Return.error(err.get());
-            }
-
             propertiesPart.append("\"%s\"".formatted(v.key())).append(",");
             valuesPart.append("?,");
         }
@@ -283,11 +355,6 @@ class PostgreQueryGenerator implements QueryGenerator {
             query.append("*");
         } else {
             for (final var prop : selectQuery.propertyKeysToReturn()) {
-                err = inputValidator.validateSelectProperty(prop);
-                if (err.isPresent()) {
-                    return Return.error(err.get());
-                }
-
                 query.append("\"%s\",".formatted(prop.propertyKey()));
             }
             // remove last comma
@@ -329,10 +396,9 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> constraints
     ) {
         statementBuilder.append(
-            "\"%s\" INTEGER%s%s%s%n".formatted(
+            "\"%s\" INTEGER%s%s%n".formatted(
                 r.key(),
-                r.required() ? " NOT NULL" : "",
-                r.unique() ? " UNIQUE" : "",
+                r.notNull() ? " NOT NULL" : "",
                 r.defaultValue() == null ? "" : " DEFAULT %d".formatted(r.defaultValue())
             )
         );
@@ -341,46 +407,28 @@ class PostgreQueryGenerator implements QueryGenerator {
             .formatted(
                 r.key(),
                 r.refTableKey(),
-                r.required() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
+                r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
             )
         );
     }
 
     private void addDecimalProperty(
         DecimalProperty d,
-        StringBuilder statementBuilder,
-        List<String> checks
+        StringBuilder statementBuilder
     ) {
         statementBuilder.append(
-            "\"%s\" NUMERIC(%d,%d) DEFAULT %s %s %s%n".formatted(
+            "\"%s\" NUMERIC(%d,%d) DEFAULT %s %s%n".formatted(
                 d.key(),
                 d.precision(),
                 d.scale(),
                 d.defaultValue() == null ? "NULL" : d.defaultValue(),
-                d.required() ? "NOT NULL" : "",
-                d.unique() ? "UNIQUE" : ""
+                d.notNull() ? "NOT NULL" : ""
             )
         );
-
-        if (d.max() != null && d.min() != null) {
-            checks.add("CHECK (\"%s\" BETWEEN %f AND %f)".formatted(d.key(), d.min(), d.max()));
-            return;
-        }
-
-        if (d.max() != null) {
-            checks.add("CHECK (\"%s\" <= %f)".formatted(d.key(), d.max()));
-            return;
-        }
-
-        if (d.min() != null) {
-            checks.add("CHECK (\"%s\" >= %f)".formatted(d.key(), d.min()));
-            return;
-        }
     }
 
     private Return<String> buildPredicate(Predicate pred, List<ColumnValue<?>> parameters) {
-        var err = inputValidator.validatePredicate(pred);
-        return err.<Return<String>>map(Return::error).orElseGet(() -> switch (pred.type()) {
+        return switch (pred.type()) {
             case INTEGER -> {
                 final var i = (IntegerPredicate) pred;
                 parameters.add(IntegerValue.of(i.propertyKey(), i.value()));
@@ -423,15 +471,10 @@ class PostgreQueryGenerator implements QueryGenerator {
                 yield buildCompoundQuery(c, parameters);
             }
 
-        });
+        };
     }
 
     private Return<String> buildCompoundQuery(CompoundPredicate c, List<ColumnValue<?>> parameters) {
-        var err = inputValidator.validatePredicate(c);
-        if (err.isPresent()) {
-            return Return.error(err.get());
-        }
-
         final var leftSubquery = buildPredicate(c.left(), parameters);
 
         if (leftSubquery.error().isPresent()) {

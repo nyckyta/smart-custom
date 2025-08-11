@@ -1,36 +1,50 @@
 package edu.ukma.smart.virtual.ddl.create;
 
-public record IntegerProperty(
-    String key,
-    String name,
-    String description,
-    Long defaultValue,
-    boolean required,
-    boolean unique,
-    Long max,
-    Long min,
-    Type type
-) implements Property {
+import edu.ukma.smart.virtual.ddl.constraints.Constraint;
+import java.util.Collections;
+import java.util.List;
 
-    public IntegerProperty(
+public final class IntegerProperty implements Property {
+    private final String key;
+    private final String name;
+    private final String description;
+    private final Long defaultValue;
+    private final boolean notNull;
+    private final List<Constraint> constraints;
+    private final Type type;
+
+    private IntegerProperty(
         String key,
         String name,
         String description,
         Long defaultValue,
-        boolean required,
-        boolean unique,
-        Long max,
-        Long min,
+        boolean notNull,
+        List<Constraint> constraints,
         Type type
     ) {
         this.key = key;
         this.name = name;
         this.description = description;
         this.defaultValue = defaultValue;
-        this.required = required;
-        this.unique = unique;
-        this.max = max;
-        this.min = min;
+        this.notNull = notNull;
+        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.type = type;
+    }
+
+    public IntegerProperty(
+        String key,
+        String name,
+        String description,
+        Long defaultValue,
+        boolean notNull,
+        List<Constraint> constraints
+    ) {
+        this.key = key;
+        this.name = name;
+        this.description = description;
+        this.defaultValue = defaultValue;
+        this.notNull = notNull;
+        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
         this.type = Type.INTEGER;
     }
 
@@ -38,15 +52,60 @@ public record IntegerProperty(
         return new IntegerPropertyBuilder();
     }
 
+    @Override
+    public String key() {
+        return key;
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public String description() {
+        return description;
+    }
+
+    public Long defaultValue() {
+        return defaultValue;
+    }
+
+    @Override
+    public boolean notNull() {
+        return notNull;
+    }
+
+    @Override
+    public List<Constraint> constraints() {
+        return constraints;
+    }
+
+    @Override
+    public Type type() {
+        return type;
+    }
+
+    @Override
+    public String toString() {
+        return "IntegerProperty[" +
+               "key=" + key + ", " +
+               "name=" + name + ", " +
+               "description=" + description + ", " +
+               "defaultValue=" + defaultValue + ", " +
+               "notNull=" + notNull + ", " +
+               "notNull=" + constraints + ", " +
+               "type=" + type + ']';
+    }
+
+
     public static final class IntegerPropertyBuilder {
         private String key;
         private String name;
         private String description;
         private Long defaultValue;
-        private boolean required;
-        private boolean unique;
-        private Long max;
-        private Long min;
+        private boolean notNull;
+        private List<Constraint> constraints;
 
         private IntegerPropertyBuilder() {
         }
@@ -76,22 +135,12 @@ public record IntegerProperty(
         }
 
         public IntegerPropertyBuilder required(boolean isRequired) {
-            this.required = isRequired;
+            this.notNull = isRequired;
             return this;
         }
 
-        public IntegerPropertyBuilder unique(boolean isUnique) {
-            this.unique = isUnique;
-            return this;
-        }
-
-        public IntegerPropertyBuilder max(Long max) {
-            this.max = max;
-            return this;
-        }
-
-        public IntegerPropertyBuilder min(Long min) {
-            this.min = min;
+        public IntegerPropertyBuilder constraints(List<Constraint> constraints) {
+            this.constraints = constraints;
             return this;
         }
 
@@ -101,11 +150,8 @@ public record IntegerProperty(
                 name,
                 description,
                 defaultValue,
-                required,
-                unique,
-                max,
-                min,
-                Type.INTEGER
+                notNull,
+                constraints
             );
         }
     }
