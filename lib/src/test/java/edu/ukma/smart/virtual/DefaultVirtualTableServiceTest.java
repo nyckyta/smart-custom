@@ -44,6 +44,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -193,7 +194,7 @@ class DefaultVirtualTableServiceTest {
             "desc",
             "default_value",
             true,
-            List.of()
+            Set.of()
         );
         final var maliciousTable = new NewTable(
             "_table_key",
@@ -218,7 +219,7 @@ class DefaultVirtualTableServiceTest {
             "desc",
             defaultValue,
             true,
-            List.of()
+            Set.of()
         );
         final var maliciousTable = new NewTable(
             tableKey,
@@ -253,7 +254,7 @@ class DefaultVirtualTableServiceTest {
                     .name("Property 1")
                     .description("This is property 1")
                     .defaultValue("default_value_1")
-                    .required(true)
+                    .notNull(true)
                     .build()
             )
         );
@@ -366,7 +367,7 @@ class DefaultVirtualTableServiceTest {
                     .name("Property 1")
                     .description("This is property 1")
                     .defaultValue("default_value_1")
-                    .required(true)
+                    .notNull(true)
                     .build()
             )
         );
@@ -404,21 +405,21 @@ class DefaultVirtualTableServiceTest {
                     .name("Property 1")
                     .description("This is property 1")
                     .defaultValue("default_value_1")
-                    .required(true)
+                    .notNull(true)
                     .build(),
                 IntegerProperty.builder()
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
                     .defaultValue(42L)
-                    .required(true)
+                    .notNull(true)
                     .build(),
                 BooleanProperty.builder()
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
                     .defaultValue(true)
-                    .required(true)
+                    .notNull(true)
                     .build(),
                 DecimalProperty.builder()
                     .key("property_four")
@@ -463,20 +464,20 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .constraints(List.of(PropertyConstraint.maxLength(5)))
+                    .constraints(Set.of(PropertyConstraint.maxLength(5)))
                     .build(),
                 StringProperty.builder()
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .constraints(List.of(PropertyConstraint.minLength(5)))
+                    .constraints(Set.of(PropertyConstraint.minLength(5)))
                     .build(),
                 StringProperty.builder()
                     .key("property_four")
                     .name("Property 4")
                     .description("This is property 3")
                     .defaultValue("default_value_3")
-                    .constraints(List.of(
+                    .constraints(Set.of(
                         PropertyConstraint.maxLength(10),
                         PropertyConstraint.minLength(5))
                     )
@@ -550,19 +551,19 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .constraints(List.of(PropertyConstraint.lessOrEqual(5L)))
+                    .constraints(Set.of(PropertyConstraint.lessOrEqual(5L)))
                     .build(),
                 IntegerProperty.builder()
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .constraints(List.of(PropertyConstraint.greaterOrEqual(5L)))
+                    .constraints(Set.of(PropertyConstraint.greaterOrEqual(5L)))
                     .build(),
                 IntegerProperty.builder()
                     .key("property_four")
                     .name("Property 4")
                     .description("This is property four")
-                    .constraints(List.of(
+                    .constraints(Set.of(
                         PropertyConstraint.greaterOrEqual(5L),
                         PropertyConstraint.lessOrEqual(10L))
                     )
@@ -642,7 +643,7 @@ class DefaultVirtualTableServiceTest {
                     .key("property_two")
                     .name("Property 2")
                     .description("This is property 2")
-                    .constraints(List.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))))
+                    .constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))))
                     .precision(4)
                     .scale(3)
                     .build(),
@@ -650,7 +651,7 @@ class DefaultVirtualTableServiceTest {
                     .key("property_three")
                     .name("Property 3")
                     .description("This is property 3")
-                    .constraints(List.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125))))
+                    .constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125))))
                     .precision(4)
                     .scale(3)
                     .build(),
@@ -660,7 +661,7 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property four")
                     .precision(4)
                     .scale(3)
-                    .constraints(List.of(
+                    .constraints(Set.of(
                             PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125)),
                             PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))
                         )
@@ -738,7 +739,7 @@ class DefaultVirtualTableServiceTest {
                     .name("Property 1")
                     .description("This is property 1")
                     .defaultValue("default_value_1")
-                    .required(true)
+                    .notNull(true)
                     .build()
             )
         );
@@ -1221,7 +1222,7 @@ class DefaultVirtualTableServiceTest {
                 .key("_test_table_select_faculty")
                 .name("Faculty")
                 .description("University faculty")
-                .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+                .properties(List.of(StringProperty.builder().key("name").name("name").notNull(true).build()))
                 .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation faculty, got " + err.orElse(null));
@@ -1232,10 +1233,10 @@ class DefaultVirtualTableServiceTest {
                 .description("Teachers")
                 .properties(List.of(
                     StringProperty.builder().key("name").name("name")
-                        .constraints(List.of(PropertyConstraint.maxLength(100), PropertyConstraint.minLength(2)))
+                        .constraints(Set.of(PropertyConstraint.maxLength(100), PropertyConstraint.minLength(2)))
                         .build(),
                     IntegerProperty.builder().key("age").name("age")
-                        .constraints(List.of(PropertyConstraint.greaterOrEqual(16L))).build(),
+                        .constraints(Set.of(PropertyConstraint.greaterOrEqual(16L))).build(),
                     DecimalProperty.builder().key("salary").name("salary").precision(10).scale(3).build(),
                     BooleanProperty.builder().key("married").name("married").build(),
                     ReferenceProperty.builder().key("faculty").name("faculty").refTableKey("_test_table_select_faculty")
@@ -1300,7 +1301,7 @@ class DefaultVirtualTableServiceTest {
             .key("_test_referenced_row_can_not_be_dropped")
             .name("test_name")
             .description("test_description")
-            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .properties(List.of(StringProperty.builder().key("name").name("name").notNull(true).build()))
             .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
@@ -1343,7 +1344,7 @@ class DefaultVirtualTableServiceTest {
             .key("_reference_row_delete_sets_to_null")
             .name("test_name")
             .description("test_description")
-            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .properties(List.of(StringProperty.builder().key("name").name("name").notNull(true).build()))
             .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
@@ -1400,7 +1401,7 @@ class DefaultVirtualTableServiceTest {
             .key("_reference_row_delete_sets_to_default")
             .name("test_name")
             .description("test_description")
-            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .properties(List.of(StringProperty.builder().key("name").name("name").notNull(true).build()))
             .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
@@ -1456,7 +1457,7 @@ class DefaultVirtualTableServiceTest {
             .key("_update_of_referenced_row_id_is_restricted")
             .name("test_name")
             .description("test_description")
-            .properties(List.of(StringProperty.builder().key("name").name("name").required(true).build()))
+            .properties(List.of(StringProperty.builder().key("name").name("name").notNull(true).build()))
             .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
@@ -1525,8 +1526,8 @@ class DefaultVirtualTableServiceTest {
             AddProperty
                 .builder()
                 .tableKey("_add_property_to_table")
-                .property(IntegerProperty.builder().key("added_prop").name("added_prop").required(true)
-                    .constraints(List.of(PropertyConstraint.lessOrEqual(25L))).build())
+                .property(IntegerProperty.builder().key("added_prop").name("added_prop").notNull(true)
+                    .constraints(Set.of(PropertyConstraint.lessOrEqual(25L))).build())
                 .build()
         );
 

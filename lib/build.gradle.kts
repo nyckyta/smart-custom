@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.postgresql)
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core
     implementation(libs.jackson)
+    implementation(libs.jsqlparser)
 
     // Use TestNG framework, also requires calling test.useTestNG() below
     testImplementation(libs.testng)

@@ -1,6 +1,9 @@
 package edu.ukma.smart.virtual.ddl.constraints;
 
 
+import java.util.Arrays;
+import java.util.Objects;
+
 public class PropertyConstraint implements Constraint {
 
     public final Type type;
@@ -35,11 +38,11 @@ public class PropertyConstraint implements Constraint {
         return new PropertyConstraint(Type.LESS_OR_EQUAL_THAN_VALUE, value);
     }
 
-    public static <T> PropertyConstraint in(String propertyKey, T[] values) {
+    public static <T> PropertyConstraint in(T[] values) {
         return new PropertyConstraint(Type.IN, values);
     }
 
-    public static <T> PropertyConstraint notIn(String propertyKey, T[] values) {
+    public static <T> PropertyConstraint notIn(T[] values) {
         return new PropertyConstraint(Type.NOT_IN, values);
     }
 
@@ -52,4 +55,21 @@ public class PropertyConstraint implements Constraint {
         return type;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof PropertyConstraint that)) {
+            return false;
+        }
+
+        return type == that.type && Objects.deepEquals(value, that.value);
+    }
+
+    @Override
+    public int hashCode() {
+        if (value instanceof Object[] arr) {
+            return Objects.hash(type) + Arrays.deepHashCode(arr);
+        }
+
+        return Objects.hash(type, value);
+    }
 }

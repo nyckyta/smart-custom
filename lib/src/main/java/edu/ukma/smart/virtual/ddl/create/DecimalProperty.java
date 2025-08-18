@@ -3,7 +3,9 @@ package edu.ukma.smart.virtual.ddl.create;
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 public final class DecimalProperty implements Property {
     private final String key;
@@ -13,7 +15,7 @@ public final class DecimalProperty implements Property {
     private final boolean notNull;
     private final int precision;
     private final int scale;
-    private final List<Constraint> constraints;
+    private final Set<Constraint> constraints;
     private final Type type;
 
     private DecimalProperty(
@@ -24,7 +26,7 @@ public final class DecimalProperty implements Property {
         boolean notNull,
         int precision,
         int scale,
-        List<Constraint> constraints
+        Set<Constraint> constraints
     ) {
         this.key = key;
         this.name = name;
@@ -33,7 +35,7 @@ public final class DecimalProperty implements Property {
         this.notNull = notNull;
         this.precision = precision;
         this.scale = scale;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.constraints = constraints == null ? Set.of() : Collections.unmodifiableSet(constraints);
         this.type = Type.DECIMAL;
     }
 
@@ -78,7 +80,7 @@ public final class DecimalProperty implements Property {
     }
 
     @Override
-    public List<Constraint> constraints() {
+    public Set<Constraint> constraints() {
         return constraints;
     }
 
@@ -95,8 +97,23 @@ public final class DecimalProperty implements Property {
                "type=" + type + ']';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof DecimalProperty that)) {
+            return false;
+        }
+        return notNull == that.notNull && precision == that.precision && scale == that.scale &&
+               Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
+               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
+               Objects.equals(constraints, that.constraints) && type == that.type;
+    }
 
-    public static final class DecimalPropertyBuilder {
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, defaultValue, notNull, precision, scale, constraints, type);
+    }
+
+    public static final class DecimalPropertyBuilder implements Builder<DecimalProperty> {
         private String key;
         private String name;
         private String description;
@@ -104,9 +121,10 @@ public final class DecimalProperty implements Property {
         private boolean required;
         private int precision;
         private int scale;
-        private List<Constraint> constraint;
+        private Set<Constraint> constraint;
 
         private DecimalPropertyBuilder() {
+            constraint = new HashSet<>();
         }
 
         public static DecimalPropertyBuilder builder() {
@@ -133,8 +151,8 @@ public final class DecimalProperty implements Property {
             return this;
         }
 
-        public DecimalPropertyBuilder required(boolean isRequired) {
-            this.required = isRequired;
+        public DecimalPropertyBuilder notNull(boolean notNull) {
+            this.required = notNull;
             return this;
         }
 
@@ -148,8 +166,14 @@ public final class DecimalProperty implements Property {
             return this;
         }
 
-        public DecimalPropertyBuilder constraints(List<Constraint> constraint) {
+        public DecimalPropertyBuilder constraints(Set<Constraint> constraint) {
             this.constraint = constraint;
+            return this;
+        }
+
+        @Override
+        public Builder<DecimalProperty> addConstraint(Constraint constraint) {
+            this.constraint.add(constraint);
             return this;
         }
 

@@ -2,7 +2,9 @@ package edu.ukma.smart.virtual.ddl.create;
 
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 public final class IntegerProperty implements Property {
     private final String key;
@@ -10,26 +12,8 @@ public final class IntegerProperty implements Property {
     private final String description;
     private final Long defaultValue;
     private final boolean notNull;
-    private final List<Constraint> constraints;
+    private final Set<Constraint> constraints;
     private final Type type;
-
-    private IntegerProperty(
-        String key,
-        String name,
-        String description,
-        Long defaultValue,
-        boolean notNull,
-        List<Constraint> constraints,
-        Type type
-    ) {
-        this.key = key;
-        this.name = name;
-        this.description = description;
-        this.defaultValue = defaultValue;
-        this.notNull = notNull;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
-        this.type = type;
-    }
 
     public IntegerProperty(
         String key,
@@ -37,14 +21,14 @@ public final class IntegerProperty implements Property {
         String description,
         Long defaultValue,
         boolean notNull,
-        List<Constraint> constraints
+        Set<Constraint> constraints
     ) {
         this.key = key;
         this.name = name;
         this.description = description;
         this.defaultValue = defaultValue;
         this.notNull = notNull;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.constraints = constraints == null ? Set.of() : Collections.unmodifiableSet(constraints);
         this.type = Type.INTEGER;
     }
 
@@ -77,7 +61,7 @@ public final class IntegerProperty implements Property {
     }
 
     @Override
-    public List<Constraint> constraints() {
+    public Set<Constraint> constraints() {
         return constraints;
     }
 
@@ -98,16 +82,31 @@ public final class IntegerProperty implements Property {
                "type=" + type + ']';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof IntegerProperty that)) {
+            return false;
+        }
+        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
+               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
+               Objects.equals(constraints, that.constraints) && type == that.type;
+    }
 
-    public static final class IntegerPropertyBuilder {
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, defaultValue, notNull, constraints, type);
+    }
+
+    public static final class IntegerPropertyBuilder implements Builder<IntegerProperty> {
         private String key;
         private String name;
         private String description;
         private Long defaultValue;
         private boolean notNull;
-        private List<Constraint> constraints;
+        private Set<Constraint> constraints;
 
         private IntegerPropertyBuilder() {
+            this.constraints = new HashSet<>();
         }
 
         public static IntegerPropertyBuilder builder() {
@@ -134,13 +133,19 @@ public final class IntegerProperty implements Property {
             return this;
         }
 
-        public IntegerPropertyBuilder required(boolean isRequired) {
-            this.notNull = isRequired;
+        public IntegerPropertyBuilder notNull(boolean notNull) {
+            this.notNull = notNull;
             return this;
         }
 
-        public IntegerPropertyBuilder constraints(List<Constraint> constraints) {
+        public IntegerPropertyBuilder constraints(Set<Constraint> constraints) {
             this.constraints = constraints;
+            return this;
+        }
+
+        @Override
+        public Builder<IntegerProperty> addConstraint(Constraint constraint) {
+            this.constraints.add(constraint);
             return this;
         }
 

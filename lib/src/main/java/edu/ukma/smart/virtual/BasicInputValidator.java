@@ -4,9 +4,7 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ALTER_T
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_DOES_NOT_BELONG_TO_PROPERTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_MISSING_VALUE;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_PROPERTY_KEY_IS_INVALID;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_PROPERTY_TYPE_MISMATCH;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_VALUE_TYPE_MISMATCH;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY;
@@ -49,6 +47,7 @@ import java.util.function.Function;
 
 final public class BasicInputValidator implements InputValidator {
 
+    private final List<Function<String, Optional<InputValidationErr>>> vendorTableKeyValidators;
     private final List<Function<NewTable, Optional<InputValidationErr>>> vendorNewTableValidators;
     private final List<Function<AddProperty, Optional<InputValidationErr>>> vendorAddPropertyValidators;
     private final List<Function<DropProperty, Optional<InputValidationErr>>> vendorDropPropertyValidators;
@@ -65,6 +64,7 @@ final public class BasicInputValidator implements InputValidator {
 
 
     public BasicInputValidator(
+        List<Function<String, Optional<InputValidationErr>>> vendorTableKeyValidators,
         List<Function<NewTable, Optional<InputValidationErr>>> vendorNewTableValidators,
         List<Function<AddProperty, Optional<InputValidationErr>>> vendorAddPropertyValidators,
         List<Function<DropProperty, Optional<InputValidationErr>>> vendorDropPropertyValidators,
@@ -79,6 +79,8 @@ final public class BasicInputValidator implements InputValidator {
         List<Function<SelectProperty, Optional<InputValidationErr>>> vendorSelectPropertyValidators,
         List<Function<Predicate, Optional<InputValidationErr>>> vendorPredicateValidators
     ) {
+        this.vendorTableKeyValidators =
+            vendorTableKeyValidators == null ? List.of() : Collections.unmodifiableList(vendorTableKeyValidators);
         this.vendorNewTableValidators = vendorNewTableValidators == null ? List.of() : Collections.unmodifiableList(
             vendorNewTableValidators);
         this.vendorAddPropertyValidators =
@@ -108,12 +110,13 @@ final public class BasicInputValidator implements InputValidator {
     }
 
 
-    private Optional<InputValidationErr> validateTableKey(String tableKey) {
+    @Override
+    public Optional<InputValidationErr> validateTableKey(String tableKey) {
         if (tableKey == null || tableKey.isBlank()) {
             return Optional.of(InputValidationErr.of(WRONG_TABLE_KEY_FORMAT));
         }
 
-        return Optional.empty();
+        return triggerVendorValidators(vendorTableKeyValidators, tableKey);
     }
 
     @Override
@@ -123,11 +126,9 @@ final public class BasicInputValidator implements InputValidator {
             return err;
         }
 
-
         if (newTable.name() == null || newTable.name().isBlank()) {
             return Optional.of(InputValidationErr.of(CREATE_TABLE_EMPTY_NAME_FOR_TABLE));
         }
-
 
         // map is used to do contextual validation of constraint with respect to properties
         for (var p : newTable.properties()) {
@@ -419,6 +420,7 @@ final public class BasicInputValidator implements InputValidator {
     }
 
     public static final class BasicInputValidatorBuilder {
+        private List<Function<String, Optional<InputValidationErr>>> tableKeyValidators = new ArrayList<>();
         private List<Function<NewTable, Optional<InputValidationErr>>> newTableValidators = new ArrayList<>();
         private List<Function<AddProperty, Optional<InputValidationErr>>> addPropertyValidators = new ArrayList<>();
         private List<Function<DropProperty, Optional<InputValidationErr>>> dropPropertyValidators = new ArrayList<>();
@@ -438,6 +440,26 @@ final public class BasicInputValidator implements InputValidator {
 
         public static BasicInputValidatorBuilder builder() {
             return new BasicInputValidatorBuilder();
+        }
+
+        public BasicInputValidatorBuilder vendorTableKeyValidators(
+            List<Function<NewTable, Optional<InputValidationErr>>> newTableValidators) {
+            this.newTableValidators = newTableValidators;
+            return this;
+        }
+
+        public BasicInputValidatorBuilder addVendorTableKeyValidator(
+            Function<String, Optional<InputValidationErr>> vendorTableKeyValidator
+        ) {
+            this.tableKeyValidators.add(vendorTableKeyValidator);
+            return this;
+        }
+
+        public BasicInputValidatorBuilder addVendorTableValidator(
+            Function<NewTable, Optional<InputValidationErr>> newTableValidator
+        ) {
+            this.newTableValidators.add(newTableValidator);
+            return this;
         }
 
         public BasicInputValidatorBuilder vendorNewTableValidators(
@@ -608,6 +630,7 @@ final public class BasicInputValidator implements InputValidator {
 
         public BasicInputValidator build() {
             return new BasicInputValidator(
+                tableKeyValidators,
                 newTableValidators,
                 addPropertyValidators,
                 dropPropertyValidators,

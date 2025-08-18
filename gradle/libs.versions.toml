@@ -8,6 +8,7 @@ postgresql = "42.7.6"
 slf4j = "2.0.17"
 slf4jdk = "2.0.17"
 jackson = "2.19.2"
+jsqlparser = "5.3"
 
 [libraries]
 testng = { module = "org.testng:testng", version.ref = "testng" }
@@ -16,3 +17,4 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4jdk = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4jdk" }
 jackson = {module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson"}
+jsqlparser = {module = "com.github.jsqlparser:jsqlparser", version.ref = "jsqlparser"}

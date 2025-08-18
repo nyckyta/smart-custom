@@ -2,7 +2,9 @@ package edu.ukma.smart.virtual.ddl.create;
 
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 public final class BooleanProperty implements Property {
     private final String key;
@@ -10,7 +12,7 @@ public final class BooleanProperty implements Property {
     private final String description;
     private final Boolean defaultValue;
     private final boolean notNull;
-    private final List<Constraint> constraints;
+    private final Set<Constraint> constraints;
     private final Type type;
 
 
@@ -20,14 +22,14 @@ public final class BooleanProperty implements Property {
         String description,
         Boolean defaultValue,
         boolean notNull,
-        List<Constraint> constraints
+        Set<Constraint> constraints
     ) {
         this.key = key;
         this.name = name;
         this.description = description;
         this.defaultValue = defaultValue;
         this.notNull = notNull;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.constraints = constraints == null ? Set.of() : Collections.unmodifiableSet(constraints);
         this.type = Type.BOOLEAN;
     }
 
@@ -60,7 +62,7 @@ public final class BooleanProperty implements Property {
     }
 
     @Override
-    public List<Constraint> constraints() {
+    public Set<Constraint> constraints() {
         return constraints;
     }
 
@@ -81,16 +83,31 @@ public final class BooleanProperty implements Property {
                "type=" + type + ']';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof BooleanProperty that)) {
+            return false;
+        }
+        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
+               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
+               Objects.equals(constraints, that.constraints) && type == that.type;
+    }
 
-    public static final class BooleanPropertyBuilder {
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, defaultValue, notNull, constraints, type);
+    }
+
+    public static final class BooleanPropertyBuilder implements Builder<BooleanProperty> {
         private String key;
         private String name;
         private String description;
         private Boolean defaultValue;
-        private boolean isRequired;
-        private List<Constraint> constraints;
+        private boolean notNull;
+        private Set<Constraint> constraints;
 
         private BooleanPropertyBuilder() {
+            constraints = new HashSet<>();
         }
 
         public static BooleanPropertyBuilder builder() {
@@ -117,15 +134,22 @@ public final class BooleanProperty implements Property {
             return this;
         }
 
-        public BooleanPropertyBuilder required(boolean isRequired) {
-            this.isRequired = isRequired;
+        public BooleanPropertyBuilder notNull(boolean isRequired) {
+            this.notNull = isRequired;
             return this;
         }
 
-        public BooleanPropertyBuilder constraints(List<Constraint> constraints) {
+        public BooleanPropertyBuilder constraints(Set<Constraint> constraints) {
             this.constraints = constraints;
             return this;
         }
+
+        @Override
+        public Builder<BooleanProperty> addConstraint(Constraint constraint) {
+            this.constraints.add(constraint);
+            return this;
+        }
+
 
         public BooleanProperty build() {
             return new BooleanProperty(
@@ -133,7 +157,7 @@ public final class BooleanProperty implements Property {
                 name,
                 description,
                 defaultValue,
-                isRequired,
+                notNull,
                 constraints
             );
         }

@@ -18,6 +18,18 @@ interface QueryGenerator {
 
     Return<String> getTables();
 
+    /**
+     * Returns query that should be used in prepared statement with single parameter for table key.
+     * Result set signature must be
+     * property_key(string), name_description_json(string), isNullable(bool), typename, precision_of_numeric_type(int), scale_of_numeric_type(int), constr_id(int), constr_def(string).
+     *
+     * Note, that property records may be repeated.
+     *
+     * @param tableKey
+     * @return
+     */
+    Return<String> getProperties(String tableKey);
+
     Return<String> addProperty(AddProperty addProperty);
 
     Return<String> dropProperty(DropProperty dropProperty);

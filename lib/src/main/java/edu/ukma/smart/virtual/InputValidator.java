@@ -16,6 +16,8 @@ import java.util.Optional;
  */
 public interface InputValidator {
 
+    Optional<InputValidationErr> validateTableKey(String tableKey);
+
     Optional<InputValidationErr> validateNewTable(NewTable newTable);
 
     Optional<InputValidationErr> validateAddProperty(AddProperty addProperty);

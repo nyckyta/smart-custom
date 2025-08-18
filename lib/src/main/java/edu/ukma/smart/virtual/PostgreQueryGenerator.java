@@ -32,11 +32,14 @@ import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Return;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.postgresql.core.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +47,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
     private final InputValidator inputValidator = new PostgreInputValidator();
+    private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
 
     private static void addIntegerProperty(
         IntegerProperty i,
@@ -62,11 +66,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static void addStringProperty(
         StringProperty s,
         StringBuilder statementBuilder
-    ) {
+    ) throws SQLException {
         statementBuilder.append(
             "\"%s\" TEXT DEFAULT %s %s%n".formatted(
                 s.key(),
-                s.defaultValue() == null ? "NULL" : "$$" + s.defaultValue() + "$$",
+                s.defaultValue() == null ? "NULL" : "$$%s$$".formatted(Utils.escapeLiteral(null, s.defaultValue(), false)),
                 s.notNull() ? "NOT NULL" : ""
             )
         );
@@ -107,37 +111,41 @@ class PostgreQueryGenerator implements QueryGenerator {
         var constraints = new ArrayList<String>();
         var comments = new ArrayList<String>();
         comments.add(buildTableComment(newTable));
-        for (var property : newTable.properties()) {
-            comments.add(buildPropertyComment(newTable, property));
-            query.append(",");
-            switch (property.type()) {
-                case STRING -> addStringProperty((StringProperty) property, query);
-                case INTEGER -> addIntegerProperty((IntegerProperty) property, query);
-                case BOOLEAN -> addBooleanProperty((BooleanProperty) property, query);
-                case DECIMAL -> addDecimalProperty((DecimalProperty) property, query);
-                case REFERENCE -> addReferenceProperty((ReferenceProperty) property, query, constraints);
-            }
+        try {
+            for (var property : newTable.properties()) {
+                comments.add(buildPropertyComment(newTable, property));
+                query.append(",");
+                switch (property.type()) {
+                    case STRING -> addStringProperty((StringProperty) property, query);
+                    case INTEGER -> addIntegerProperty((IntegerProperty) property, query);
+                    case BOOLEAN -> addBooleanProperty((BooleanProperty) property, query);
+                    case DECIMAL -> addDecimalProperty((DecimalProperty) property, query);
+                    case REFERENCE -> addReferenceProperty((ReferenceProperty) property, query, constraints);
+                }
 
-            for (var c : property.constraints()) {
-                switch (c.type()) {
-                    case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
-                    case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(property, (PropertyConstraint) c));
-                    case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(property, (PropertyConstraint) c));
-                    case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(property, (PropertyConstraint) c));
-                    case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(property, (PropertyConstraint) c));
-                    case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(property, (PropertyConstraint) c));
-                    case GREATER_OR_EQUAL_THAN_VALUE ->
-                        constraints.add(buildGreaterOrEqualThanValue(property, (PropertyConstraint) c));
-                    case IN -> constraints.add(buildIn(property, (PropertyConstraint) c));
-                    case NOT_IN -> constraints.add(buildNotIn(property, (PropertyConstraint) c));
+                for (var c : property.constraints()) {
+                    switch (c.type()) {
+                        case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                        case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(property, (PropertyConstraint) c));
+                        case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(property, (PropertyConstraint) c));
+                        case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(property, (PropertyConstraint) c));
+                        case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(property, (PropertyConstraint) c));
+                        case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(property, (PropertyConstraint) c));
+                        case GREATER_OR_EQUAL_THAN_VALUE ->
+                            constraints.add(buildGreaterOrEqualThanValue(property, (PropertyConstraint) c));
+                        case IN -> constraints.add(buildIn(property, (PropertyConstraint) c));
+                        case NOT_IN -> constraints.add(buildNotIn(property, (PropertyConstraint) c));
+                    }
                 }
             }
+        } catch (SQLException e) {
+            return Return.error(exceptionHandler.handle(e));
         }
 
         constraints.forEach(c -> query.append(",%s".formatted(c)));
         query.append(");\n");
         query.append(String.join(";\n", comments));
-
+        query.append(";");
         return Return.of(query.toString());
     }
 
@@ -196,12 +204,12 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static String buildIn(Property property, PropertyConstraint cons) {
         return switch (property.type()) {
             case STRING ->
-                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
+                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
             case REFERENCE ->
-                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
+                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
             case INTEGER ->
-                "CHECK( \"%s\" IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
-            case DECIMAL -> "CHECK( \"%s\" IN (%s)".formatted(property.key(),
+                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( \"%s\" IN (%s))".formatted(property.key(),
                 convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
@@ -222,7 +230,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     private static String convertArrayToInParameter(String[] arr) {
-        return "\"" + String.join("\",\"", arr) + "\"";
+        return "$$" + String.join("$$,$$", arr) + "$$";
     }
 
     private static <T> String convertArrayToInParameter(T[] arr) {
@@ -248,6 +256,83 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     @Override
+    public Return<String> getProperties(String tableKey) {
+        var err = inputValidator.validateTableKey(tableKey);
+        if (err.isPresent()) {
+            return Return.error(err.get());
+        }
+
+        /*
+       SELECT
+            attr.attname,
+            col_description(attr.attrelid::regclass::oid, attr.attnum),
+            attr.attnotnull,
+            pg_get_expr(adef.adbin, adef.adrelid)
+            typ.typname,
+            (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
+            (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
+            pg_get_constraintdef(dep.objid),
+            dep.objid
+        FROM
+            pg_attribute attr
+            INNER JOIN pg_type typ ON attr.atttypid = typ.oid
+            LEFT_JOIN pg_attrdef adef ON attr.attrelid = adef.attrelid AND attr.adnum = adef.adnum
+            LEFT JOIN pg_depend dep ON dep.refobjid = attr.attrelid
+                AND (dep.refclassid = ('pg_class'::regclass)::oid)
+                AND (dep.classid = ('pg_constraint'::regclass)::oid)
+                AND (dep.refobjid = attr.attrelid)
+                AND (dep.refobjsubid = attr.attnum)
+                AND (dep.deptype = 'a')
+        WHERE
+            (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname='_add_row_test'))
+          AND
+            (attr.attname NOT IN ('tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
+          AND
+            (attr.attisdropped <> TRUE)
+        ORDER BY attr.attname ASC;
+
+        (d.refclassid = ('pg_class'::regclass)::oid) AND (d.refobjid = r.oid) AND (d.refobjsubid = a.attnum) AND (d.classid = ('pg_constraint'::regclass)::oid) AND (d.objid = c.oid)
+         */
+
+
+        // exclude system tables as well as static fields that users do not want to see
+        var ignoredProperties = Stream.concat(
+            PostgreInputValidator.SYSTEM_EXCLUDED_FIELDS.stream(),
+            PostgreInputValidator.STATIC_FIELDS.stream()
+        ).map("'%s'"::formatted).collect(Collectors.joining(","));
+        return Return.of(
+            """
+                SELECT
+                    attr.attname,
+                    col_description(attr.attrelid::regclass::oid, attr.attnum),
+                    attr.attnotnull,
+                    pg_get_expr(adef.adbin, adef.adrelid),
+                    typ.typname,
+                    (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
+                    (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
+                    pg_get_constraintdef(dep.objid, TRUE),
+                    dep.objid
+                FROM
+                    pg_attribute attr
+                    INNER JOIN pg_type typ ON attr.atttypid = typ.oid
+                    LEFT JOIN pg_attrdef adef ON attr.attrelid = adef.adrelid AND attr.attnum = adef.adnum
+                    LEFT JOIN pg_depend dep ON dep.refobjid = attr.attrelid
+                        AND (dep.refclassid = ('pg_class'::regclass)::oid)
+                        AND (dep.classid = ('pg_constraint'::regclass)::oid)
+                        AND (dep.refobjid = attr.attrelid)
+                        AND (dep.refobjsubid = attr.attnum)
+                        AND (dep.deptype = 'a')
+                WHERE
+                    (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname=?))
+                  AND
+                    (attr.attname NOT IN ('_id', '_created', 'tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
+                  AND
+                    (attr.attisdropped <> TRUE)
+                ORDER BY attr.attname ASC;
+                """.formatted(ignoredProperties));
+    }
+
+    @Override
     public Return<String> addProperty(AddProperty addProperty) {
         var err = inputValidator.validateAddProperty(addProperty);
         if (err.isPresent()) {
@@ -258,26 +343,31 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         var constraints = new ArrayList<String>();
         var prop = addProperty.property();
-        switch (prop.type()) {
-            case STRING -> addStringProperty((StringProperty) prop, query);
-            case INTEGER -> addIntegerProperty((IntegerProperty) prop, query);
-            case BOOLEAN -> addBooleanProperty((BooleanProperty) prop, query);
-            case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query);
-            case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, constraints);
-        }
-
-        for (var c : prop.constraints()) {
-            switch (c.type()) {
-                case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
-                case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(prop, (PropertyConstraint) c));
-                case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(prop, (PropertyConstraint) c));
-                case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(prop, (PropertyConstraint) c));
-                case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(prop, (PropertyConstraint) c));
-                case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(prop, (PropertyConstraint) c));
-                case GREATER_OR_EQUAL_THAN_VALUE -> constraints.add(buildGreaterOrEqualThanValue(prop, (PropertyConstraint) c));
-                case IN -> constraints.add(buildIn(prop, (PropertyConstraint) c));
-                case NOT_IN -> constraints.add(buildNotIn(prop, (PropertyConstraint) c));
+        try {
+            switch (prop.type()) {
+                case STRING -> addStringProperty((StringProperty) prop, query);
+                case INTEGER -> addIntegerProperty((IntegerProperty) prop, query);
+                case BOOLEAN -> addBooleanProperty((BooleanProperty) prop, query);
+                case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query);
+                case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, constraints);
             }
+
+            for (var c : prop.constraints()) {
+                switch (c.type()) {
+                    case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                    case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(prop, (PropertyConstraint) c));
+                    case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(prop, (PropertyConstraint) c));
+                    case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(prop, (PropertyConstraint) c));
+                    case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(prop, (PropertyConstraint) c));
+                    case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(prop, (PropertyConstraint) c));
+                    case GREATER_OR_EQUAL_THAN_VALUE ->
+                        constraints.add(buildGreaterOrEqualThanValue(prop, (PropertyConstraint) c));
+                    case IN -> constraints.add(buildIn(prop, (PropertyConstraint) c));
+                    case NOT_IN -> constraints.add(buildNotIn(prop, (PropertyConstraint) c));
+                }
+            }
+        } catch (SQLException e) {
+            return Return.error(exceptionHandler.handle(e));
         }
 
         query.append(" %s;".formatted(String.join(" ", constraints)));

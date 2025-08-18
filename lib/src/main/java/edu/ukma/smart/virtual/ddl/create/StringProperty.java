@@ -2,7 +2,9 @@ package edu.ukma.smart.virtual.ddl.create;
 
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 public final class StringProperty implements Property {
     private final String key;
@@ -10,7 +12,7 @@ public final class StringProperty implements Property {
     private final String description;
     private final String defaultValue;
     private final boolean notNull;
-    private final List<Constraint> constraints;
+    private final Set<Constraint> constraints;
     private final Type type;
 
 
@@ -20,14 +22,14 @@ public final class StringProperty implements Property {
         String description,
         String defaultValue,
         boolean required,
-        List<Constraint> constraints
+        Set<Constraint> constraints
     ) {
         this.key = key;
         this.name = name;
         this.description = description;
         this.defaultValue = defaultValue;
         this.notNull = required;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.constraints = constraints == null ? Set.of() : Collections.unmodifiableSet(constraints);
         this.type = Type.STRING;
     }
 
@@ -60,13 +62,28 @@ public final class StringProperty implements Property {
     }
 
     @Override
-    public List<Constraint> constraints() {
+    public Set<Constraint> constraints() {
         return constraints;
     }
 
     @Override
     public Type type() {
         return type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof StringProperty that)) {
+            return false;
+        }
+        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
+               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
+               Objects.equals(constraints, that.constraints) && type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, defaultValue, notNull, constraints, type);
     }
 
     @Override
@@ -82,15 +99,16 @@ public final class StringProperty implements Property {
     }
 
 
-    public static final class PropertyBuilder {
+    public static final class PropertyBuilder implements Builder<StringProperty> {
         private String key;
         private String name;
         private String description;
         private String defaultValue;
         private boolean notNull;
-        private List<Constraint> constraints;
+        private Set<Constraint> constraints;
 
         private PropertyBuilder() {
+            constraints = new HashSet<>();
         }
 
         public PropertyBuilder name(String name) {
@@ -108,8 +126,8 @@ public final class StringProperty implements Property {
             return this;
         }
 
-        public PropertyBuilder required(boolean isRequired) {
-            this.notNull = isRequired;
+        public PropertyBuilder notNull(boolean notNull) {
+            this.notNull = notNull;
             return this;
         }
 
@@ -119,8 +137,14 @@ public final class StringProperty implements Property {
             return this;
         }
 
-        public PropertyBuilder constraints(List<Constraint> constraints) {
+        public PropertyBuilder constraints(Set<Constraint> constraints) {
             this.constraints = constraints;
+            return this;
+        }
+
+        @Override
+        public Builder<StringProperty> addConstraint(Constraint constraint) {
+            this.constraints.add(constraint);
             return this;
         }
 

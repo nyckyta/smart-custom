@@ -1,12 +1,21 @@
 package edu.ukma.smart.virtual.metadata;
 
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
+import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
+import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
@@ -20,7 +29,6 @@ public class MetadataTest {
 
     private GenericContainer<?> container;
     private Connection connection;
-    private DefaultVirtualTableService service;
 
     @BeforeClass
     void startContainer() throws IOException, InterruptedException, SQLException {
@@ -32,7 +40,6 @@ public class MetadataTest {
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
         connection = createConnection();
-        service = new DefaultVirtualTableService(connection);
     }
 
     @AfterClass(alwaysRun = true)
@@ -66,6 +73,100 @@ public class MetadataTest {
 
         service.dropTable(DropTable.of("_clients"));
         service.dropTable(DropTable.of("_orders"));
+    }
+
+    @Test
+    void testGetPropertiesReturnFullInformationAboutTable() {
+        var service = new DefaultVirtualTableService(connection);
+        var companyProperties = List.of(
+            StringProperty
+                .builder()
+                .key("company_name")
+                .name("Name of the company")
+                .notNull(true)
+                .addConstraint(PropertyConstraint.minLength(3))
+                .addConstraint(PropertyConstraint.maxLength(100))
+                .addConstraint(UniqueConstraint.of("company_name"))
+                .build(),
+            DecimalProperty
+                .builder()
+                .key("contract_sum")
+                .name("Contract summary")
+                .notNull(true)
+                .precision(20)
+                .scale(3)
+                .addConstraint(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(0.001)))
+                .build(),
+            BooleanProperty
+                .builder()
+                .key("has_contract_expired")
+                .name("Contract expired")
+                .defaultValue(false)
+                .notNull(true)
+                .build()
+        );
+        var err = service.createTable(
+            NewTable.builder()
+                .key("_client_companies")
+                .name("Companies")
+                .properties(companyProperties)
+                .build()
+        );
+        Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+        var properties = service.getProperties("_client_companies");
+        Assert.assertTrue(properties.error().isEmpty(), "Expected no errors, but got " + properties.error().orElse(null));
+        Assert.assertEquals(properties.value(), companyProperties);
+
+        var communicatorProperties = List.of(
+            IntegerProperty
+                .builder()
+                .key("birth_year")
+                .name("birth year")
+                .description("Year when client born")
+                .notNull(true)
+                .addConstraint(PropertyConstraint.greaterOrEqual(1920L))
+                .addConstraint(PropertyConstraint.lessOrEqual(2010L))
+                .build(),
+            ReferenceProperty
+                .builder()
+                .key("company")
+                .name("Client company")
+                .description("Company the client belongs to")
+                .refTableKey("_client_companies")
+                .addConstraint(UniqueConstraint.of("company", "name" /*,"job_position"*/))
+                .build(),
+            StringProperty
+                .builder()
+                .key("job_position")
+                .name("Position in the client company")
+                .defaultValue("manager")
+                .notNull(true)
+                .addConstraint(PropertyConstraint.in(new String[] {"manager", "executive", "IT"}))
+                .build(),
+            StringProperty
+                .builder()
+                .key("name")
+                .name("Name")
+                .description("Full name of the client")
+                .notNull(true)
+                .addConstraint(PropertyConstraint.maxLength(100))
+                .addConstraint(PropertyConstraint.minLength(2))
+                .build()
+        );
+
+        err = service.createTable(
+            NewTable
+                .builder()
+                .key("_communicators")
+                .name("Communication channels")
+                .description("List of all people per company we can communicate with")
+                .properties(communicatorProperties)
+                .build()
+        );
+        Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+        var propResult = service.getProperties("_communicators");
+        Assert.assertTrue(propResult.error().isEmpty(), "Expected no errors, but got " + propResult.error().orElse(null));
+        Assert.assertEquals(propResult.value(), communicatorProperties);
     }
 
     private Connection createConnection() throws SQLException {

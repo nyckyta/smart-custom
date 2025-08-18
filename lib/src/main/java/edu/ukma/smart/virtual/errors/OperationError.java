@@ -12,5 +12,6 @@ public record OperationError(ErrorCode code) implements Err {
         PROPERTY_CHECK_VIOLATED,
         // operation on table that does not exist happens
         TABLE_DOES_NOT_EXIST,
+        COLUMN_DOES_NOT_EXIST,
     }
 }

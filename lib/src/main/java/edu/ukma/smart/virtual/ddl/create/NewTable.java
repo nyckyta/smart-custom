@@ -2,6 +2,7 @@ package edu.ukma.smart.virtual.ddl.create;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public record NewTable(
     String key,
@@ -15,6 +16,21 @@ public record NewTable(
         this.name = name;
         this.description = description;
         this.properties = properties == null ? List.of() : Collections.unmodifiableList(properties);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof NewTable newTable)) {
+            return false;
+        }
+        return Objects.equals(key, newTable.key) && Objects.equals(name, newTable.name) &&
+               Objects.equals(description, newTable.description) &&
+               Objects.equals(properties, newTable.properties);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, properties);
     }
 
     public static NewTableBuilder builder() {

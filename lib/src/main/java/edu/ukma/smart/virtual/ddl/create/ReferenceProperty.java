@@ -2,15 +2,16 @@ package edu.ukma.smart.virtual.ddl.create;
 
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public final class ReferenceProperty implements Property {
     private final String key;
     private final String name;
     private final String description;
     private final boolean notNull;
-    private final List<Constraint> constraints;
+    private final Set<Constraint> constraints;
     private final Integer defaultValue;
     private final String refTableKey;
     private final Type type;
@@ -21,15 +22,14 @@ public final class ReferenceProperty implements Property {
         String name,
         String description,
         boolean notNull,
-        List<Constraint> constraints,
+        Set<Constraint> constraints,
         Integer defaultValue,
-        String refTableKey,
-        Type type
+        String refTableKey
     ) {
         this.key = key;
         this.name = name;
         this.description = description;
-        this.constraints = constraints == null ? List.of() : Collections.unmodifiableList(constraints);
+        this.constraints = constraints == null ? Set.of() : Collections.unmodifiableSet(constraints);
         this.defaultValue = defaultValue;
         this.refTableKey = refTableKey;
         this.notNull = notNull;
@@ -61,7 +61,7 @@ public final class ReferenceProperty implements Property {
     }
 
     @Override
-    public List<Constraint> constraints() {
+    public Set<Constraint> constraints() {
         return constraints;
     }
 
@@ -76,6 +76,11 @@ public final class ReferenceProperty implements Property {
     @Override
     public Type type() {
         return type;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, name, description, notNull, constraints, defaultValue, refTableKey, type);
     }
 
     @Override
@@ -98,16 +103,17 @@ public final class ReferenceProperty implements Property {
     }
 
 
-    public static final class ReferencePropertyBuilder {
+    public static final class ReferencePropertyBuilder implements Builder<ReferenceProperty> {
         private String refTableKey;
         private boolean notNull;
         private String key;
         private String description;
         private String name;
         private Integer defaultValue;
-        private List<Constraint> constraints;
+        private Set<Constraint> constraints;
 
         private ReferencePropertyBuilder() {
+            this.constraints = new HashSet<>();
         }
 
         public static ReferencePropertyBuilder builder() {
@@ -144,8 +150,14 @@ public final class ReferenceProperty implements Property {
             return this;
         }
 
-        public ReferencePropertyBuilder constraints(List<Constraint> constraints) {
+        public ReferencePropertyBuilder constraints(Set<Constraint> constraints) {
             this.constraints = constraints;
+            return this;
+        }
+
+        @Override
+        public Builder<ReferenceProperty> addConstraint(Constraint constraint) {
+            this.constraints.add(constraint);
             return this;
         }
 
@@ -157,8 +169,7 @@ public final class ReferenceProperty implements Property {
                 notNull,
                 constraints,
                 defaultValue,
-                refTableKey,
-                Type.REFERENCE
+                refTableKey
             );
         }
     }
