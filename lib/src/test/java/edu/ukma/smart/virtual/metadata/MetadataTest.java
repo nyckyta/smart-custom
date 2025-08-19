@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual.metadata;
 
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
+import edu.ukma.smart.virtual.VirtualTableService;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
@@ -71,8 +72,7 @@ public class MetadataTest {
         Assert.assertEquals(ret.value().get(0), new Table("_clients", "Company clients", "List of all clients we have"));
         Assert.assertEquals(ret.value().get(1), new Table("_orders", "My orders", null));
 
-        service.dropTable(DropTable.of("_clients"));
-        service.dropTable(DropTable.of("_orders"));
+        dropTables(service, "_clients", "_orders");
     }
 
     @Test
@@ -167,6 +167,7 @@ public class MetadataTest {
         var propResult = service.getProperties("_communicators");
         Assert.assertTrue(propResult.error().isEmpty(), "Expected no errors, but got " + propResult.error().orElse(null));
         Assert.assertEquals(propResult.value(), communicatorProperties);
+        dropTables(service, "_communicators", "_client_companies");
     }
 
     private Connection createConnection() throws SQLException {
@@ -176,6 +177,12 @@ public class MetadataTest {
         props.setProperty("user", "postgres");
         props.setProperty("password", "test");
         return DriverManager.getConnection(url, props);
+    }
+
+    private void dropTables(VirtualTableService service, String... tableNames) {
+        for (String tableName : tableNames) {
+            service.dropTable(DropTable.of(tableName));
+        }
     }
 
 }

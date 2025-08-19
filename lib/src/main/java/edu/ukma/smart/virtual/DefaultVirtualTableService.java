@@ -1,22 +1,12 @@
 package edu.ukma.smart.virtual;
 
-import static edu.ukma.smart.virtual.JsonUtils.parseComment;
-import static edu.ukma.smart.virtual.PostgreUtils.parseCheckExpression;
-import static edu.ukma.smart.virtual.PostgreUtils.parseDecimal;
-import static edu.ukma.smart.virtual.PostgreUtils.parseType;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
-import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
-import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
-import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.Property;
-import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
-import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
@@ -30,7 +20,6 @@ import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.ReferenceValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Err;
-import edu.ukma.smart.virtual.errors.FatalError;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.metadata.Table;
@@ -42,17 +31,8 @@ import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.TreeMap;
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.statement.alter.Alter;
-import net.sf.jsqlparser.statement.create.table.ForeignKeyIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +42,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSX");
     private final Connection connection;
     private final QueryGenerator queryBuilder = new PostgreQueryGenerator();
+    private final MetadataProcessor metadataProcessor = new PostgreMetadataProcessor();
     private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
 
     public DefaultVirtualTableService(Connection connection) {
@@ -95,7 +76,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
             return Return.error(query.error().get());
         }
 
-        var tables = new ArrayList<Table>();
         try (var statement = connection.createStatement()) {
             boolean hasResult = statement.execute(query.value());
             if (!hasResult) {
@@ -103,17 +83,11 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
 
             var resultSet = statement.getResultSet();
-            while (resultSet.next()) {
-                var tableKey = resultSet.getString(1);
-                var nameDesc = parseComment(resultSet.getString(2));
-                tables.add(Table.of(tableKey, nameDesc.left(), nameDesc.right()));
-            }
+            return metadataProcessor.processTables(resultSet);
         } catch (SQLException e) {
             var err = exceptionHandler.handle(e);
             return Return.error(err);
         }
-
-        return Return.of(tables);
     }
 
     @Override
@@ -133,138 +107,13 @@ public class DefaultVirtualTableService implements VirtualTableService {
             return Return.error(query.error().get());
         }
 
-        final var processedConstraints = new HashSet<Integer>();
-        final var propertyKeyToBuilder = new TreeMap<String, Property.Builder<?>>();
-
         try (final var stm = connection.prepareStatement(query.value())) {
             stm.setString(1, tableKey);
             stm.execute();
             var resultSet = stm.getResultSet();
-            while (resultSet.next()) {
-                var propertyKey = resultSet.getString(1);
-                var type = parseType(resultSet.getString(5));
-                if (!propertyKeyToBuilder.containsKey(propertyKey)) {
-                    var nameDescr = parseComment(resultSet.getString(2));
-                    boolean isNullable = resultSet.getBoolean(3);
-
-                    var builder = switch (type) {
-                        case STRING -> {
-                            var defColumn = resultSet.getString(4);
-                            // by default cast expression returned, we remove casting part and take only literal
-                            defColumn = defColumn == null ? null : defColumn.substring(1, defColumn.length() - "::text".length() - 1);
-                            yield StringProperty.builder().key(propertyKey).name(nameDescr.left())
-                                .description(nameDescr.right()).notNull(isNullable).defaultValue(defColumn);
-                        }
-                        case BOOLEAN -> BooleanProperty.builder().key(propertyKey).name(nameDescr.left())
-                            .description(nameDescr.right()).notNull(isNullable).defaultValue(resultSet.getBoolean(4));
-                        case REFERENCE -> {
-                            int columnDefValue = resultSet.getInt(4);
-                            var defaultVal = resultSet.wasNull() ? null : columnDefValue;
-                            yield ReferenceProperty.builder().key(propertyKey).name(nameDescr.left())
-                                .description(nameDescr.right()).notNull(isNullable).defaultValue(defaultVal);
-                        }
-                        case DECIMAL -> {
-                            var defaultVal = resultSet.getString(4);
-                            BigDecimal defVal = parseDecimal(defaultVal);
-                            yield DecimalProperty.builder()
-                                .key(propertyKey)
-                                .name(nameDescr.left())
-                                .description(nameDescr.right())
-                                .notNull(isNullable)
-                                .defaultValue(defVal)
-                                .precision(resultSet.getInt(6))
-                                .scale(resultSet.getInt(7));
-                        }
-                        case INTEGER -> {
-                            long columnDefValue = resultSet.getLong(4);
-                            var defaultVal = resultSet.wasNull() ? null : columnDefValue;
-                            yield IntegerProperty.builder().key(propertyKey).name(nameDescr.left())
-                                .description(nameDescr.right()).notNull(isNullable).defaultValue(defaultVal);
-                        }
-                    };
-                    propertyKeyToBuilder.put(propertyKey, builder);
-                }
-
-                var builder = propertyKeyToBuilder.get(propertyKey);
-                // constraints processing
-                var constraintId = resultSet.getInt(9);
-                if (processedConstraints.contains(constraintId)) {
-                    continue;
-                }
-
-                var constraintDefinition = resultSet.getString(8);
-                if (constraintDefinition == null) {
-                    continue;
-                }
-
-                addConstraint(builder, type, constraintDefinition);
-                processedConstraints.add(constraintId);
-            }
+            return metadataProcessor.processProperties(resultSet);
         } catch (SQLException e) {
             return Return.error(exceptionHandler.handle(e));
-        }
-
-        // unsafe cast in fact safe, build returns (? extends Property), though compile sees just ?
-        return Return.of((List<Property>) propertyKeyToBuilder.values().stream().map(Property.Builder::build)
-            .sorted(Comparator.comparing((Property s) -> s.key())).toList());
-    }
-
-    private static void addConstraint(
-        Property.Builder<?> builder,
-        Property.Type type,
-        String constraintDefinition
-
-    ) throws SQLException {
-        if (constraintDefinition.startsWith("UNIQUE")) {
-            var constraint = parseUniqueConstraint(constraintDefinition);
-            builder.addConstraint(constraint);
-            return;
-        }
-
-        if (constraintDefinition.startsWith("CHECK")) {
-            var constraint = parseCheckExpression(type, constraintDefinition);
-            builder.addConstraint(constraint);
-            return;
-        }
-
-        if (constraintDefinition.startsWith("FOREIGN KEY")) {
-            parseFkConsAndAddToBuilder((ReferenceProperty.ReferencePropertyBuilder) builder, constraintDefinition);
-            return;
-        }
-
-        log.error("Unexpected constraint definition: " + constraintDefinition);
-        throw new FatalError("Unexpected constraint appearance");
-    }
-
-    private static void parseFkConsAndAddToBuilder(
-        ReferenceProperty.ReferencePropertyBuilder builder,
-        String constraintDefinition
-    ) {
-        // JSqlParser can not parse just a single constraint, thus we attach it to dummy alter table and parse it this way
-        var cons = "ALTER TABLE dummy ADD CONSTRAINT dum " + constraintDefinition;
-        try {
-            var exp = (Alter) CCJSqlParserUtil.parse(cons);
-            var fkIndex = (ForeignKeyIndex) exp.getAlterExpressions().get(0).getIndex();
-            builder.refTableKey(fkIndex.getTable().getName());
-        } catch (JSQLParserException e) {
-            log.error("Failed to dummy foreign key constraint {}", cons);
-            throw new FatalError("Unexpected foreign key constraint");
-        }
-    }
-
-    private static UniqueConstraint parseUniqueConstraint(String expression) {
-        try {
-            var exp = CCJSqlParserUtil.parseExpression(expression.substring("UNIQUE ".length()));
-            if (exp instanceof ParenthesedExpressionList<?> pel) {
-                var columns = pel.stream().map(p -> (((Column) p).getColumnName())).toList();
-                return UniqueConstraint.of(columns);
-            }
-
-            log.error("Expected unique expression, but got {}", exp);
-            throw new FatalError("Expected unique expression, but did not receive any");
-        } catch (JSQLParserException e) {
-            log.error("Failed to parse unique expression", e);
-            throw new FatalError("Failed to parse unique expression");
         }
     }
 
