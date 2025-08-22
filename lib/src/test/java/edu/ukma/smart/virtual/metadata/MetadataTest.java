@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class MetadataTest {
 
-    private static final String DB_NAME = "test_db";
+    private static final String DB_NAME = "metadata_db";
 
     private GenericContainer<?> container;
     private Connection connection;
@@ -51,7 +51,7 @@ public class MetadataTest {
 
     @Test
     void testGetTablesWhenNoExists() {
-        var service = new DefaultVirtualTableService(connection);
+        var service = new DefaultVirtualTableService(this::createConnection);
         var ret = service.getTables();
         Assert.assertTrue(ret.error().isEmpty(), "Expected no errors, but got " + ret.error().orElse(null));
         Assert.assertEquals(ret.value().size(), 0);
@@ -59,7 +59,7 @@ public class MetadataTest {
 
     @Test
     void testGetTablesReturnMetadataAboutTables() {
-        var service = new DefaultVirtualTableService(connection);
+        var service = new DefaultVirtualTableService(() -> createConnection());
         var err = service.createTable(
             NewTable.builder().key("_clients").name("Company clients").description("List of all clients we have").build());
         Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
@@ -77,7 +77,7 @@ public class MetadataTest {
 
     @Test
     void testGetPropertiesReturnFullInformationAboutTable() {
-        var service = new DefaultVirtualTableService(connection);
+        var service = new DefaultVirtualTableService(this::createConnection);
         var companyProperties = List.of(
             StringProperty
                 .builder()
@@ -170,13 +170,17 @@ public class MetadataTest {
         dropTables(service, "_communicators", "_client_companies");
     }
 
-    private Connection createConnection() throws SQLException {
-        String url =
-            "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
-        Properties props = new Properties();
-        props.setProperty("user", "postgres");
-        props.setProperty("password", "test");
-        return DriverManager.getConnection(url, props);
+    private Connection createConnection() {
+        try {
+            String url =
+                "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
+            Properties props = new Properties();
+            props.setProperty("user", "postgres");
+            props.setProperty("password", "test");
+            return DriverManager.getConnection(url, props);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void dropTables(VirtualTableService service, String... tableNames) {

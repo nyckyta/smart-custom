@@ -8,6 +8,10 @@ public class FatalError extends RuntimeException {
         super(ex);
     }
 
+    public FatalError(Throwable ex) {
+        super(ex);
+    }
+
     public FatalError(String message) {
         super(message);
     }

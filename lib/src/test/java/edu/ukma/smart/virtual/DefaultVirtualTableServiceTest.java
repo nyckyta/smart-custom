@@ -57,7 +57,6 @@ class DefaultVirtualTableServiceTest {
     private static final String DB_NAME = "test_db";
 
     private GenericContainer<?> container;
-    private Connection connection;
     private DefaultVirtualTableService service;
 
     @BeforeClass
@@ -69,14 +68,12 @@ class DefaultVirtualTableServiceTest {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
-        connection = createConnection();
-        service = new DefaultVirtualTableService(connection);
+        service = new DefaultVirtualTableService(this::createConnection);
     }
 
     @AfterClass(alwaysRun = true)
     void stopContainer() throws SQLException {
         container.stop();
-        connection.close();
     }
 
     @DataProvider
@@ -233,7 +230,8 @@ class DefaultVirtualTableServiceTest {
 
         service.addRow(tableKey, List.of());
 
-        try (final var statement = connection.createStatement()) {
+        try (final var connection = createConnection();
+             final var statement = connection.createStatement()) {
             assertTrue(
                 statement.execute(
                     "SELECT * FROM %s WHERE malicious = $$%s$$".formatted(tableKey, defaultValue)),
@@ -261,7 +259,10 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
-        try (var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            final var statement = connection.createStatement()
+        ) {
             assertTrue(statement.execute(
                 """
                     SELECT table_schema, table_name, table_type, is_insertable_into
@@ -378,7 +379,10 @@ class DefaultVirtualTableServiceTest {
         service.dropTable(DropTable.of("_table_to_delete"));
 
         // Verify the table is deleted
-        try (var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            var statement = connection.createStatement()
+        ) {
             statement.execute(
                 """
                     
@@ -443,7 +447,10 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
-        try (var statement = connection.createStatement()) {
+        try (
+            var connection = createConnection();
+            var statement = connection.createStatement()
+        ) {
             statement.execute("""
                 SELECT 1 WHERE EXISTS(SELECT "property_one"\
                  FROM _add_row_test\
@@ -478,8 +485,9 @@ class DefaultVirtualTableServiceTest {
                     .description("This is property 3")
                     .defaultValue("default_value_3")
                     .constraints(Set.of(
-                        PropertyConstraint.maxLength(10),
-                        PropertyConstraint.minLength(5))
+                            PropertyConstraint.maxLength(10),
+                            PropertyConstraint.minLength(5)
+                        )
                     )
                     .build()
             )
@@ -497,7 +505,8 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table " + err);
 
-        try (var statement = connection.createStatement()) {
+        var con = createConnection();
+        try (var statement = con.createStatement()) {
             statement.execute("""
                 SELECT 1 WHERE EXISTS(\
                 SELECT "property_two", "property_three", "property_four" \
@@ -535,6 +544,8 @@ class DefaultVirtualTableServiceTest {
             err = service.addRow("_table_key_add_row", secondColumnFailure);
             assertTrue(err.isPresent(), "Expected error, but got no errors");
             assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
+        } finally {
+            con.close();
         }
 
     }
@@ -564,7 +575,7 @@ class DefaultVirtualTableServiceTest {
                     .name("Property 4")
                     .description("This is property four")
                     .constraints(Set.of(
-                        PropertyConstraint.greaterOrEqual(5L),
+                        PropertyConstraint.greaterOrEqual(7L),
                         PropertyConstraint.lessOrEqual(10L))
                     )
                     .build()
@@ -621,7 +632,10 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
-        try (var assertStatement = connection.createStatement()) {
+        try (
+            var connection = createConnection();
+            var assertStatement = connection.createStatement()
+        ) {
             assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
                     SELECT * FROM _table_key_integer_add_row
@@ -717,7 +731,10 @@ class DefaultVirtualTableServiceTest {
         assertFalse(err.isPresent(),
             "Expected no error when adding row to the virtual table");
 
-        try (var assertStatement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            var assertStatement = connection.createStatement()
+        ) {
             assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
                     SELECT * FROM _table_key_decimal_add_row
@@ -747,7 +764,10 @@ class DefaultVirtualTableServiceTest {
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
-        try (var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            var statement = connection.createStatement()
+        ) {
             statement.execute("""
                 INSERT INTO _table_key_delete_row ("property_one") VALUES ('value1');""");
             statement.execute(
@@ -820,7 +840,10 @@ class DefaultVirtualTableServiceTest {
         assertTrue(err.isPresent(), "Expected error, but got no errors");
         assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
-        try (final var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            final var statement = connection.createStatement()
+        ) {
             statement.execute("SELECT _id FROM _test_table_creation_with_reference_property");
             statement.getResultSet().next();
             var parentId = statement.getResultSet().getInt(1);
@@ -936,7 +959,9 @@ class DefaultVirtualTableServiceTest {
 
         assertFalse(err.isPresent());
 
-        try (final var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            final var statement = connection.createStatement()) {
             statement.execute("""
                 SELECT _id FROM _test_table_row_update\
                  WHERE "int_prop" = 2 AND "decimal_prop" = 35.5 AND "string_prop" = '321' AND "boolean_prop" = FALSE AND "ref_prop" = 2"""
@@ -1382,7 +1407,9 @@ class DefaultVirtualTableServiceTest {
         err = service.deleteRow(DeleteRow.of("_reference_row_delete_sets_to_null", 1));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        try (final var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            final var statement = connection.createStatement()) {
             statement.execute("SELECT *" +
                               " FROM _reference_row_delete_sets_to_null_reference" +
                               " WHERE _id=1 AND name IS NULL"
@@ -1440,7 +1467,10 @@ class DefaultVirtualTableServiceTest {
         err = service.deleteRow(DeleteRow.of("_reference_row_delete_sets_to_default", 2));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        try (final var statement = connection.createStatement()) {
+        try (
+            final var connection = createConnection();
+            final var statement = connection.createStatement()
+        ) {
             statement.execute("SELECT *" +
                               " FROM _reference_row_delete_sets_to_default_referencing" +
                               " WHERE _id=1 AND name=1"
@@ -1490,8 +1520,9 @@ class DefaultVirtualTableServiceTest {
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
 
-        try {
-            final var statement = connection.createStatement();
+        try (final var connection = createConnection();
+             final var statement = connection.createStatement()
+        ) {
             statement.executeUpdate("UPDATE _update_of_referenced_row_id_is_restricted" +
                                     " SET _id=2" +
                                     " WHERE _id=1;"
@@ -1571,12 +1602,16 @@ class DefaultVirtualTableServiceTest {
         assertFalse(res.value().get(0).stream().map(ColumnValue::key).anyMatch(k -> k.equals("name")));
     }
 
-    private Connection createConnection() throws SQLException {
-        String url =
-            "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
-        Properties props = new Properties();
-        props.setProperty("user", "postgres");
-        props.setProperty("password", "test");
-        return DriverManager.getConnection(url, props);
+    private Connection createConnection() {
+        try {
+            String url =
+                "jdbc:postgresql://localhost:%d/%s".formatted(container.getMappedPort(5432), DB_NAME);
+            Properties props = new Properties();
+            props.setProperty("user", "postgres");
+            props.setProperty("password", "test");
+            return DriverManager.getConnection(url, props);
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }

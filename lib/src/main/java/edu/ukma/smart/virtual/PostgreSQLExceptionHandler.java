@@ -2,6 +2,7 @@ package edu.ukma.smart.virtual;
 
 import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.COLUMN_DOES_NOT_EXIST;
 import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.REPEAT;
 import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
 
 import edu.ukma.smart.virtual.errors.Err;
@@ -21,6 +22,7 @@ public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
     private static final String UNDEFINED_TABLE = "42P01";
     private static final String NUMERIC_VALUE_OUT_OF_RANGE = "22003";
     private static final String INVALID_COLUMN = "42703";
+    private static final String FAILED_TO_SERIALIZE_TRANSACTION = "40001";
 
     @Override
     public Err handle(SQLException e) {
@@ -29,6 +31,7 @@ public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
             return OperationError.of(OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
         }
         return switch (e.getSQLState()) {
+            case FAILED_TO_SERIALIZE_TRANSACTION -> OperationError.of(REPEAT);
             case UNDEFINED_TABLE -> OperationError.of(TABLE_DOES_NOT_EXIST);
             case NUMERIC_VALUE_OUT_OF_RANGE -> OperationError.of(PROPERTY_CHECK_VIOLATED);
             case INVALID_COLUMN -> OperationError.of(COLUMN_DOES_NOT_EXIST);
