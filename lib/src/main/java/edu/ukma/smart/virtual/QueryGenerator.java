@@ -42,4 +42,6 @@ interface QueryGenerator {
 
     Return<String> deleteFromTable(DeleteRow deleteRow);
     // TODO: extend
+
+    Return<String> foreignKeyTableReferences();
 }

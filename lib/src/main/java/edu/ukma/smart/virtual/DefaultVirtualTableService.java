@@ -1,6 +1,7 @@
 package edu.ukma.smart.virtual;
 
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ADD_ROW_LISTS_ARE_NOT_SUPPORTED;
+import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CIRCULAR_REFERENCE_DETECTED;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.UPDATE_ROW_LISTS_VALUES_ARE_NOT_SUPPORTED;
 import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.FAILED_TO_RELEASE_CONNECTION;
 import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.REPEAT;
@@ -35,8 +36,12 @@ import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -58,7 +63,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
         this.connectionPool = new ConnectionPool(() -> {
             var conn = connectionSupplier.get();
             try {
-                conn.setAutoCommit(true);
+                conn.setAutoCommit(false);
                 conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
@@ -105,9 +110,17 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     }
 
                     var resultSet = statement.getResultSet();
-                    return metadataProcessor.processTables(resultSet);
+                    var result = metadataProcessor.processTables(resultSet);
+                    connection.commit();
+                    return result;
                 }
             } catch (SQLException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException ex) {
+                    log.error("Get table: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 var err = exceptionHandler.handle(e);
                 return Return.error(err);
             }
@@ -121,7 +134,38 @@ public class DefaultVirtualTableService implements VirtualTableService {
             return query.error();
         }
 
-        return executeStatement(query.value()).error();
+        return executeOperation(connectionPool, false, (con) -> {
+            try {
+                con.beginRequest();
+                try (var stmt = con.prepareStatement(query.value())) {
+                    stmt.execute();
+                    if (addProperty.property().type() == Property.Type.REFERENCE) {
+                        var isCircularReferenceDetected = detectCircularDependency(con, addProperty.tableKey());
+                        if (isCircularReferenceDetected.error().isPresent()) {
+                            log.error("Error checking for circular referencing {}", isCircularReferenceDetected.error().get());
+                            con.rollback();
+                            return Return.error(isCircularReferenceDetected.error().get());
+                        }
+
+                        if (isCircularReferenceDetected.value()) {
+                            log.warn("Detected circular referencing for {}", addProperty);
+                            con.rollback();
+                            return Return.error(InputValidationErr.of(CIRCULAR_REFERENCE_DETECTED));
+                        }
+                    }
+                    con.commit();
+                    return Return.of(new Object());
+                }
+            } catch (SQLException e) {
+                try {
+                    con.rollback();
+                } catch (SQLException ex) {
+                    log.error("Add property: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
+                return Return.error(exceptionHandler.handle(e));
+            }
+        }).error();
     }
 
     @Override
@@ -136,8 +180,16 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 stm.setString(1, tableKey);
                 stm.execute();
                 var resultSet = stm.getResultSet();
-                return metadataProcessor.processProperties(resultSet);
+                var result = metadataProcessor.processProperties(resultSet);
+                conn.commit();
+                return result;
             } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    log.error("Get properties: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 return Return.error(exceptionHandler.handle(e));
             }
         });
@@ -177,7 +229,14 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     index += 1;
                 }
                 statement.execute();
+                conn.commit();
             } catch (final SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    log.error("Add row: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 return Return.error(exceptionHandler.handle(e));
             }
 
@@ -210,7 +269,14 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 }
                 statement.setInt(index, updateRow.rowId());
                 statement.execute();
+                conn.commit();
             } catch (final SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    log.error("Update row: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 return Return.error(exceptionHandler.handle(e));
             }
 
@@ -246,7 +312,6 @@ public class DefaultVirtualTableService implements VirtualTableService {
                         case DECIMAL -> statement.setBigDecimal(index, ((DecimalValue) v).value());
                         case REFERENCE -> statement.setInt(index, ((ReferenceValue) v).value());
                         case LIST -> index = setListValue(statement, (ListValue<?>) v, index);
-                        case null -> throw new NullPointerException();
                     }
                     index += 1;
                 }
@@ -273,12 +338,23 @@ public class DefaultVirtualTableService implements VirtualTableService {
                     }
                     queryResult.add(rowResult);
                 }
-
+                conn.commit();
                 return Return.of(queryResult);
             } catch (ParseException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    log.error("Delete row: Failure during rollback", ex);
+                }
                 log.error("Failed to parse timestamp", e);
                 throw new IllegalStateException("Failure during select. Unexpected time value.");
             } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    log.error("Delete row: Failure during rollback", ex);
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 return Return.error(exceptionHandler.handle(e));
             }
         });
@@ -329,11 +405,17 @@ public class DefaultVirtualTableService implements VirtualTableService {
                 try (var statement = conn.createStatement()) {
                     log.debug("Executing SQL statement to add row: {}", query);
                     statement.execute(query);
+                    conn.commit();
                 } finally {
                     conn.endRequest();
                 }
             } catch (SQLException e) {
                 log.debug("Error executing SQL statement", e);
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    return Return.error(exceptionHandler.handle(e));
+                }
                 return Return.error(exceptionHandler.handle(e));
             }
 
@@ -354,7 +436,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
         var conn = connRes.value();
         // TODO: think about these values, how much is enough?
-        int maxRepeatedTimes = readOnly ? 0 : 15;
+        int maxRepeatedTimes = readOnly ? 0 : 100;
         int repeatedTimes = 0;
         while (true) {
             var opErr = operation.apply(conn);
@@ -416,6 +498,57 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
         log.warn("Exhausted repeating connection...");
         return Return.error(OperationError.of(OperationError.ErrorCode.FAILED_TO_ACQUIRE_CONNECTION));
+    }
+
+    // true if circular referencing in schema exists, otherwise false
+    private Return<Boolean> detectCircularDependency(Connection connection, String changingTable) throws SQLException {
+        var queryResult = queryBuilder.foreignKeyTableReferences();
+        if (queryResult.error().isPresent()) {
+            return Return.error(queryResult.error().get());
+        }
+
+
+        var graph = new TreeMap<String, Set<String>>();
+        try (var stmt = connection.prepareStatement(queryResult.value())) {
+            stmt.execute();
+            var rs = stmt.getResultSet();
+
+            // here we're constructing directed graph, key is node, value is set of neighbours that we can access
+            while (rs.next()) {
+                var sourceTable = rs.getString(1);
+                var destinationTable = rs.getString(2);
+
+                graph.compute(sourceTable, (k, v) -> {
+                    if (v == null) {
+                        v = new HashSet<>();
+                    }
+
+                    v.add(destinationTable);
+                    return v;
+                });
+            }
+        }
+        return Return.of(isNodeAccessible(graph, changingTable, changingTable));
+    }
+
+    private boolean isNodeAccessible(Map<String, Set<String>> nodes, String fromNode, String destinationNode) {
+        var referencingNodes = nodes.get(fromNode);
+
+        if (referencingNodes == null || referencingNodes.isEmpty()) {
+            return false;
+        }
+
+        if (referencingNodes.contains(destinationNode)) {
+            return true;
+        }
+
+        for (var n : referencingNodes) {
+            if (isNodeAccessible(nodes, n, destinationNode)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

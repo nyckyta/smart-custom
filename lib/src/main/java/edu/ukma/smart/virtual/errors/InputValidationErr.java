@@ -12,6 +12,8 @@ public record InputValidationErr(ErrorCode code) implements Err {
         WRONG_PROPERTY_KEY_FORMAT("property.key.format.is.wrong"),
         WRONG_ROW_ID_FORMAT("table.row.id.format.is.wrong"),
 
+        CIRCULAR_REFERENCE_DETECTED("table.circular.reference.detected"),
+
         // create table specific
         CREATE_TABLE_EMPTY_NAME_FOR_TABLE("create.table.name.is.empty"),
         CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY("create.table.property.is.empty"),

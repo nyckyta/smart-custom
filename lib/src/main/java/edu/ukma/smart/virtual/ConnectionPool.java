@@ -165,7 +165,7 @@ public class ConnectionPool implements AutoCloseable {
     private Connection createConnection() throws SQLException {
         var conn = connectionSupplier.get();
         conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-        conn.setAutoCommit(true);
+        conn.setAutoCommit(false);
         conn.setNetworkTimeout(timeoutExecutor, networkTimeoutMs);
         return conn;
     }

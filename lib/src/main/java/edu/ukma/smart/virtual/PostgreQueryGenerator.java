@@ -120,7 +120,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                     case INTEGER -> addIntegerProperty((IntegerProperty) property, query);
                     case BOOLEAN -> addBooleanProperty((BooleanProperty) property, query);
                     case DECIMAL -> addDecimalProperty((DecimalProperty) property, query);
-                    case REFERENCE -> addReferenceProperty((ReferenceProperty) property, query, constraints);
+                    case REFERENCE -> createTableAddReferenceProperty((ReferenceProperty) property, query, constraints);
                 }
 
                 for (var c : property.constraints()) {
@@ -340,8 +340,8 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         var query = new StringBuilder("ALTER TABLE %s ADD COLUMN%n".formatted(addProperty.tableKey()));
-
         var constraints = new ArrayList<String>();
+        var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
         try {
             switch (prop.type()) {
@@ -349,7 +349,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 case INTEGER -> addIntegerProperty((IntegerProperty) prop, query);
                 case BOOLEAN -> addBooleanProperty((BooleanProperty) prop, query);
                 case DECIMAL -> addDecimalProperty((DecimalProperty) prop, query);
-                case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, constraints);
+                case REFERENCE -> addReferenceProperty((ReferenceProperty) prop, query, foreignKeyConstraint);
             }
 
             for (var c : prop.constraints()) {
@@ -370,7 +370,8 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(exceptionHandler.handle(e));
         }
 
-        query.append(" %s;".formatted(String.join(" ", constraints)));
+        query.append(" %s%s;".formatted(String.join(" ", constraints),
+            foreignKeyConstraint.isEmpty() ? "" : ",ADD " + foreignKeyConstraint));
         return Return.of(query.toString());
     }
 
@@ -480,7 +481,32 @@ class PostgreQueryGenerator implements QueryGenerator {
         return Return.of(query);
     }
 
-    private void addReferenceProperty(
+    @Override
+    public Return<String> foreignKeyTableReferences() {
+        return Return.of(
+            // TODO: configurable
+            // Constraints
+            """
+                SELECT DISTINCT
+                    tc.table_name constraint_table_name,
+                    ccu.table_name AS foreign_table_name
+                FROM information_schema.table_constraints AS tc
+                   INNER JOIN information_schema.key_column_usage AS kcu
+                       ON tc.constraint_name = kcu.constraint_name
+                       AND tc.table_schema = kcu.table_schema
+                   INNER JOIN information_schema.constraint_column_usage AS ccu
+                       ON ccu.constraint_name = tc.constraint_name
+                       AND ccu.table_schema = tc.table_schema
+                WHERE
+                    tc.constraint_type = 'FOREIGN KEY'
+                    AND tc.table_schema IN ('public')
+                ORDER BY
+                    tc.table_name;
+                """
+        );
+    }
+
+    private void createTableAddReferenceProperty(
         ReferenceProperty r,
         StringBuilder statementBuilder,
         List<String> constraints
@@ -494,6 +520,28 @@ class PostgreQueryGenerator implements QueryGenerator {
         );
 
         constraints.add("FOREIGN KEY (\"%s\") REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
+            .formatted(
+                r.key(),
+                r.refTableKey(),
+                r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
+            )
+        );
+    }
+
+    private void addReferenceProperty(
+        ReferenceProperty r,
+        StringBuilder statementBuilder,
+        StringBuilder foreignKeyConstraint
+    ) {
+        statementBuilder.append(
+            "\"%s\" INTEGER%s%s%n".formatted(
+                r.key(),
+                r.notNull() ? " NOT NULL" : "",
+                r.defaultValue() == null ? "" : " DEFAULT %d".formatted(r.defaultValue())
+            )
+        );
+
+        foreignKeyConstraint.append("FOREIGN KEY (\"%s\") REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
                 r.key(),
                 r.refTableKey(),
