@@ -57,7 +57,7 @@ public class ConnectionPool implements AutoCloseable {
 
     }
 
-    public Optional<Connection> acquireConnection(boolean readOnly, long timeoutMillis) throws ExecutionException,
+    public Optional<Connection> acquireConnection(boolean readOnly, int timeoutMillis) throws ExecutionException,
         InterruptedException {
         Future<Optional<Connection>> acquire = syncExecutor.submit(() -> {
             var optionalConn = availableConnections.stream().findAny();
@@ -105,7 +105,7 @@ public class ConnectionPool implements AutoCloseable {
 
     }
 
-    public Optional<Err> releaseConnection(Connection connection, long timeoutMillis)
+    public Optional<Err> releaseConnection(Connection connection, int timeoutMillis)
         throws ExecutionException, InterruptedException {
         Future<?> task = syncExecutor.submit(() -> {
             log.info("Releasing connection {}", connection);

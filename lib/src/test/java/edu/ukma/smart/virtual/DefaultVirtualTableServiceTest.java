@@ -68,7 +68,11 @@ class DefaultVirtualTableServiceTest {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
-        service = new DefaultVirtualTableService(this::createConnection);
+        container.execInContainer("psql",
+            "-U", "postgres",
+            "-d", DB_NAME,
+            "-c", "CREATE SCHEMA custom;");
+        service = new DefaultVirtualTableService(this::createConnection, new Config());
     }
 
     @AfterClass(alwaysRun = true)
@@ -272,7 +276,7 @@ class DefaultVirtualTableServiceTest {
 
             var result = statement.getResultSet();
             assertTrue(result.next(), "Expected at least one result row");
-            assertEquals(result.getString(1), "public", "Expected schema to be 'public'");
+            assertEquals(result.getString(1), "custom", "Expected schema to be 'public'");
             assertEquals(result.getString(2), "_table_key",
                 "Expected table name to be 'table_key'");
             assertEquals(result.getString(3), "BASE TABLE",
@@ -305,7 +309,7 @@ class DefaultVirtualTableServiceTest {
             );
             assertEquals(
                 columnsResult.getString("column_default"),
-                "nextval('_table_key__id_seq'::regclass)",
+                "nextval('custom._table_key__id_seq'::regclass)",
                 "Expected column '_id' to have default value");
             columnsResult.next();
             assertEquals(
@@ -386,8 +390,8 @@ class DefaultVirtualTableServiceTest {
             statement.execute(
                 """
                     
-                       SELECT 1 FROM information_schema.tables
-                     WHERE table_name = '_table_to_delete'
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = '_table_to_delete' AND table_schema = 'custom' 
                     
                     """
             );
@@ -453,7 +457,7 @@ class DefaultVirtualTableServiceTest {
         ) {
             statement.execute("""
                 SELECT 1 WHERE EXISTS(SELECT "property_one"\
-                 FROM _add_row_test\
+                 FROM custom._add_row_test\
                  WHERE "property_one" = 'value1' AND "property_two" = 123 AND "property_three" = true AND "property_four" = 123.321);""");
             var hasNext = statement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
@@ -510,7 +514,7 @@ class DefaultVirtualTableServiceTest {
             statement.execute("""
                 SELECT 1 WHERE EXISTS(\
                 SELECT "property_two", "property_three", "property_four" \
-                FROM _table_key_add_row \
+                FROM custom._table_key_add_row \
                 WHERE "property_two" = 'value' AND "property_three" = 'value' AND "property_four" = 'value12345');""");
             var hasNext = statement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
@@ -638,7 +642,7 @@ class DefaultVirtualTableServiceTest {
         ) {
             assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
-                    SELECT * FROM _table_key_integer_add_row
+                    SELECT * FROM custom._table_key_integer_add_row
                     WHERE "property_two" = 2 AND "property_three" = 6 AND "property_four" = 10)""");
             boolean hasNext = assertStatement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
@@ -737,7 +741,7 @@ class DefaultVirtualTableServiceTest {
         ) {
             assertStatement.execute("""
                 SELECT 1 WHERE EXISTS(
-                    SELECT * FROM _table_key_decimal_add_row
+                    SELECT * FROM custom._table_key_decimal_add_row
                     WHERE "property_four" = 2.5 AND "property_three" = 1.245 AND "property_two" = 1.126)""");
             boolean hasNext = assertStatement.getResultSet().next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
@@ -769,10 +773,10 @@ class DefaultVirtualTableServiceTest {
             var statement = connection.createStatement()
         ) {
             statement.execute("""
-                INSERT INTO _table_key_delete_row ("property_one") VALUES ('value1');""");
+                INSERT INTO custom._table_key_delete_row ("property_one") VALUES ('value1');""");
             statement.execute(
                 """
-                    SELECT _id FROM _table_key_delete_row WHERE "property_one" = 'value1';""");
+                    SELECT _id FROM custom._table_key_delete_row WHERE "property_one" = 'value1';""");
             var resultSet = statement.getResultSet();
             var hasNext = resultSet.next();
             assertTrue(hasNext, "Expected the row to be added to the virtual table");
@@ -783,7 +787,7 @@ class DefaultVirtualTableServiceTest {
             try (var assertStatement = connection.createStatement()) {
                 assertStatement.execute("""
                     SELECT 1 WHERE EXISTS(
-                        SELECT "property_one" FROM _table_key_delete_row WHERE "property_one" = 'value1')""");
+                        SELECT "property_one" FROM custom._table_key_delete_row WHERE "property_one" = 'value1')""");
                 hasNext = assertStatement.getResultSet().next();
                 assertFalse(hasNext,
                     "Expected the row to be deleted from the virtual table");
@@ -844,7 +848,7 @@ class DefaultVirtualTableServiceTest {
             final var connection = createConnection();
             final var statement = connection.createStatement()
         ) {
-            statement.execute("SELECT _id FROM _test_table_creation_with_reference_property");
+            statement.execute("SELECT _id FROM custom._test_table_creation_with_reference_property");
             statement.getResultSet().next();
             var parentId = statement.getResultSet().getInt(1);
 
@@ -858,7 +862,7 @@ class DefaultVirtualTableServiceTest {
             statement.clearBatch();
             statement.execute("""
                 SELECT _id
-                FROM _test_table_creation_with_reference_property_having_ref
+                FROM custom._test_table_creation_with_reference_property_having_ref
                 WHERE "test_table_creation_with_reference_property_ref_property" = %d""".formatted(
                 parentId));
             assertTrue(statement.getResultSet().next(),
@@ -963,7 +967,7 @@ class DefaultVirtualTableServiceTest {
             final var connection = createConnection();
             final var statement = connection.createStatement()) {
             statement.execute("""
-                SELECT _id FROM _test_table_row_update\
+                SELECT _id FROM custom._test_table_row_update\
                  WHERE "int_prop" = 2 AND "decimal_prop" = 35.5 AND "string_prop" = '321' AND "boolean_prop" = FALSE AND "ref_prop" = 2"""
             );
             assertTrue(statement.getResultSet().next());
@@ -1411,7 +1415,7 @@ class DefaultVirtualTableServiceTest {
             final var connection = createConnection();
             final var statement = connection.createStatement()) {
             statement.execute("SELECT *" +
-                              " FROM _reference_row_delete_sets_to_null_reference" +
+                              " FROM custom._reference_row_delete_sets_to_null_reference" +
                               " WHERE _id=1 AND name IS NULL"
             );
             assertTrue(statement.getResultSet().next());
@@ -1472,7 +1476,7 @@ class DefaultVirtualTableServiceTest {
             final var statement = connection.createStatement()
         ) {
             statement.execute("SELECT *" +
-                              " FROM _reference_row_delete_sets_to_default_referencing" +
+                              " FROM custom._reference_row_delete_sets_to_default_referencing" +
                               " WHERE _id=1 AND name=1"
             );
             assertTrue(statement.getResultSet().next());

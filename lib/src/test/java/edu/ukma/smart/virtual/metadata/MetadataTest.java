@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual.metadata;
 
+import edu.ukma.smart.virtual.Config;
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
 import edu.ukma.smart.virtual.VirtualTableService;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
@@ -27,6 +28,7 @@ import org.testng.annotations.Test;
 public class MetadataTest {
 
     private static final String DB_NAME = "metadata_db";
+    private static final Config CONFIG = new Config();
 
     private GenericContainer<?> container;
     private Connection connection;
@@ -40,6 +42,10 @@ public class MetadataTest {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
+        container.execInContainer("psql",
+            "-U", "postgres",
+            "-d", DB_NAME,
+            "-c", "CREATE SCHEMA custom;");
         connection = createConnection();
     }
 
@@ -51,7 +57,7 @@ public class MetadataTest {
 
     @Test
     void testGetTablesWhenNoExists() {
-        var service = new DefaultVirtualTableService(this::createConnection);
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         var ret = service.getTables();
         Assert.assertTrue(ret.error().isEmpty(), "Expected no errors, but got " + ret.error().orElse(null));
         Assert.assertEquals(ret.value().size(), 0);
@@ -59,7 +65,7 @@ public class MetadataTest {
 
     @Test
     void testGetTablesReturnMetadataAboutTables() {
-        var service = new DefaultVirtualTableService(() -> createConnection());
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         var err = service.createTable(
             NewTable.builder().key("_clients").name("Company clients").description("List of all clients we have").build());
         Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
@@ -77,7 +83,7 @@ public class MetadataTest {
 
     @Test
     void testGetPropertiesReturnFullInformationAboutTable() {
-        var service = new DefaultVirtualTableService(this::createConnection);
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         var companyProperties = List.of(
             StringProperty
                 .builder()

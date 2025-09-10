@@ -1,5 +1,6 @@
 package edu.ukma.smart.virtual.metadata;
 
+import edu.ukma.smart.virtual.Config;
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
 import edu.ukma.smart.virtual.Utils;
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
@@ -21,6 +22,7 @@ import org.testng.annotations.Test;
 public class CircularReferencesDetection {
 
     private static final String DB_NAME = "circular_references_detection";
+    private static final Config CONFIG = new Config();
 
     private GenericContainer<?> container;
 
@@ -33,11 +35,15 @@ public class CircularReferencesDetection {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
+        container.execInContainer("psql",
+            "-U", "postgres",
+            "-d", DB_NAME,
+            "-c", "CREATE SCHEMA custom;");
     }
 
     @Test
     void testTwoTablesCantHaveDirectReferencesOnEachOtherSimultaneously() {
-        var service = new DefaultVirtualTableService(this::createConnection);
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         var firstTableKey = "_" + Utils.generateRandomString(25);
         var secondTableKey = "_" + Utils.generateRandomString(25);
         var err = service.createTable(NewTable
@@ -80,7 +86,7 @@ public class CircularReferencesDetection {
 
     @Test
     void testDeepCircularReferencesAreDetected() {
-        var service = new DefaultVirtualTableService(this::createConnection);
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         var firstTableKey = "_" + Utils.generateRandomString(25);
         var err = service.createTable(NewTable
             .builder()

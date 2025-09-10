@@ -48,6 +48,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
     private final InputValidator inputValidator = new PostgreInputValidator();
     private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
+    private final String schema;
+
+    public PostgreQueryGenerator(String workingSchema) {
+        this.schema = workingSchema;
+    }
 
     private static void addIntegerProperty(
         IntegerProperty i,
@@ -99,13 +104,12 @@ class PostgreQueryGenerator implements QueryGenerator {
         var query = new StringBuilder()
             // TODO: figure out how to add timestamp on update
             // _updated TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            // TODO: schema check
             .append(
                 """
-                    CREATE TABLE public.%s (
+                    CREATE TABLE %s.%s (
                         _id SERIAL PRIMARY KEY NOT NULL,
                         _created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-                    """.formatted(newTable.key())
+                    """.formatted(schema, newTable.key())
             );
 
         var constraints = new ArrayList<String>();
@@ -242,16 +246,16 @@ class PostgreQueryGenerator implements QueryGenerator {
     public Return<String> dropTable(DropTable deleteTable) {
         var err = inputValidator.validateDeleteTable(deleteTable);
         return err.<Return<String>>map(Return::error)
-            .orElseGet(() -> Return.of("DROP TABLE %s;".formatted(deleteTable.tableKey())));
+            .orElseGet(() -> Return.of("DROP TABLE %s.%s;".formatted(schema, deleteTable.tableKey())));
 
     }
 
     @Override
     public Return<String> getTables() {
         return Return.of("""
-            SELECT t.tablename, obj_description(t.tablename::regclass::oid, 'pg_class')
-            FROM (SELECT schemaname, tablename FROM pg_tables WHERE schemaname = '%s') AS t;
-            """.formatted("public")
+            SELECT t.tablename, obj_description(t.schema_table::regclass::oid, 'pg_class')
+            FROM (SELECT schemaname, tablename, concat(schemaname, '.', tablename) AS schema_table FROM pg_tables WHERE schemaname = '%s') AS t;
+            """.formatted(schema)
         );
     }
 
@@ -300,6 +304,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             PostgreInputValidator.SYSTEM_EXCLUDED_FIELDS.stream(),
             PostgreInputValidator.STATIC_FIELDS.stream()
         ).map("'%s'"::formatted).collect(Collectors.joining(","));
+        // TODO: return static fields too
         return Return.of(
             """
                 SELECT
@@ -323,13 +328,13 @@ class PostgreQueryGenerator implements QueryGenerator {
                         AND (dep.refobjsubid = attr.attnum)
                         AND (dep.deptype = 'a')
                 WHERE
-                    (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname=?))
+                    (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = '%s') AND relkind = 'r' AND relname=?))
                   AND
                     (attr.attname NOT IN ('_id', '_created', 'tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
                   AND
                     (attr.attisdropped <> TRUE)
                 ORDER BY attr.attname ASC;
-                """.formatted(ignoredProperties));
+                """.formatted(schema));
     }
 
     @Override
@@ -339,7 +344,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        var query = new StringBuilder("ALTER TABLE %s ADD COLUMN%n".formatted(addProperty.tableKey()));
+        var query = new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, addProperty.tableKey()));
         var constraints = new ArrayList<String>();
         var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
@@ -382,7 +387,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        var query = "ALTER TABLE %s DROP COLUMN %s;".formatted(dropProperty.tableKey(), dropProperty.columnKey());
+        var query = "ALTER TABLE %s.%s DROP COLUMN %s;".formatted(schema, dropProperty.tableKey(), dropProperty.columnKey());
         return Return.of(query);
     }
 
@@ -395,7 +400,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         var queryBuilder = new StringBuilder()
-            .append("UPDATE public.%s SET ".formatted(updateRow.tableKey()));
+            .append("UPDATE %s.%s SET ".formatted(schema, updateRow.tableKey()));
         for (var column : updateRow.valuesToUpdate()) {
             queryBuilder.append("\"%s\"=?,".formatted(column.key()));
         }
@@ -414,7 +419,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         }
 
         if (insertRow.columnValues().isEmpty()) {
-            return Return.of("INSERT INTO %s DEFAULT VALUES;".formatted(insertRow.tableKey()));
+            return Return.of("INSERT INTO %s.%s DEFAULT VALUES;".formatted(schema, insertRow.tableKey()));
         }
 
         var propertiesPart = new StringBuilder("(");
@@ -431,7 +436,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         propertiesPart.append(")");
         valuesPart.append(")");
 
-        return Return.of("INSERT INTO %s %s %s;".formatted(insertRow.tableKey(), propertiesPart, valuesPart));
+        return Return.of("INSERT INTO %s.%s %s %s;".formatted(schema, insertRow.tableKey(), propertiesPart, valuesPart));
     }
 
     @Override
@@ -452,7 +457,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             query.delete(query.length() - 1, query.length());
         }
 
-        query.append(" FROM public.%s ".formatted(selectQuery.tableKey()));
+        query.append(" FROM %s.%s ".formatted(schema, selectQuery.tableKey()));
 
         if (selectQuery.predicate() == null) {
             return Return.of(SelectStatement.of(query.append(";").toString(), List.of()));
@@ -477,15 +482,13 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        var query = "DELETE FROM %s WHERE _id = %d;".formatted(deleteRow.tableKey(), deleteRow.rowId());
+        var query = "DELETE FROM %s.%s WHERE _id = %d;".formatted(schema, deleteRow.tableKey(), deleteRow.rowId());
         return Return.of(query);
     }
 
     @Override
     public Return<String> foreignKeyTableReferences() {
         return Return.of(
-            // TODO: configurable
-            // Constraints
             """
                 SELECT DISTINCT
                     tc.table_name constraint_table_name,
@@ -499,10 +502,10 @@ class PostgreQueryGenerator implements QueryGenerator {
                        AND ccu.table_schema = tc.table_schema
                 WHERE
                     tc.constraint_type = 'FOREIGN KEY'
-                    AND tc.table_schema IN ('public')
+                    AND tc.table_schema IN ('%s')
                 ORDER BY
                     tc.table_name;
-                """
+                """.formatted(schema)
         );
     }
 
@@ -519,9 +522,10 @@ class PostgreQueryGenerator implements QueryGenerator {
             )
         );
 
-        constraints.add("FOREIGN KEY (\"%s\") REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
+        constraints.add("FOREIGN KEY (\"%s\") REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
                 r.key(),
+                schema,
                 r.refTableKey(),
                 r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
             )
@@ -541,9 +545,10 @@ class PostgreQueryGenerator implements QueryGenerator {
             )
         );
 
-        foreignKeyConstraint.append("FOREIGN KEY (\"%s\") REFERENCES %s(_id) ON DELETE %s ON UPDATE RESTRICT"
+        foreignKeyConstraint.append("FOREIGN KEY (\"%s\") REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
                 r.key(),
+                schema,
                 r.refTableKey(),
                 r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
             )
@@ -683,15 +688,17 @@ class PostgreQueryGenerator implements QueryGenerator {
         };
     }
 
-    private static String buildTableComment(NewTable newTable) {
-        return "COMMENT ON TABLE public.%s IS '%s'".formatted(
+    private String buildTableComment(NewTable newTable) {
+        return "COMMENT ON TABLE %s.%s IS '%s'".formatted(
+            schema,
             newTable.key(),
             JsonUtils.generateComment(newTable.name(), newTable.description())
         );
     }
 
-    private static String buildPropertyComment(NewTable newTable, Property property) {
-        return "COMMENT ON COLUMN public.%s.%s IS '%s'".formatted(
+    private String buildPropertyComment(NewTable newTable, Property property) {
+        return "COMMENT ON COLUMN %s.%s.%s IS '%s'".formatted(
+            schema,
             newTable.key(),
             property.key(),
             JsonUtils.generateComment(property.name(), property.description())

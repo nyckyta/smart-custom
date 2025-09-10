@@ -52,14 +52,15 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultVirtualTableService.class);
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSX");
-    // TODO: to configure
-    private static final int CONNECTION_ACQUIRE_RETRIES = 10;
+    private final int connectionAcquireRetryAttempts;
+    private final int transactionRetryAttempts;
+    private final int acquireReleaseInitTimeout;
     private final ConnectionPool connectionPool;
-    private final QueryGenerator queryBuilder = new PostgreQueryGenerator();
+    private final QueryGenerator queryBuilder;
     private final MetadataProcessor metadataProcessor = new PostgreMetadataProcessor();
     private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
 
-    public DefaultVirtualTableService(Supplier<Connection> connectionSupplier) {
+    public DefaultVirtualTableService(Supplier<Connection> connectionSupplier, Config config) {
         this.connectionPool = new ConnectionPool(() -> {
             var conn = connectionSupplier.get();
             try {
@@ -70,8 +71,12 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
 
             return conn;
-            // TODO: to configre these values
-        }, 25, 15000);
+        }, config.connectionPoolLimit(), config.connectionNetworkTimeoutMs());
+        this.connectionAcquireRetryAttempts = config.connectionAcquireRetryAttempts();
+        this.queryBuilder = new PostgreQueryGenerator(config.schema());
+        this.transactionRetryAttempts = config.transactionRetryAttempts();
+        this.acquireReleaseInitTimeout = config.connectionAcquireReleaseTimeoutMs();
+
     }
 
     @Override
@@ -424,7 +429,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
 
     }
 
-    private static <T> Return<T> executeOperation(
+    private <T> Return<T> executeOperation(
         ConnectionPool connectionPool,
         boolean readOnly,
         Function<Connection, Return<T>> operation
@@ -435,8 +440,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
 
         var conn = connRes.value();
-        // TODO: think about these values, how much is enough?
-        int maxRepeatedTimes = readOnly ? 0 : 100;
+        int maxRepeatedTimes = readOnly ? 0 : transactionRetryAttempts;
         int repeatedTimes = 0;
         while (true) {
             var opErr = operation.apply(conn);
@@ -456,8 +460,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
             }
 
             try {
-                // TODO: configure timeout
-                var err = connectionPool.releaseConnection(conn, 10000);
+                var err = connectionPool.releaseConnection(conn, acquireReleaseInitTimeout);
                 if (err.isPresent()) {
                     return Return.error(err.get());
                 }
@@ -475,11 +478,10 @@ public class DefaultVirtualTableService implements VirtualTableService {
         }
     }
 
-    private static Return<Connection> repeatedlyAcquireConnection(boolean readOnly, ConnectionPool connectionPool) {
-        long initTimeout = 2000;
-        for (int i = 1; i < CONNECTION_ACQUIRE_RETRIES; i += 1) {
+    private Return<Connection> repeatedlyAcquireConnection(boolean readOnly, ConnectionPool connectionPool) {
+        for (int i = 1; i < connectionAcquireRetryAttempts; i += 1) {
             try {
-                var _conn = connectionPool.acquireConnection(readOnly, initTimeout * i);
+                var _conn = connectionPool.acquireConnection(readOnly, acquireReleaseInitTimeout * i);
                 if (_conn.isEmpty()) {
                     continue;
                 }

@@ -2,6 +2,7 @@ package edu.ukma.smart.virtual.metadata;
 
 import static edu.ukma.smart.virtual.Utils.generateRandomString;
 
+import edu.ukma.smart.virtual.Config;
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
 import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
@@ -31,6 +32,7 @@ import org.testng.annotations.Test;
 public class CrudTest {
 
     private static final String DB_NAME = "crud_db";
+    private static final Config CONFIG = new Config();
 
     private GenericContainer<?> container;
 
@@ -43,6 +45,10 @@ public class CrudTest {
         container.execInContainer("psql",
             "-U", "postgres",
             "-c", "CREATE DATABASE %s;".formatted(DB_NAME));
+        container.execInContainer("psql",
+            "-U", "postgres",
+            "-d", DB_NAME,
+            "-c", "CREATE SCHEMA custom;");
     }
 
     // 10 seconds timeout
@@ -54,7 +60,7 @@ public class CrudTest {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }, CONFIG);
         var tableName = "_" + generateRandomString(15);
         var err = service.createTable(
             new NewTable(
@@ -108,7 +114,7 @@ public class CrudTest {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }, CONFIG);
         var tableName = "_" + generateRandomString(15);
         var err = service.createTable(
             new NewTable(
