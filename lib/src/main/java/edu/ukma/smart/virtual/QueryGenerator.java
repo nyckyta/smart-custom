@@ -21,12 +21,16 @@ interface QueryGenerator {
     /**
      * Returns query that should be used in prepared statement with single parameter for table key.
      * Result set signature must be
-     * property_key(string), name_description_json(string), isNullable(bool), typename, precision_of_numeric_type(int), scale_of_numeric_type(int), constr_id(int), constr_def(string).
+     * property_key(string),
+     * name_description_json(string),
+     * isNullable(bool),
+     * typename,
+     * precision_of_numeric_type(int),
+     * scale_of_numeric_type(int),
+     * constr_id(int),
+     * constr_def(string).
      *
-     * Note, that property records may be repeated.
-     *
-     * @param tableKey
-     * @return
+     * <p>Note, that property records may be repeated.
      */
     Return<String> getProperties(String tableKey);
 
@@ -41,7 +45,6 @@ interface QueryGenerator {
     Return<String> updateRow(UpdateRow updateRow);
 
     Return<String> deleteFromTable(DeleteRow deleteRow);
-    // TODO: extend
 
     Return<String> foreignKeyTableReferences();
 }

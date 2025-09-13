@@ -58,7 +58,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
     private final ConnectionPool connectionPool;
     private final QueryGenerator queryBuilder;
     private final MetadataProcessor metadataProcessor = new PostgreMetadataProcessor();
-    private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
+    private final PostgreSqlExceptionHandler exceptionHandler = new PostgreSqlExceptionHandler();
 
     public DefaultVirtualTableService(Supplier<Connection> connectionSupplier, Config config) {
         this.connectionPool = new ConnectionPool(() -> {
@@ -333,10 +333,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
                             case Types.BOOLEAN, Types.BIT -> BooleanValue.of(name, resultSet.getObject(i, Boolean.class));
                             case Types.DECIMAL, Types.NUMERIC -> DecimalValue.of(name, resultSet.getBigDecimal(i));
                             case Types.VARCHAR -> StringValue.of(name, resultSet.getString(i));
-                            default -> throw new IllegalStateException(
-                                "Unsupported column type: " + resultSet.getMetaData().getColumnType(i)
-                            );
-
+                            default -> throw new IllegalStateException("Unsupported column type: " + resultSet.getMetaData().getColumnType(i));
                         };
 
                         rowResult.add(value);
@@ -445,8 +442,7 @@ public class DefaultVirtualTableService implements VirtualTableService {
         while (true) {
             var opErr = operation.apply(conn);
             // handle repeat if serialization happens
-            if (
-                opErr.error().isPresent()
+            if (opErr.error().isPresent()
                 && opErr.error().get() instanceof OperationError(OperationError.ErrorCode code)
                 && code == REPEAT
             ) {

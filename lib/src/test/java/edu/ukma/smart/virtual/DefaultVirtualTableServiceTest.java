@@ -522,13 +522,13 @@ class DefaultVirtualTableServiceTest {
             var fourthColumnFailureTooLow = List.of(
                 StringValue.of("property_four", "val")
             );
-            var fourthColumnFailureTooHigh = List.of(
-                StringValue.of("property_four", "value123456")
-            );
             err = service.addRow("_table_key_add_row", fourthColumnFailureTooLow);
             assertTrue(err.isPresent(), "Expected error, but got no errors");
             assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
 
+            var fourthColumnFailureTooHigh = List.of(
+                StringValue.of("property_four", "value123456")
+            );
             err = service.addRow("_table_key_add_row", fourthColumnFailureTooHigh);
             assertTrue(err.isPresent(), "Expected error, but got no errors");
             assertEquals(((OperationError) err.get()).code(), OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED);
@@ -1414,9 +1414,10 @@ class DefaultVirtualTableServiceTest {
         try (
             final var connection = createConnection();
             final var statement = connection.createStatement()) {
-            statement.execute("SELECT *" +
-                              " FROM custom._reference_row_delete_sets_to_null_reference" +
-                              " WHERE _id=1 AND name IS NULL"
+            statement.execute("""
+                SELECT *
+                FROM custom._reference_row_delete_sets_to_null_reference
+                WHERE _id=1 AND name IS NULL"""
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
@@ -1475,9 +1476,10 @@ class DefaultVirtualTableServiceTest {
             final var connection = createConnection();
             final var statement = connection.createStatement()
         ) {
-            statement.execute("SELECT *" +
-                              " FROM custom._reference_row_delete_sets_to_default_referencing" +
-                              " WHERE _id=1 AND name=1"
+            statement.execute("""
+                SELECT *
+                FROM custom._reference_row_delete_sets_to_default_referencing
+                WHERE _id=1 AND name=1"""
             );
             assertTrue(statement.getResultSet().next());
             assertEquals(statement.getResultSet().getInt(1), 1);
@@ -1527,9 +1529,10 @@ class DefaultVirtualTableServiceTest {
         try (final var connection = createConnection();
              final var statement = connection.createStatement()
         ) {
-            statement.executeUpdate("UPDATE _update_of_referenced_row_id_is_restricted" +
-                                    " SET _id=2" +
-                                    " WHERE _id=1;"
+            statement.executeUpdate("""
+                UPDATE _update_of_referenced_row_id_is_restricted
+                SET _id=2
+                WHERE _id=1;"""
             );
             statement.close();
             fail();

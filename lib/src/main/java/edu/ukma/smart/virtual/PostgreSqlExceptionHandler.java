@@ -8,14 +8,14 @@ import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.FatalError;
 import edu.ukma.smart.virtual.errors.OperationError;
-import edu.ukma.smart.virtual.errors.SQLExceptionsHandler;
+import edu.ukma.smart.virtual.errors.SqlExceptionsHandler;
 import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PostgreSQLExceptionHandler implements SQLExceptionsHandler {
+public class PostgreSqlExceptionHandler implements SqlExceptionsHandler {
 
-    private static Logger logger = LoggerFactory.getLogger(PostgreSQLExceptionHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(PostgreSqlExceptionHandler.class);
 
     // TODO: Make more sophisticated error check, not just all 23* errors
     private static final String CHECK_VIOLATION = "23";

@@ -8,7 +8,7 @@
 plugins {
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
-    checkstyle
+    `checkstyle`
     id("com.github.spotbugs") version "6.2.1"
 }
 
@@ -56,4 +56,12 @@ tasks.named<Test>("test") {
         "java.util.logging.config.file",
         "${projectDir}/src/test/resources/logging.properties"
     )
+}
+
+tasks.withType<Checkstyle>().configureEach {
+    configFile = file("$rootDir/config/checkstyle/checkstyle.xml")
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }

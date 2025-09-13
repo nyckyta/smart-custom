@@ -131,7 +131,7 @@ public class CrudTest {
         Assert.assertFalse(err.isPresent(), "Expected no error, but got " + err.orElse(null));
 
         for (var i = 0; i < 30; i++) {
-            err = service.addRow(InsertRow.of(tableName, List.of(StringValue.of("name", "Bob" + i), IntegerValue.of("age", (long)i))));
+            err = service.addRow(InsertRow.of(tableName, List.of(StringValue.of("name", "Bob" + i), IntegerValue.of("age", (long) i))));
             Assert.assertFalse(err.isPresent(), "Expected no error, but got " + err.orElse(null));
         }
 

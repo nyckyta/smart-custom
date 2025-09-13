@@ -92,14 +92,14 @@ public final class ReferenceProperty implements Property {
             return false;
         }
         var that = (ReferenceProperty) obj;
-        return Objects.equals(this.key, that.key) &&
-               Objects.equals(this.name, that.name) &&
-               Objects.equals(this.description, that.description) &&
-               this.notNull == that.notNull &&
-               Objects.equals(this.constraints, that.constraints) &&
-               Objects.equals(this.defaultValue, that.defaultValue) &&
-               Objects.equals(this.refTableKey, that.refTableKey) &&
-               Objects.equals(this.type, that.type);
+        return Objects.equals(this.key, that.key)
+               && Objects.equals(this.name, that.name)
+               && Objects.equals(this.description, that.description)
+               && this.notNull == that.notNull
+               && Objects.equals(this.constraints, that.constraints)
+               && Objects.equals(this.defaultValue, that.defaultValue)
+               && Objects.equals(this.refTableKey, that.refTableKey)
+               && Objects.equals(this.type, that.type);
     }
 
 

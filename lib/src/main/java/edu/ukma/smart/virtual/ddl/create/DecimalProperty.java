@@ -86,15 +86,8 @@ public final class DecimalProperty implements Property {
 
     @Override
     public String toString() {
-        return "DecimalProperty[" +
-               "key=" + key + ", " +
-               "name=" + name + ", " +
-               "description=" + description + ", " +
-               "defaultValue=" + defaultValue + ", " +
-               "required=" + notNull + ", " +
-               "precision=" + precision + ", " +
-               "scale=" + scale + ", " +
-               "type=" + type + ']';
+        return "DecimalProperty[key=%s, name=%s, description=%s, defaultValue=%s, required=%s, precision=%d, scale=%d, type=%s]".formatted(key,
+            name, description, defaultValue, notNull, precision, scale, type);
     }
 
     @Override
@@ -102,10 +95,10 @@ public final class DecimalProperty implements Property {
         if (!(o instanceof DecimalProperty that)) {
             return false;
         }
-        return notNull == that.notNull && precision == that.precision && scale == that.scale &&
-               Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
-               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
-               Objects.equals(constraints, that.constraints) && type == that.type;
+        return notNull == that.notNull && precision == that.precision && scale == that.scale
+               && Objects.equals(key, that.key) && Objects.equals(name, that.name)
+               && Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue)
+               && Objects.equals(constraints, that.constraints) && type == that.type;
     }
 
     @Override

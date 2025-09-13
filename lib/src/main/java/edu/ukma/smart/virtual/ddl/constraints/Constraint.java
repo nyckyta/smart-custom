@@ -21,14 +21,14 @@ public interface Constraint {
         NOT_IN(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE, Property.Type.BOOLEAN,
             Property.Type.DECIMAL));
 
-        private final Set<Property.Type> SUPPORTED_PROPERTIES;
+        private final Set<Property.Type> supportedProperties;
 
         Type(Set<Property.Type> supportedProperties) {
-            SUPPORTED_PROPERTIES = supportedProperties;
+            this.supportedProperties = supportedProperties;
         }
 
         public boolean supportProperty(Property prop) {
-            return SUPPORTED_PROPERTIES.contains(prop.type());
+            return supportedProperties.contains(prop.type());
         }
     }
 }

@@ -229,8 +229,7 @@ class PostgreMetadataProcessor implements MetadataProcessor {
             switch (expression) {
                 case GreaterThan gt -> {
                     return switch (type) {
-                        case REFERENCE, INTEGER ->
-                            PropertyConstraint.greaterThan(gt.getRightExpression(LongValue.class).getValue());
+                        case REFERENCE, INTEGER -> PropertyConstraint.greaterThan(gt.getRightExpression(LongValue.class).getValue());
                         case DECIMAL -> PropertyConstraint.greaterThan(
                             BigDecimal.valueOf(gt.getRightExpression(DoubleValue.class).getValue()));
                         case BOOLEAN -> PropertyConstraint.greaterThan(gt.getRightExpression(BooleanValue.class).getValue());
@@ -259,23 +258,17 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                         var arrConst = (ArrayConstructor) f.getParameters().get(0);
                         var valueExpressions = arrConst.getExpressions().stream();
                         var arrayOfPossibleValues = switch (type) {
-                            case INTEGER ->
-                                valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(
-                                        Long[]::new);
-                            case REFERENCE ->
-                                valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(
-                                        Integer[]::new);
+                            case INTEGER -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(Long[]::new);
+                            case REFERENCE -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                            .toArray(Integer[]::new);
                             case DECIMAL -> valueExpressions.map(
                                     ce -> BigDecimal.valueOf(((DoubleValue) ((CastExpression) ce).getLeftExpression()).getValue()))
                                 .toArray(BigDecimal[]::new);
-                            case BOOLEAN ->
-                                valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(Boolean[]::new);
-                            case STRING ->
-                                valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(String[]::new);
+                            case BOOLEAN -> valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(Boolean[]::new);
+                            case STRING -> valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(String[]::new);
                         };
 
                         return PropertyConstraint.in(arrayOfPossibleValues);
@@ -289,23 +282,19 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                         var arrConst = (ArrayConstructor) f.getParameters().get(0);
                         var valueExpressions = arrConst.getExpressions().stream();
                         var arrayOfPossibleValues = switch (type) {
-                            case INTEGER ->
-                                valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(
-                                        Long[]::new);
-                            case REFERENCE ->
-                                valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(
-                                        Integer[]::new);
+                            case INTEGER -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(
+                                    Long[]::new);
+                            case REFERENCE -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(
+                                    Integer[]::new);
                             case DECIMAL -> valueExpressions.map(
                                     ce -> BigDecimal.valueOf(((DoubleValue) ((CastExpression) ce).getLeftExpression()).getValue()))
                                 .toArray(BigDecimal[]::new);
-                            case BOOLEAN ->
-                                valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(Boolean[]::new);
-                            case STRING ->
-                                valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                    .toArray(String[]::new);
+                            case BOOLEAN -> valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(Boolean[]::new);
+                            case STRING -> valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(String[]::new);
 
                         };
 
@@ -376,8 +365,7 @@ class PostgreMetadataProcessor implements MetadataProcessor {
     private static PropertyConstraint getNonStringConstraint(Property.Type type, GreaterThanEquals gte) {
         return switch (type) {
             case REFERENCE, INTEGER -> PropertyConstraint.greaterOrEqual(gte.getRightExpression(LongValue.class).getValue());
-            case DECIMAL -> PropertyConstraint.greaterOrEqual(
-                BigDecimal.valueOf(gte.getRightExpression(DoubleValue.class).getValue()));
+            case DECIMAL -> PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(gte.getRightExpression(DoubleValue.class).getValue()));
             case BOOLEAN -> PropertyConstraint.greaterOrEqual(gte.getRightExpression(BooleanValue.class).getValue());
             case STRING -> throw new IllegalStateException(
                 "String property is not expected here, is there a race condition?");

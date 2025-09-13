@@ -45,7 +45,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-final public class BasicInputValidator implements InputValidator {
+public final class BasicInputValidator implements InputValidator {
 
     private final List<Function<String, Optional<InputValidationErr>>> vendorTableKeyValidators;
     private final List<Function<NewTable, Optional<InputValidationErr>>> vendorNewTableValidators;
@@ -162,20 +162,15 @@ final public class BasicInputValidator implements InputValidator {
         }
 
 
-        return (
-            switch (p.type()) {
-                case STRING, DECIMAL, INTEGER, BOOLEAN -> triggerVendorValidators(vendorPropertyValidators, p);
-                case REFERENCE -> validateReferenceProperty((ReferenceProperty) p).or(
-                    () -> triggerVendorValidators(vendorPropertyValidators, p));
-            }
-        );
+        return switch (p.type()) {
+            case STRING, DECIMAL, INTEGER, BOOLEAN -> triggerVendorValidators(vendorPropertyValidators, p);
+            case REFERENCE -> validateReferenceProperty((ReferenceProperty) p)
+                .or(() -> triggerVendorValidators(vendorPropertyValidators, p));
+        };
     }
 
 
-    private static Optional<InputValidationErr> validateConstraint(
-        Property p,
-        Constraint columnConstraint
-    ) {
+    private static Optional<InputValidationErr> validateConstraint(Property p, Constraint columnConstraint) {
         return switch (columnConstraint.type()) {
             case UNIQUE -> validateUniqueConstraint((UniqueConstraint) columnConstraint);
             case GREATER_THAN_VALUE,
@@ -198,8 +193,7 @@ final public class BasicInputValidator implements InputValidator {
         }
 
         boolean constraintValueTypeMismatch = switch (columnConstraint.type) {
-            case STRING_MAX_LENGTH, STRING_MIN_LENGTH ->
-                propKey instanceof StringProperty && columnConstraint.value instanceof Integer;
+            case STRING_MAX_LENGTH, STRING_MIN_LENGTH -> propKey instanceof StringProperty && columnConstraint.value instanceof Integer;
             case GREATER_THAN_VALUE, LESS_THAN_VALUE, GREATER_OR_EQUAL_THAN_VALUE, LESS_OR_EQUAL_THAN_VALUE ->
                 constraintTypeMatchProperty(propKey, columnConstraint);
             case IN, NOT_IN -> constraintInTypeMatchProperty(propKey, columnConstraint);

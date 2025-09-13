@@ -29,8 +29,8 @@ public record Config(
         int potentiallyOverflowedValue = connectionAcquireRetryAttempts * connectionAcquireReleaseTimeoutMs;
         if (connectionNetworkTimeoutMs < 1 || potentiallyOverflowedValue < 1) {
             throw new IllegalArgumentException(
-                "connectionNetworkTimeoutMs must be greater than 0 or, " +
-                "connectionAcquireRetryAttempts * connectionAcquireReleaseTimeoutMs should not cause overflow of 4 bytes int");
+                "connectionNetworkTimeoutMs must be greater than 0 or, "
+                + "connectionAcquireRetryAttempts * connectionAcquireReleaseTimeoutMs should not cause overflow of 4 bytes int");
         }
         this.connectionNetworkTimeoutMs = connectionNetworkTimeoutMs;
 
@@ -50,8 +50,8 @@ public record Config(
             throw new IllegalArgumentException("schema must not start with 'pg_'");
         } else if (schema.equalsIgnoreCase("public") && !System.getenv("ALLOW_PUBLIC_SCHEMA").equalsIgnoreCase("true")) {
             throw new IllegalArgumentException(
-                "Public schema is not allowed, it is not recommended to use it, instead keep dynamic tables in separate schema." +
-                " If you insist, set environment variable \"ALLOW_PUBLIC_SCHEMA=true\"");
+                "Public schema is not allowed, it is not recommended to use it, instead keep dynamic tables in separate schema."
+                + " If you insist, set environment variable \"ALLOW_PUBLIC_SCHEMA=true\"");
         } else {
             this.schema = schema;
         }

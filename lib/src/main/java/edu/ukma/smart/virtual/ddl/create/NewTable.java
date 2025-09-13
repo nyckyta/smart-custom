@@ -23,9 +23,9 @@ public record NewTable(
         if (!(o instanceof NewTable newTable)) {
             return false;
         }
-        return Objects.equals(key, newTable.key) && Objects.equals(name, newTable.name) &&
-               Objects.equals(description, newTable.description) &&
-               Objects.equals(properties, newTable.properties);
+        return Objects.equals(key, newTable.key) && Objects.equals(name, newTable.name)
+               && Objects.equals(description, newTable.description)
+               && Objects.equals(properties, newTable.properties);
     }
 
     @Override

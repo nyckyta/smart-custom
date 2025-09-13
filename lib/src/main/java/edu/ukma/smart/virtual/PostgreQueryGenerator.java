@@ -47,7 +47,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(PostgreQueryGenerator.class);
     private final InputValidator inputValidator = new PostgreInputValidator();
-    private final PostgreSQLExceptionHandler exceptionHandler = new PostgreSQLExceptionHandler();
+    private final PostgreSqlExceptionHandler exceptionHandler = new PostgreSqlExceptionHandler();
     private final String schema;
 
     public PostgreQueryGenerator(String workingSchema) {
@@ -59,12 +59,10 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringBuilder statementBuilder
     ) {
 
-        statementBuilder.append(
-            "\"%s\" BIGINT %s %s%n".formatted(
-                i.key(),
-                i.defaultValue() == null ? "" : "DEFAULT %s".formatted(i.defaultValue()),
-                i.notNull() ? "NOT NULL" : ""
-            )
+        statementBuilder.append("\"%s\" BIGINT %s %s%n".formatted(
+            i.key(),
+            i.defaultValue() == null ? "" : "DEFAULT %s".formatted(i.defaultValue()),
+            i.notNull() ? "NOT NULL" : "")
         );
     }
 
@@ -72,12 +70,9 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringProperty s,
         StringBuilder statementBuilder
     ) throws SQLException {
+        var defaultValuePart = s.defaultValue() == null ? "NULL" : "$$%s$$".formatted(Utils.escapeLiteral(null, s.defaultValue(), false));
         statementBuilder.append(
-            "\"%s\" TEXT DEFAULT %s %s%n".formatted(
-                s.key(),
-                s.defaultValue() == null ? "NULL" : "$$%s$$".formatted(Utils.escapeLiteral(null, s.defaultValue(), false)),
-                s.notNull() ? "NOT NULL" : ""
-            )
+            "\"%s\" TEXT DEFAULT %s %s%n".formatted(s.key(), defaultValuePart, s.notNull() ? "NOT NULL" : "")
         );
     }
 
@@ -87,9 +82,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            "\"%s\" BOOLEAN DEFAULT %s %s%n".formatted(
-                b.key(),
-                b.defaultValue() == null ? "NULL" : b.defaultValue(),
+            "\"%s\" BOOLEAN DEFAULT %s %s%n".formatted(b.key(), b.defaultValue() == null ? "NULL" : b.defaultValue(),
                 b.notNull() ? "NOT NULL" : "")
         );
 
@@ -104,12 +97,11 @@ class PostgreQueryGenerator implements QueryGenerator {
         var query = new StringBuilder()
             // TODO: figure out how to add timestamp on update
             // _updated TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            .append(
-                """
-                    CREATE TABLE %s.%s (
-                        _id SERIAL PRIMARY KEY NOT NULL,
-                        _created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-                    """.formatted(schema, newTable.key())
+            .append("""
+                CREATE TABLE %s.%s (
+                    _id SERIAL PRIMARY KEY NOT NULL,
+                    _created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+                """.formatted(schema, newTable.key())
             );
 
         var constraints = new ArrayList<String>();
@@ -135,8 +127,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                         case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(property, (PropertyConstraint) c));
                         case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(property, (PropertyConstraint) c));
                         case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(property, (PropertyConstraint) c));
-                        case GREATER_OR_EQUAL_THAN_VALUE ->
-                            constraints.add(buildGreaterOrEqualThanValue(property, (PropertyConstraint) c));
+                        case GREATER_OR_EQUAL_THAN_VALUE -> constraints.add(buildGreaterOrEqualThanValue(property, (PropertyConstraint) c));
                         case IN -> constraints.add(buildIn(property, (PropertyConstraint) c));
                         case NOT_IN -> constraints.add(buildNotIn(property, (PropertyConstraint) c));
                     }
@@ -207,14 +198,10 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static String buildIn(Property property, PropertyConstraint cons) {
         return switch (property.type()) {
-            case STRING ->
-                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE ->
-                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER ->
-                "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
-            case DECIMAL -> "CHECK( \"%s\" IN (%s))".formatted(property.key(),
-                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+            case STRING -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
+            case REFERENCE -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
+            case INTEGER -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -225,8 +212,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 convertArrayToInParameter(cons.castValue(String[].class)));
             case REFERENCE -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
                 convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER ->
-                "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
+            case INTEGER -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
             case DECIMAL -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
                 convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
@@ -266,39 +252,6 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        /*
-       SELECT
-            attr.attname,
-            col_description(attr.attrelid::regclass::oid, attr.attnum),
-            attr.attnotnull,
-            pg_get_expr(adef.adbin, adef.adrelid)
-            typ.typname,
-            (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
-            (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
-            pg_get_constraintdef(dep.objid),
-            dep.objid
-        FROM
-            pg_attribute attr
-            INNER JOIN pg_type typ ON attr.atttypid = typ.oid
-            LEFT_JOIN pg_attrdef adef ON attr.attrelid = adef.attrelid AND attr.adnum = adef.adnum
-            LEFT JOIN pg_depend dep ON dep.refobjid = attr.attrelid
-                AND (dep.refclassid = ('pg_class'::regclass)::oid)
-                AND (dep.classid = ('pg_constraint'::regclass)::oid)
-                AND (dep.refobjid = attr.attrelid)
-                AND (dep.refobjsubid = attr.attnum)
-                AND (dep.deptype = 'a')
-        WHERE
-            (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = 'public') AND relkind = 'r' AND relname='_add_row_test'))
-          AND
-            (attr.attname NOT IN ('tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
-          AND
-            (attr.attisdropped <> TRUE)
-        ORDER BY attr.attname ASC;
-
-        (d.refclassid = ('pg_class'::regclass)::oid) AND (d.refobjid = r.oid) AND (d.refobjsubid = a.attnum) AND (d.classid = ('pg_constraint'::regclass)::oid) AND (d.objid = c.oid)
-         */
-
-
         // exclude system tables as well as static fields that users do not want to see
         var ignoredProperties = Stream.concat(
             PostgreInputValidator.SYSTEM_EXCLUDED_FIELDS.stream(),
@@ -313,8 +266,14 @@ class PostgreQueryGenerator implements QueryGenerator {
                     attr.attnotnull,
                     pg_get_expr(adef.adbin, adef.adrelid),
                     typ.typname,
-                    (information_schema._pg_numeric_precision(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_precision,
-                    (information_schema._pg_numeric_scale(information_schema._pg_truetypid(attr.*, typ.*), information_schema._pg_truetypmod(attr.*, typ.*)))::information_schema.cardinal_number AS numeric_scale,
+                    (information_schema._pg_numeric_precision(
+                        information_schema._pg_truetypid(attr.*, typ.*),
+                        information_schema._pg_truetypmod(attr.*, typ.*))
+                    )::information_schema.cardinal_number AS numeric_precision,
+                    (information_schema._pg_numeric_scale(
+                        information_schema._pg_truetypid(attr.*, typ.*),
+                        information_schema._pg_truetypmod(attr.*, typ.*))
+                    )::information_schema.cardinal_number AS numeric_scale,
                     pg_get_constraintdef(dep.objid, TRUE),
                     dep.objid
                 FROM
@@ -328,7 +287,9 @@ class PostgreQueryGenerator implements QueryGenerator {
                         AND (dep.refobjsubid = attr.attnum)
                         AND (dep.deptype = 'a')
                 WHERE
-                    (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = '%s') AND relkind = 'r' AND relname=?))
+                    (attr.attrelid = (select oid from pg_class where relnamespace = (select oid from pg_namespace where nspname = '%s')
+                    AND relkind = 'r'
+                    AND relname=?))
                   AND
                     (attr.attname NOT IN ('_id', '_created', 'tableoid', 'xmin', 'cmin', 'xmax', 'cmax', 'ctid'))
                   AND
@@ -365,8 +326,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                     case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(prop, (PropertyConstraint) c));
                     case GREATER_THAN_VALUE -> constraints.add(buildGreaterThanValue(prop, (PropertyConstraint) c));
                     case LESS_OR_EQUAL_THAN_VALUE -> constraints.add(buildLessOrEqualValue(prop, (PropertyConstraint) c));
-                    case GREATER_OR_EQUAL_THAN_VALUE ->
-                        constraints.add(buildGreaterOrEqualThanValue(prop, (PropertyConstraint) c));
+                    case GREATER_OR_EQUAL_THAN_VALUE -> constraints.add(buildGreaterOrEqualThanValue(prop, (PropertyConstraint) c));
                     case IN -> constraints.add(buildIn(prop, (PropertyConstraint) c));
                     case NOT_IN -> constraints.add(buildNotIn(prop, (PropertyConstraint) c));
                 }

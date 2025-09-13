@@ -76,9 +76,9 @@ public final class StringProperty implements Property {
         if (!(o instanceof StringProperty that)) {
             return false;
         }
-        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
-               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
-               Objects.equals(constraints, that.constraints) && type == that.type;
+        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name)
+               && Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue)
+               && Objects.equals(constraints, that.constraints) && type == that.type;
     }
 
     @Override
@@ -88,14 +88,8 @@ public final class StringProperty implements Property {
 
     @Override
     public String toString() {
-        return "StringProperty[" +
-               "key=" + key + ", " +
-               "name=" + name + ", " +
-               "description=" + description + ", " +
-               "defaultValue=" + defaultValue + ", " +
-               "notNull=" + notNull + ", " +
-               "constraints=" + constraints + ", " +
-               "type=" + type + ']';
+        return "StringProperty[key=%s, name=%s, description=%s, defaultValue=%s, notNull=%s, constraints=%s, type=%s]".formatted(key, name,
+            description, defaultValue, notNull, constraints, type);
     }
 
 

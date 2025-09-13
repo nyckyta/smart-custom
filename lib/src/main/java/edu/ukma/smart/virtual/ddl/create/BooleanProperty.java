@@ -73,14 +73,8 @@ public final class BooleanProperty implements Property {
 
     @Override
     public String toString() {
-        return "BooleanProperty[" +
-               "key=" + key + ", " +
-               "name=" + name + ", " +
-               "description=" + description + ", " +
-               "defaultValue=" + defaultValue + ", " +
-               "notNull=" + notNull + ", " +
-               "notNull=" + constraints + ", " +
-               "type=" + type + ']';
+        return "BooleanProperty[key=%s, name=%s, description=%s, defaultValue=%s, notNull=%s, notNull=%s, type=%s]".formatted(key, name,
+            description, defaultValue, notNull, constraints, type);
     }
 
     @Override
@@ -88,9 +82,9 @@ public final class BooleanProperty implements Property {
         if (!(o instanceof BooleanProperty that)) {
             return false;
         }
-        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name) &&
-               Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue) &&
-               Objects.equals(constraints, that.constraints) && type == that.type;
+        return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name)
+               && Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue)
+               && Objects.equals(constraints, that.constraints) && type == that.type;
     }
 
     @Override

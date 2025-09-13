@@ -19,7 +19,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class CircularReferencesDetection {
+public class CircularReferencesDetectionTest {
 
     private static final String DB_NAME = "circular_references_detection";
     private static final Config CONFIG = new Config();
@@ -76,7 +76,7 @@ public class CircularReferencesDetection {
         );
 
         Assert.assertTrue(err.isPresent(), "Expected error, but got no error");
-        Assert.assertEquals(((InputValidationErr)err.get()).code(), InputValidationErr.ErrorCode.CIRCULAR_REFERENCE_DETECTED);
+        Assert.assertEquals(((InputValidationErr) err.get()).code(), InputValidationErr.ErrorCode.CIRCULAR_REFERENCE_DETECTED);
 
         var properties = service.getProperties(firstTableKey);
         Assert.assertFalse(properties.error().isPresent(), "Expected no error, but got " + properties.error().orElse(null));
@@ -120,7 +120,7 @@ public class CircularReferencesDetection {
         );
 
         Assert.assertTrue(err.isPresent(), "Expected error, but got no error");
-        Assert.assertEquals(((InputValidationErr)err.get()).code(), InputValidationErr.ErrorCode.CIRCULAR_REFERENCE_DETECTED);
+        Assert.assertEquals(((InputValidationErr) err.get()).code(), InputValidationErr.ErrorCode.CIRCULAR_REFERENCE_DETECTED);
         var properties = service.getProperties(firstTableKey);
         Assert.assertFalse(properties.error().isPresent(), "Expected no error, but got " + properties.error().orElse(null));
         Assert.assertEquals(properties.value().size(), 1);
