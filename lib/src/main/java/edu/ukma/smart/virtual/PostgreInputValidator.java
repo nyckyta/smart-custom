@@ -62,7 +62,7 @@ public class PostgreInputValidator implements InputValidator {
             .addVendorPropertyValidator(PostgreInputValidator::validateDecimalPrecisionAndScale)
             .addVendorConstraintValidator(cons -> {
                 if (cons instanceof UniqueConstraint pc) {
-                    return pc.properties
+                    return pc.properties()
                         .stream()
                         .map(PostgreInputValidator::validatePropertyKey)
                         .filter(Optional::isPresent)

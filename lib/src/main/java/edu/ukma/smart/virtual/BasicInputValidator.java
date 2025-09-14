@@ -230,7 +230,7 @@ public final class BasicInputValidator implements InputValidator {
     private static Optional<InputValidationErr> validateUniqueConstraint(
         UniqueConstraint columnConstraint
     ) {
-        if (columnConstraint.properties.isEmpty()) {
+        if (columnConstraint.properties().isEmpty()) {
             return Optional.of(InputValidationErr.of(UNIQUE_CONSTRAINT_HAS_NO_PROPERTIES));
         }
 

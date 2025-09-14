@@ -6,7 +6,7 @@ import java.util.Objects;
 
 public class UniqueConstraint implements Constraint {
 
-    public final List<String> properties;
+    private final List<String> properties;
 
     private UniqueConstraint(List<String> properties) {
         this.properties = Collections.unmodifiableList(properties);
@@ -18,6 +18,10 @@ public class UniqueConstraint implements Constraint {
 
     public static UniqueConstraint of(String... properties) {
         return new UniqueConstraint(List.of(properties));
+    }
+
+    public List<String> properties() {
+        return properties;
     }
 
     @Override

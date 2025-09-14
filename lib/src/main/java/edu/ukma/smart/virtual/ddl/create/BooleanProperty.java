@@ -15,7 +15,6 @@ public final class BooleanProperty implements Property {
     private final Set<Constraint> constraints;
     private final Type type;
 
-
     private BooleanProperty(
         String key,
         String name,

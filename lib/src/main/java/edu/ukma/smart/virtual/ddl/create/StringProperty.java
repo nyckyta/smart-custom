@@ -15,7 +15,6 @@ public final class StringProperty implements Property {
     private final Set<Constraint> constraints;
     private final Type type;
 
-
     public StringProperty(
         String key,
         String name,
@@ -91,7 +90,6 @@ public final class StringProperty implements Property {
         return "StringProperty[key=%s, name=%s, description=%s, defaultValue=%s, notNull=%s, constraints=%s, type=%s]".formatted(key, name,
             description, defaultValue, notNull, constraints, type);
     }
-
 
     public static final class PropertyBuilder implements Builder<StringProperty> {
         private String key;

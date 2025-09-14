@@ -4,12 +4,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public record NewTable(
-    String key,
-    String name,
-    String description,
-    List<Property> properties
-) {
+public final class NewTable {
+    private final String key;
+    private final String name;
+    private final String description;
+    private final List<Property> properties;
 
     public NewTable(String key, String name, String description, List<Property> properties) {
         this.key = key;
@@ -35,6 +34,27 @@ public record NewTable(
 
     public static NewTableBuilder builder() {
         return new NewTableBuilder();
+    }
+
+    public String key() {
+        return key;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String description() {
+        return description;
+    }
+
+    public List<Property> properties() {
+        return properties;
+    }
+
+    @Override
+    public String toString() {
+        return "NewTable[key=%s, name=%s, description=%s, properties=%s]".formatted(key, name, description, properties);
     }
 
     public static final class NewTableBuilder {

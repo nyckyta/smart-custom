@@ -153,7 +153,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     private static String buildUniqueConstraint(UniqueConstraint c) {
-        return "UNIQUE (\"%s\")".formatted(String.join("\",\"", c.properties));
+        return "UNIQUE (\"%s\")".formatted(String.join("\",\"", c.properties()));
     }
 
     private static String buildLessThanValue(Property property, PropertyConstraint p) {
@@ -554,7 +554,7 @@ class PostgreQueryGenerator implements QueryGenerator {
             }
             case REFERENCE -> {
                 final var r = (ReferencePredicate) pred;
-                parameters.add(ListValue.of(r.propertyKey(), r.value(), ListValue.ListType.REFERENCE));
+                parameters.add(ListValue.ofReference(r.propertyKey(), r.value()));
                 yield Return.of(
                     "\"%s\" %s (%s)".formatted(
                         r.propertyKey(),

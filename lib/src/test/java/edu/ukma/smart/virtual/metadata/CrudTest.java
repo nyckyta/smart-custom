@@ -99,7 +99,7 @@ public class CrudTest {
             }
         }
 
-        err = service.dropTable(new DropTable(tableName));
+        err = service.dropTable(DropTable.of(tableName));
         Assert.assertFalse(err.isPresent(), "Expected no error, but got " + err.orElse(null));
         executor.shutdown();
         executor.close();

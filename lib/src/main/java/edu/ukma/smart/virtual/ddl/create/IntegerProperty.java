@@ -15,7 +15,7 @@ public final class IntegerProperty implements Property {
     private final Set<Constraint> constraints;
     private final Type type;
 
-    public IntegerProperty(
+    private IntegerProperty(
         String key,
         String name,
         String description,

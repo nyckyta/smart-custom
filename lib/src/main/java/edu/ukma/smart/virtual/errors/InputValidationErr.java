@@ -7,6 +7,8 @@ public record InputValidationErr(ErrorCode code) implements Err {
     }
 
     public enum ErrorCode {
+        INVALID_RAW_INPUT("invalid.raw.input"),
+
         WRONG_TABLE_KEY_FORMAT("table.key.format.is.wrong"),
         FORBIDDEN_PROPERTY_KEY("property.key.is.forbidden"),
         WRONG_PROPERTY_KEY_FORMAT("property.key.format.is.wrong"),
