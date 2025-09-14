@@ -39,7 +39,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.postgresql.core.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,9 +58,9 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringBuilder statementBuilder
     ) {
 
-        statementBuilder.append("\"%s\" BIGINT %s %s%n".formatted(
-            i.key(),
-            i.defaultValue() == null ? "" : "DEFAULT %s".formatted(i.defaultValue()),
+        statementBuilder.append("%s BIGINT %s %s%n".formatted(
+            EscapeUtil.escapeStringIdentifier(i.key()),
+            i.defaultValue() == null ? "" : "DEFAULT %d".formatted(i.defaultValue()),
             i.notNull() ? "NOT NULL" : "")
         );
     }
@@ -70,9 +69,14 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringProperty s,
         StringBuilder statementBuilder
     ) throws SQLException {
-        var defaultValuePart = s.defaultValue() == null ? "NULL" : "$$%s$$".formatted(Utils.escapeLiteral(null, s.defaultValue(), false));
+        var defaultValuePart = s.defaultValue() == null ? "NULL" : EscapeUtil.escapeStringLiteral(s.defaultValue());
         statementBuilder.append(
-            "\"%s\" TEXT DEFAULT %s %s%n".formatted(s.key(), defaultValuePart, s.notNull() ? "NOT NULL" : "")
+            "%s TEXT DEFAULT %s %s%n"
+                .formatted(
+                    EscapeUtil.escapeStringIdentifier(s.key()),
+                    defaultValuePart,
+                    s.notNull() ? "NOT NULL" : ""
+                )
         );
     }
 
@@ -82,8 +86,11 @@ class PostgreQueryGenerator implements QueryGenerator {
     ) {
 
         statementBuilder.append(
-            "\"%s\" BOOLEAN DEFAULT %s %s%n".formatted(b.key(), b.defaultValue() == null ? "NULL" : b.defaultValue(),
-                b.notNull() ? "NOT NULL" : "")
+            "%s BOOLEAN DEFAULT %s %s%n".formatted(
+                EscapeUtil.escapeStringIdentifier(b.key()),
+                b.defaultValue() == null ? "NULL" : b.defaultValue(),
+                b.notNull() ? "NOT NULL" : ""
+            )
         );
 
     }
@@ -101,7 +108,7 @@ class PostgreQueryGenerator implements QueryGenerator {
                 CREATE TABLE %s.%s (
                     _id SERIAL PRIMARY KEY NOT NULL,
                     _created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-                """.formatted(schema, newTable.key())
+                """.formatted(schema, EscapeUtil.escapeStringIdentifier(newTable.key()))
             );
 
         var constraints = new ArrayList<String>();
@@ -145,82 +152,85 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     private String buildMinLengthConstraint(Property property, PropertyConstraint c) {
-        return "CHECK( char_length(\"%s\") >= %d )".formatted(property.key(), c.castValue(Integer.class));
+        return "CHECK( char_length(%s) >= %d )".formatted(EscapeUtil.escapeStringIdentifier(property.key()), c.castValue(Integer.class));
     }
 
     private static String buildMaxLengthConstraint(Property property, PropertyConstraint c) {
-        return "CHECK( char_length(\"%s\") <= %d )".formatted(property.key(), c.castValue(Integer.class));
+        return "CHECK( char_length(%s) <= %d )".formatted(EscapeUtil.escapeStringIdentifier(property.key()), c.castValue(Integer.class));
     }
 
     private static String buildUniqueConstraint(UniqueConstraint c) {
-        return "UNIQUE (\"%s\")".formatted(String.join("\",\"", c.properties()));
+        return "UNIQUE (%s)".formatted(c.properties().stream().map(EscapeUtil::escapeStringIdentifier).collect(Collectors.joining(",")));
     }
 
     private static String buildLessThanValue(Property property, PropertyConstraint p) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( \"%s\" < %d )".formatted(property.key(), p.castValue(Long.class));
-            case REFERENCE -> "CHECK( \"%s\" < %d )".formatted(property.key(), p.castValue(Integer.class));
-            case DECIMAL -> "CHECK( \"%s\" < %f )".formatted(property.key(), p.castValue(BigDecimal.class));
-            case STRING -> "CHECK( \"%s\" < \"%s\" )".formatted(property.key(), p.castValue(String.class));
+            case INTEGER -> "CHECK( %s < %d )".formatted(escapedKey, p.castValue(Long.class));
+            case REFERENCE -> "CHECK( %s < %d )".formatted(escapedKey, p.castValue(Integer.class));
+            case DECIMAL -> "CHECK( %s < %f )".formatted(escapedKey, p.castValue(BigDecimal.class));
+            case STRING -> "CHECK( %s < '%s' )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(p.castValue(String.class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String buildLessOrEqualValue(Property property, PropertyConstraint cons) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( \"%s\" <= %d )".formatted(property.key(), cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( \"%s\" <= %d )".formatted(property.key(), cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( \"%s\" <= %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
-            case STRING -> "CHECK( \"%s\" <= \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case INTEGER -> "CHECK( %s <= %d )".formatted(escapedKey, cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( %s <= %d )".formatted(escapedKey, cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( %s <= %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( %s <= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String buildGreaterThanValue(Property property, PropertyConstraint cons) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( \"%s\" > %d )".formatted(property.key(), cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( \"%s\" > %d )".formatted(property.key(), cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( \"%s\" > %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
-            case STRING -> "CHECK( \"%s\" > \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case INTEGER -> "CHECK( %s > %d )".formatted(escapedKey, cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( %s > %d )".formatted(escapedKey, cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( %s > %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( %s > %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String buildGreaterOrEqualThanValue(Property property, PropertyConstraint cons) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( \"%s\" >= %d )".formatted(property.key(), cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( \"%s\" >= %d )".formatted(property.key(), cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( \"%s\" >= %f )".formatted(property.key(), cons.castValue(BigDecimal.class));
-            case STRING -> "CHECK( \"%s\" >= \"%s\" )".formatted(property.key(), cons.castValue(String.class));
+            case INTEGER -> "CHECK( %s >= %d )".formatted(escapedKey, cons.castValue(Long.class));
+            case REFERENCE -> "CHECK( %s >= %d )".formatted(escapedKey, cons.castValue(Integer.class));
+            case DECIMAL -> "CHECK( %s >= %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case STRING -> "CHECK( %s >= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String buildIn(Property property, PropertyConstraint cons) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case STRING -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
-            case DECIMAL -> "CHECK( \"%s\" IN (%s))".formatted(property.key(), convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+            case STRING -> "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(String[].class)));
+            case REFERENCE -> "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Integer[].class)));
+            case INTEGER -> "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String buildNotIn(Property property, PropertyConstraint cons) {
+        var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case STRING -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
-                convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
-                convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(), convertArrayToInParameter(cons.castValue(Long[].class)));
-            case DECIMAL -> "CHECK( \"%s\" NOT IN (%s)".formatted(property.key(),
-                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+            case STRING -> "CHECK( %s NOT IN (%s)".formatted(escapedKey, convertArrayToInParameter(cons.castValue(String[].class)));
+            case REFERENCE -> "CHECK( %s NOT IN (%s)".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Integer[].class)));
+            case INTEGER -> "CHECK( %s NOT IN (%s)".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> "CHECK( %s NOT IN (%s)".formatted(escapedKey, convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
 
     private static String convertArrayToInParameter(String[] arr) {
-        return "$$" + String.join("$$,$$", arr) + "$$";
+        return Arrays.stream(arr).map(EscapeUtil::escapeStringLiteral).collect(Collectors.joining(","));
     }
 
     private static <T> String convertArrayToInParameter(T[] arr) {
@@ -232,7 +242,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     public Return<String> dropTable(DropTable deleteTable) {
         var err = inputValidator.validateDeleteTable(deleteTable);
         return err.<Return<String>>map(Return::error)
-            .orElseGet(() -> Return.of("DROP TABLE %s.%s;".formatted(schema, deleteTable.tableKey())));
+            .orElseGet(() -> Return.of("DROP TABLE %s.%s;".formatted(schema, EscapeUtil.escapeStringIdentifier(deleteTable.tableKey()))));
 
     }
 
@@ -305,7 +315,8 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        var query = new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, addProperty.tableKey()));
+        var query =
+            new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, EscapeUtil.escapeStringIdentifier(addProperty.tableKey())));
         var constraints = new ArrayList<String>();
         var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
@@ -442,7 +453,11 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
-        var query = "DELETE FROM %s.%s WHERE _id = %d;".formatted(schema, deleteRow.tableKey(), deleteRow.rowId());
+        var query = "DELETE FROM %s.%s WHERE _id = %d;".formatted(
+            schema,
+            EscapeUtil.escapeStringIdentifier(deleteRow.tableKey()),
+            deleteRow.rowId()
+        );
         return Return.of(query);
     }
 
@@ -475,18 +490,18 @@ class PostgreQueryGenerator implements QueryGenerator {
         List<String> constraints
     ) {
         statementBuilder.append(
-            "\"%s\" INTEGER%s%s%n".formatted(
-                r.key(),
+            "%s INTEGER%s%s%n".formatted(
+                EscapeUtil.escapeStringIdentifier(r.key()),
                 r.notNull() ? " NOT NULL" : "",
                 r.defaultValue() == null ? "" : " DEFAULT %d".formatted(r.defaultValue())
             )
         );
 
-        constraints.add("FOREIGN KEY (\"%s\") REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
+        constraints.add("FOREIGN KEY (%s) REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
-                r.key(),
+                EscapeUtil.escapeStringIdentifier(r.key()),
                 schema,
-                r.refTableKey(),
+                EscapeUtil.escapeStringIdentifier(r.refTableKey()),
                 r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
             )
         );
@@ -498,18 +513,18 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringBuilder foreignKeyConstraint
     ) {
         statementBuilder.append(
-            "\"%s\" INTEGER%s%s%n".formatted(
-                r.key(),
+            "%s INTEGER%s%s%n".formatted(
+                EscapeUtil.escapeStringIdentifier(r.key()),
                 r.notNull() ? " NOT NULL" : "",
                 r.defaultValue() == null ? "" : " DEFAULT %d".formatted(r.defaultValue())
             )
         );
 
-        foreignKeyConstraint.append("FOREIGN KEY (\"%s\") REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
+        foreignKeyConstraint.append("FOREIGN KEY (%s) REFERENCES %s.%s(_id) ON DELETE %s ON UPDATE RESTRICT"
             .formatted(
-                r.key(),
+                EscapeUtil.escapeStringIdentifier(r.key()),
                 schema,
-                r.refTableKey(),
+                EscapeUtil.escapeStringIdentifier(r.refTableKey()),
                 r.notNull() ? "RESTRICT" : (r.defaultValue() == null ? "SET NULL" : "SET DEFAULT")
             )
         );
@@ -520,8 +535,8 @@ class PostgreQueryGenerator implements QueryGenerator {
         StringBuilder statementBuilder
     ) {
         statementBuilder.append(
-            "\"%s\" NUMERIC(%d,%d) DEFAULT %s %s%n".formatted(
-                d.key(),
+            "%s NUMERIC(%d,%d) DEFAULT %s %s%n".formatted(
+                EscapeUtil.escapeStringIdentifier(d.key()),
                 d.precision(),
                 d.scale(),
                 d.defaultValue() == null ? "NULL" : d.defaultValue(),
@@ -651,7 +666,7 @@ class PostgreQueryGenerator implements QueryGenerator {
     private String buildTableComment(NewTable newTable) {
         return "COMMENT ON TABLE %s.%s IS '%s'".formatted(
             schema,
-            newTable.key(),
+            EscapeUtil.escapeStringIdentifier(newTable.key()),
             JsonUtils.generateComment(newTable.name(), newTable.description())
         );
     }
@@ -659,8 +674,8 @@ class PostgreQueryGenerator implements QueryGenerator {
     private String buildPropertyComment(NewTable newTable, Property property) {
         return "COMMENT ON COLUMN %s.%s.%s IS '%s'".formatted(
             schema,
-            newTable.key(),
-            property.key(),
+            EscapeUtil.escapeStringIdentifier(newTable.key()),
+            EscapeUtil.escapeStringIdentifier(property.key()),
             JsonUtils.generateComment(property.name(), property.description())
         );
     }

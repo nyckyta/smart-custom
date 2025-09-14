@@ -19,7 +19,11 @@ public class EscapeUtil {
         // here, we basically do nothing except acting as proxy for postgres jdbc provided escaping
         // The below exception in our particular case should occur only when the string contain null terminator byte.
         try {
-            return Utils.escapeLiteral(null, literal, true).toString();
+            var sb = new StringBuilder();
+            sb.append("'");
+            sb = Utils.escapeLiteral(sb, literal, false);
+            sb.append("'");
+            return sb.toString();
         } catch (SQLException e) {
             log.error("Failure escaping literal", e);
             throw new FatalError("Failure escaping literal");
