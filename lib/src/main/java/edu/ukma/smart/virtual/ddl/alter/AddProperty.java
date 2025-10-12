@@ -33,8 +33,8 @@ public final class AddProperty {
             return false;
         }
         var that = (AddProperty) obj;
-        return Objects.equals(this.tableKey, that.tableKey) &&
-               Objects.equals(this.property, that.property);
+        return Objects.equals(this.tableKey, that.tableKey)
+               && Objects.equals(this.property, that.property);
     }
 
     @Override

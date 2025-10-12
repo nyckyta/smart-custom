@@ -32,8 +32,8 @@ public final class DeleteRow {
             return false;
         }
         var that = (DeleteRow) obj;
-        return Objects.equals(this.tableKey, that.tableKey) &&
-               this.rowId == that.rowId;
+        return Objects.equals(this.tableKey, that.tableKey)
+               && this.rowId == that.rowId;
     }
 
     @Override

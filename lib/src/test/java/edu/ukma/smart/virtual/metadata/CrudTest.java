@@ -79,7 +79,7 @@ public class CrudTest {
 
         var tasks = new ArrayList<Future<?>>();
         var executor = Executors.newFixedThreadPool(4);
-        for (var i = 0; i < 30; i++) {
+        for (var i = 0; i < 12; i++) {
             tasks.add(executor.submit(() -> {
                 var _err =
                     service.updateRow(

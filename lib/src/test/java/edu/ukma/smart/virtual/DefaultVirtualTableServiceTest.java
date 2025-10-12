@@ -866,8 +866,8 @@ class DefaultVirtualTableServiceTest {
 
             statement.clearBatch();
             statement.execute("""
-                SELECT _id
-                FROM custom._test_table_creation_with_reference_property_having_ref
+                SELECT _id%n\
+                FROM custom._test_table_creation_with_reference_property_having_ref%n\
                 WHERE "test_table_creation_with_reference_property_ref_property" = %d""".formatted(
                 parentId));
             assertTrue(statement.getResultSet().next(),
