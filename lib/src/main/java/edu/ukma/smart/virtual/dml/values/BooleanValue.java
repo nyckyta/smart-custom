@@ -7,8 +7,7 @@ public final class BooleanValue implements ColumnValue<Boolean> {
     private final Boolean value;
     private final Type type;
 
-
-    public BooleanValue(String key, Boolean value) {
+    private BooleanValue(String key, Boolean value) {
         this.key = key;
         this.value = value;
         this.type = Type.BOOLEAN;

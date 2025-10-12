@@ -10,7 +10,7 @@ public final class NewTable {
     private final String description;
     private final List<Property> properties;
 
-    public NewTable(String key, String name, String description, List<Property> properties) {
+    private NewTable(String key, String name, String description, List<Property> properties) {
         this.key = key;
         this.name = name;
         this.description = description;

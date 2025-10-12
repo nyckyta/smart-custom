@@ -63,15 +63,14 @@ public class CrudTest {
         }, CONFIG);
         var tableName = "_" + generateRandomString(15);
         var err = service.createTable(
-            new NewTable(
-                tableName,
-                "users",
-                "Description",
-                List.of(
+            NewTable.builder()
+                .key(tableName)
+                .name("users")
+                .description("Description")
+                .properties(List.of(
                     StringProperty.builder().key("name").name("name").build(),
                     IntegerProperty.builder().key("age").name("age").build()
-                )
-            )
+                )).build()
         );
 
         Assert.assertFalse(err.isPresent(), "Expected no error, but got " + err.orElse(null));
@@ -117,15 +116,13 @@ public class CrudTest {
         }, CONFIG);
         var tableName = "_" + generateRandomString(15);
         var err = service.createTable(
-            new NewTable(
-                tableName,
-                "clients",
-                "Description",
-                List.of(
-                    StringProperty.builder().key("name").name("name").build(),
-                    IntegerProperty.builder().key("age").name("age").build()
-                )
-            )
+            NewTable.builder()
+                .key(tableName)
+                .name("clients")
+                .description("Description")
+                .properties(
+                    List.of(StringProperty.builder().key("name").name("name").build(), IntegerProperty.builder().key("age").name("age").build()))
+                .build()
         );
 
         Assert.assertFalse(err.isPresent(), "Expected no error, but got " + err.orElse(null));

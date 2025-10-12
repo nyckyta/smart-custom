@@ -16,7 +16,6 @@ public final class ReferenceProperty implements Property {
     private final String refTableKey;
     private final Type type;
 
-
     private ReferenceProperty(
         String key,
         String name,

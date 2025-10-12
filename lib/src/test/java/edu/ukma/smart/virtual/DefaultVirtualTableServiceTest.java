@@ -171,12 +171,11 @@ class DefaultVirtualTableServiceTest {
 
     @Test(dataProvider = "maliciousTableKeys")
     void testErrorOnInvalidTableKey(String maliciousKey) throws SQLException {
-        final var maliciousTable = new NewTable(
-            maliciousKey,
-            "Malicious Table",
-            "This table has a malicious key",
-            List.of()
-        );
+        final var maliciousTable = NewTable.builder()
+            .key(maliciousKey)
+            .name("Malicious Table")
+            .description("This table has a malicious key")
+            .build();
 
         Optional<? extends Err> result = service.createTable(maliciousTable);
         // Assert
@@ -197,12 +196,13 @@ class DefaultVirtualTableServiceTest {
             true,
             Set.of()
         );
-        final var maliciousTable = new NewTable(
-            "_table_key",
-            "table key",
-            "table description",
-            List.of(maliciousProperty)
-        );
+        final var maliciousTable = NewTable
+            .builder()
+            .key("_table_key")
+            .name("table key")
+            .description("table description")
+            .properties(List.of(maliciousProperty))
+            .build();
         Optional<? extends Err> result = service.createTable(maliciousTable);
 
         // Assert
@@ -222,12 +222,12 @@ class DefaultVirtualTableServiceTest {
             true,
             Set.of()
         );
-        final var maliciousTable = new NewTable(
-            tableKey,
-            "table key",
-            "table description",
-            List.of(maliciousProperty)
-        );
+        final var maliciousTable = NewTable.builder()
+            .key(tableKey)
+            .name("table key")
+            .description("table description")
+            .properties(List.of(maliciousProperty))
+            .build();
         Optional<? extends Err> result = service.createTable(maliciousTable);
 
         assertFalse(result.isPresent(), "Expected no errors on table creation");
@@ -246,20 +246,20 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testTableCreation() throws SQLException {
-        var newTable = new NewTable(
-            "_table_key",
-            "Table table",
-            "This is a test table",
-            List.of(
-                StringProperty.builder()
-                    .key("property_one")
-                    .name("Property 1")
-                    .description("This is property 1")
-                    .defaultValue("default_value_1")
-                    .notNull(true)
-                    .build()
-            )
-        );
+        var newTable = NewTable.builder()
+            .key("_table_key")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .notNull(true)
+                        .build()
+                )
+            ).build();
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table");
 
@@ -362,20 +362,20 @@ class DefaultVirtualTableServiceTest {
     void testTableDeletion() throws SQLException {
 
         // Create a table to delete
-        var newTable = new NewTable(
-            "_table_to_delete",
-            "Table to Delete",
-            "This table will be deleted",
-            List.of(
-                StringProperty.builder()
-                    .key("property_key")
-                    .name("Property 1")
-                    .description("This is property 1")
-                    .defaultValue("default_value_1")
-                    .notNull(true)
-                    .build()
-            )
-        );
+        var newTable = NewTable.builder()
+            .key("_table_to_delete")
+            .name("Table to Delete")
+            .description("This table will be deleted")
+            .properties(List.of(
+                    StringProperty.builder()
+                        .key("property_key")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .notNull(true)
+                        .build()
+                )
+            ).build();
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table to delete, got error " + err.orElse(null));
 
@@ -403,40 +403,40 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testRowAddingToTheVirtualTable() throws SQLException {
 
-        var newTable = new NewTable(
-            "_add_row_test",
-            "Table table",
-            "This is a test table",
-            List.of(
-                StringProperty.builder()
-                    .key("property_one")
-                    .name("Property 1")
-                    .description("This is property 1")
-                    .defaultValue("default_value_1")
-                    .notNull(true)
-                    .build(),
-                IntegerProperty.builder()
-                    .key("property_two")
-                    .name("Property 2")
-                    .description("This is property 2")
-                    .defaultValue(42L)
-                    .notNull(true)
-                    .build(),
-                BooleanProperty.builder()
-                    .key("property_three")
-                    .name("Property 3")
-                    .description("This is property 3")
-                    .defaultValue(true)
-                    .notNull(true)
-                    .build(),
-                DecimalProperty.builder()
-                    .key("property_four")
-                    .name("property 4")
-                    .scale(3)
-                    .precision(6)
-                    .build()
-            )
-        );
+        var newTable = NewTable.builder()
+            .key("_add_row_test")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .notNull(true)
+                        .build(),
+                    IntegerProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .defaultValue(42L)
+                        .notNull(true)
+                        .build(),
+                    BooleanProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .defaultValue(true)
+                        .notNull(true)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_four")
+                        .name("property 4")
+                        .scale(3)
+                        .precision(6)
+                        .build()
+                )
+            ).build();
 
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table, got " + err.orElse(null));
@@ -466,36 +466,36 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testLengthLimitValidationForTextProperties() throws SQLException {
-        var newTable = new NewTable(
-            "_table_key_add_row",
-            "Table table",
-            "This is a test table",
-            List.of(
-                StringProperty.builder()
-                    .key("property_two")
-                    .name("Property 2")
-                    .description("This is property 2")
-                    .constraints(Set.of(PropertyConstraint.maxLength(5)))
-                    .build(),
-                StringProperty.builder()
-                    .key("property_three")
-                    .name("Property 3")
-                    .description("This is property 3")
-                    .constraints(Set.of(PropertyConstraint.minLength(5)))
-                    .build(),
-                StringProperty.builder()
-                    .key("property_four")
-                    .name("Property 4")
-                    .description("This is property 3")
-                    .defaultValue("default_value_3")
-                    .constraints(Set.of(
-                            PropertyConstraint.maxLength(10),
-                            PropertyConstraint.minLength(5)
+        var newTable = NewTable.builder()
+            .key("_table_key_add_row")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(List.of(
+                    StringProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .constraints(Set.of(PropertyConstraint.maxLength(5)))
+                        .build(),
+                    StringProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .constraints(Set.of(PropertyConstraint.minLength(5)))
+                        .build(),
+                    StringProperty.builder()
+                        .key("property_four")
+                        .name("Property 4")
+                        .description("This is property 3")
+                        .defaultValue("default_value_3")
+                        .constraints(Set.of(
+                                PropertyConstraint.maxLength(10),
+                                PropertyConstraint.minLength(5)
+                            )
                         )
-                    )
-                    .build()
-            )
-        );
+                        .build()
+                )
+            ).build();
 
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table");
@@ -557,11 +557,11 @@ class DefaultVirtualTableServiceTest {
     @Test
     void testMinMaxValidationForIntegerProperties() throws SQLException {
 
-        var newTable = new NewTable(
-            "_table_key_integer_add_row",
-            "Table table",
-            "This is a test table",
-            List.of(
+        var newTable = NewTable.builder()
+            .key("_table_key_integer_add_row")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(List.of(
                 IntegerProperty.builder()
                     .key("property_two")
                     .name("Property 2")
@@ -583,7 +583,7 @@ class DefaultVirtualTableServiceTest {
                         PropertyConstraint.lessOrEqual(10L))
                     )
                     .build()
-            ));
+            )).build();
 
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Table must be created without issues, but found " + err.orElse(null));
@@ -652,40 +652,43 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testMinMaxValidationForDecimalProperties() throws SQLException {
-        var newTable = new NewTable(
-            "_table_key_decimal_add_row",
-            "Table table",
-            "This is a test table",
-            List.of(
-                DecimalProperty.builder()
-                    .key("property_two")
-                    .name("Property 2")
-                    .description("This is property 2")
-                    .constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))))
-                    .precision(4)
-                    .scale(3)
-                    .build(),
-                DecimalProperty.builder()
-                    .key("property_three")
-                    .name("Property 3")
-                    .description("This is property 3")
-                    .constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125))))
-                    .precision(4)
-                    .scale(3)
-                    .build(),
-                DecimalProperty.builder()
-                    .key("property_four")
-                    .name("Property 4")
-                    .description("This is property four")
-                    .precision(4)
-                    .scale(3)
-                    .constraints(Set.of(
-                            PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125)),
-                            PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))
+        var newTable = NewTable
+            .builder()
+            .key("_table_key_decimal_add_row")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(
+                List.of(
+                    DecimalProperty.builder()
+                        .key("property_two")
+                        .name("Property 2")
+                        .description("This is property 2")
+                        .constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))))
+                        .precision(4)
+                        .scale(3)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_three")
+                        .name("Property 3")
+                        .description("This is property 3")
+                        .constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125))))
+                        .precision(4)
+                        .scale(3)
+                        .build(),
+                    DecimalProperty.builder()
+                        .key("property_four")
+                        .name("Property 4")
+                        .description("This is property four")
+                        .precision(4)
+                        .scale(3)
+                        .constraints(Set.of(
+                                PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(1.125)),
+                                PropertyConstraint.lessOrEqual(BigDecimal.valueOf(2.5))
+                            )
                         )
-                    )
-                    .build()
-            ));
+                        .build()
+                ))
+            .build();
 
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Table must be created without issues");
@@ -750,20 +753,22 @@ class DefaultVirtualTableServiceTest {
 
     @Test
     void testRowDeletionFromTheVirtualTable() throws SQLException {
-        var newTable = new NewTable(
-            "_table_key_delete_row",
-            "Table table",
-            "This is a test table",
-            List.of(
-                StringProperty.builder()
-                    .key("property_one")
-                    .name("Property 1")
-                    .description("This is property 1")
-                    .defaultValue("default_value_1")
-                    .notNull(true)
-                    .build()
-            )
-        );
+        var newTable = NewTable
+            .builder()
+            .key("_table_key_delete_row")
+            .name("Table table")
+            .description("This is a test table")
+            .properties(
+                List.of(
+                    StringProperty.builder()
+                        .key("property_one")
+                        .name("Property 1")
+                        .description("This is property 1")
+                        .defaultValue("default_value_1")
+                        .notNull(true)
+                        .build()
+                )
+            ).build();
 
         var err = service.createTable(newTable);
         assertFalse(err.isPresent(), "Expected no error when creating table");
