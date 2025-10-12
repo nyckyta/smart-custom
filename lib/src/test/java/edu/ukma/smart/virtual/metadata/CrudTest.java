@@ -38,7 +38,7 @@ public class CrudTest {
 
     @BeforeClass
     void startContainer() throws IOException, InterruptedException, SQLException {
-        container = new GenericContainer<>("postgres:latest")
+        container = new GenericContainer<>("postgres:17")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
         container.start();

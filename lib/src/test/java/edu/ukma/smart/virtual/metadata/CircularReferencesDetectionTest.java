@@ -27,8 +27,8 @@ public class CircularReferencesDetectionTest {
     private GenericContainer<?> container;
 
     @BeforeClass
-    void startContainer() throws IOException, InterruptedException, SQLException {
-        container = new GenericContainer<>("postgres:latest")
+    void startContainer() throws IOException, InterruptedException {
+        container = new GenericContainer<>("postgres:17")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
         container.start();

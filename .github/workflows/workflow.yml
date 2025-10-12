@@ -1,0 +1,9 @@
+name: Application CI/CD
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  # build the binary
+  build:
+    uses: ./.github/workflows/build.yml

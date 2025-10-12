@@ -31,11 +31,10 @@ public class MetadataTest {
     private static final Config CONFIG = new Config();
 
     private GenericContainer<?> container;
-    private Connection connection;
 
     @BeforeClass
-    void startContainer() throws IOException, InterruptedException, SQLException {
-        container = new GenericContainer<>("postgres:latest")
+    void startContainer() throws IOException, InterruptedException {
+        container = new GenericContainer<>("postgres:17")
             .withExposedPorts(5432)
             .withEnv("POSTGRES_PASSWORD", "test");
         container.start();
@@ -46,13 +45,11 @@ public class MetadataTest {
             "-U", "postgres",
             "-d", DB_NAME,
             "-c", "CREATE SCHEMA custom;");
-        connection = createConnection();
     }
 
     @AfterClass(alwaysRun = true)
-    void stopContainer() throws SQLException {
+    void stopContainer() {
         container.stop();
-        connection.close();
     }
 
     @Test

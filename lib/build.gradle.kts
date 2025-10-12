@@ -41,6 +41,18 @@ tasks.named<Test>("test") {
         "java.util.logging.config.file",
         "${projectDir}/src/test/resources/logging.properties"
     )
+    systemProperty(
+        "user.timezone",
+        "Europe/Kyiv"
+    )
+    testLogging {
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+
 }
 
 tasks.withType<Checkstyle>().configureEach {
@@ -50,3 +62,4 @@ tasks.withType<Checkstyle>().configureEach {
         html.required = true
     }
 }
+
