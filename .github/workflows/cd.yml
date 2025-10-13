@@ -1,0 +1,16 @@
+name: Application cd
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # build the binary
+  build:
+    uses: ./.github/workflows/build.yml
+  deploy:
+    permissions:
+      contents: write
+    needs: build
+    uses: ./.github/workflows/deploy.yml
