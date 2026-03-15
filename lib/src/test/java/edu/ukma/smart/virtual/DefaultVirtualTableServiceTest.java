@@ -1,21 +1,42 @@
 package edu.ukma.smart.virtual;
 
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
-import edu.ukma.smart.virtual.ddl.create.*;
+import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
-import edu.ukma.smart.virtual.dml.select.*;
+import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
+import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
+import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
+import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
+import edu.ukma.smart.virtual.dml.select.SelectProperty;
+import edu.ukma.smart.virtual.dml.select.SelectQuery;
+import edu.ukma.smart.virtual.dml.select.StringPredicate;
 import edu.ukma.smart.virtual.dml.update.UpdateRow;
-import edu.ukma.smart.virtual.dml.values.*;
+import edu.ukma.smart.virtual.dml.values.BooleanValue;
+import edu.ukma.smart.virtual.dml.values.ColumnValue;
+import edu.ukma.smart.virtual.dml.values.DecimalValue;
+import edu.ukma.smart.virtual.dml.values.IntegerValue;
+import edu.ukma.smart.virtual.dml.values.ReferenceValue;
+import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.OperationError;
-import org.testcontainers.containers.GenericContainer;
-import org.testng.annotations.*;
-
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -25,10 +46,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
-import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
-import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
-import static org.testng.Assert.*;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeGroups;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 class DefaultVirtualTableServiceTest {
 
