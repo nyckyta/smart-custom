@@ -1,41 +1,21 @@
 package edu.ukma.smart.virtual;
 
-import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
-import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
-import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
-import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
-import edu.ukma.smart.virtual.ddl.create.NewTable;
-import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
-import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.ddl.create.*;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
-import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
-import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
-import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
-import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
-import edu.ukma.smart.virtual.dml.select.SelectProperty;
-import edu.ukma.smart.virtual.dml.select.SelectQuery;
-import edu.ukma.smart.virtual.dml.select.StringPredicate;
+import edu.ukma.smart.virtual.dml.select.*;
 import edu.ukma.smart.virtual.dml.update.UpdateRow;
-import edu.ukma.smart.virtual.dml.values.BooleanValue;
-import edu.ukma.smart.virtual.dml.values.ColumnValue;
-import edu.ukma.smart.virtual.dml.values.DecimalValue;
-import edu.ukma.smart.virtual.dml.values.IntegerValue;
-import edu.ukma.smart.virtual.dml.values.ReferenceValue;
-import edu.ukma.smart.virtual.dml.values.StringValue;
+import edu.ukma.smart.virtual.dml.values.*;
 import edu.ukma.smart.virtual.errors.Err;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
 import edu.ukma.smart.virtual.errors.OperationError;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.annotations.*;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -45,12 +25,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import org.testcontainers.containers.GenericContainer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeGroups;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.PROPERTY_CHECK_VIOLATED;
+import static edu.ukma.smart.virtual.errors.OperationError.ErrorCode.TABLE_DOES_NOT_EXIST;
+import static org.testng.Assert.*;
 
 class DefaultVirtualTableServiceTest {
 
@@ -1560,7 +1538,7 @@ class DefaultVirtualTableServiceTest {
             .key("_add_property_to_table")
             .name("test_name")
             .description("test_description")
-            .properties(List.of(StringProperty.builder().key("name").name("name").build()))
+            .properties(List.of())
             .build()
         );
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
@@ -1569,12 +1547,31 @@ class DefaultVirtualTableServiceTest {
             AddProperty
                 .builder()
                 .tableKey("_add_property_to_table")
-                .property(IntegerProperty.builder().key("added_prop").name("added_prop").notNull(true)
+                .property(
+                    IntegerProperty.builder()
+                        .key("added_prop")
+                        .name("added_prop_name")
+                        .description("added_prop_description")
+                        .notNull(true)
                     .constraints(Set.of(PropertyConstraint.lessOrEqual(25L))).build())
                 .build()
         );
-
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));
+
+        var writtenProperties = service.getProperties("_add_property_to_table");
+        assertFalse(writtenProperties.error().isPresent(),
+            "Expected no error during getting properties, got " + err.orElse(null));
+
+        assertEquals(writtenProperties.value().size(), 1, "Expected single property being available");
+        var requestedProperty = writtenProperties.value().get(0);
+        assertEquals(requestedProperty.type(), Property.Type.INTEGER);
+        assertEquals(requestedProperty.key(), "added_prop");
+        assertEquals(requestedProperty.name(), "added_prop_name");
+        assertEquals(requestedProperty.description(), "added_prop_description");
+        assertTrue(requestedProperty.notNull());
+        assertEquals(requestedProperty.constraints().size(), 1);
+        assertEquals(requestedProperty.constraints().stream().findAny().get(), PropertyConstraint.lessOrEqual(25L));
+
 
         err = service.addRow(InsertRow.of("_add_property_to_table", List.of(IntegerValue.of("added_prop", 20L))));
         assertFalse(err.isPresent(), "Expected no error during creation, got " + err.orElse(null));

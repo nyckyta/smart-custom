@@ -3,7 +3,7 @@
 
 [versions]
 testng = "7.5.1"
-testcontainers = "1.21.1"
+testcontainers = "2.0.3"
 postgresql = "42.7.6"
 slf4j = "2.0.17"
 slf4jdk = "2.0.17"

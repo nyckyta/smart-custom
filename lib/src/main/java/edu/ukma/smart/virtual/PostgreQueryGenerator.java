@@ -4,33 +4,17 @@ import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
-import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
-import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
-import edu.ukma.smart.virtual.ddl.create.NewTable;
-import edu.ukma.smart.virtual.ddl.create.Property;
-import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
-import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.ddl.create.*;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
-import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
-import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
-import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
-import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
-import edu.ukma.smart.virtual.dml.select.NullablePredicate;
-import edu.ukma.smart.virtual.dml.select.Predicate;
-import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
-import edu.ukma.smart.virtual.dml.select.SelectQuery;
-import edu.ukma.smart.virtual.dml.select.StringPredicate;
+import edu.ukma.smart.virtual.dml.select.*;
 import edu.ukma.smart.virtual.dml.update.UpdateRow;
-import edu.ukma.smart.virtual.dml.values.BooleanValue;
-import edu.ukma.smart.virtual.dml.values.ColumnValue;
-import edu.ukma.smart.virtual.dml.values.DecimalValue;
-import edu.ukma.smart.virtual.dml.values.IntegerValue;
-import edu.ukma.smart.virtual.dml.values.ListValue;
-import edu.ukma.smart.virtual.dml.values.StringValue;
+import edu.ukma.smart.virtual.dml.values.*;
 import edu.ukma.smart.virtual.errors.Return;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -39,8 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class PostgreQueryGenerator implements QueryGenerator {
 
@@ -116,7 +98,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         comments.add(buildTableComment(newTable));
         try {
             for (var property : newTable.properties()) {
-                comments.add(buildPropertyComment(newTable, property));
+                comments.add(buildPropertyComment(newTable.key(), property));
                 query.append(",");
                 switch (property.type()) {
                     case STRING -> addStringProperty((StringProperty) property, query);
@@ -315,11 +297,13 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(err.get());
         }
 
+        String escapedKey = EscapeUtil.escapeStringIdentifier(addProperty.tableKey());
         var query =
-            new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, EscapeUtil.escapeStringIdentifier(addProperty.tableKey())));
+            new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, escapedKey));
         var constraints = new ArrayList<String>();
         var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
+        var comment = buildPropertyComment(addProperty.tableKey(), prop);
         try {
             switch (prop.type()) {
                 case STRING -> addStringProperty((StringProperty) prop, query);
@@ -346,8 +330,9 @@ class PostgreQueryGenerator implements QueryGenerator {
             return Return.error(exceptionHandler.handle(e));
         }
 
-        query.append(" %s%s;".formatted(String.join(" ", constraints),
+        query.append(" %s%s".formatted(String.join(" ", constraints),
             foreignKeyConstraint.isEmpty() ? "" : ",ADD " + foreignKeyConstraint));
+        query.append(";").append(comment);
         return Return.of(query.toString());
     }
 
@@ -671,10 +656,10 @@ class PostgreQueryGenerator implements QueryGenerator {
         );
     }
 
-    private String buildPropertyComment(NewTable newTable, Property property) {
+    private String buildPropertyComment(String tableKey, Property property) {
         return "COMMENT ON COLUMN %s.%s.%s IS '%s'".formatted(
             schema,
-            EscapeUtil.escapeStringIdentifier(newTable.key()),
+            EscapeUtil.escapeStringIdentifier(tableKey),
             EscapeUtil.escapeStringIdentifier(property.key()),
             JsonUtils.generateComment(property.name(), property.description())
         );
