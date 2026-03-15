@@ -994,6 +994,13 @@ class DefaultVirtualTableServiceTest {
                 )
             },
             {
+                SelectQuery.wildcard("_test_table_select_faculty", IntegerPredicate.eq("_id", 1L)),
+                List.of(
+                    List.of(IntegerValue.of("_id", 1L), IntegerValue.of("_created", System.currentTimeMillis()),
+                        StringValue.of("name", "Law school"))
+                )
+            },
+            {
                 SelectQuery.of("_test_table_select_faculty", List.of(SelectProperty.of("name"))),
                 List.of(
                     List.of(StringValue.of("name", "Law school")),

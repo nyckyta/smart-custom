@@ -76,7 +76,7 @@ public class PostgreInputValidator implements InputValidator {
             .addVendorColumnValueValidator(cv -> validatePropertyKey(cv.key()))
             .addVendorPredicateValidator(p -> {
                 if (p instanceof RawPredicate<?> rp) {
-                    return validatePropertyKey(rp.propertyKey());
+                    return validatePropertyKeyAllowStatic(rp.propertyKey());
                 }
                 return Optional.empty();
             })
@@ -191,5 +191,13 @@ public class PostgreInputValidator implements InputValidator {
         }
 
         return Optional.empty();
+    }
+
+    private static Optional<InputValidationErr> validatePropertyKeyAllowStatic(String propertyKey) {
+        if (STATIC_FIELDS.contains(propertyKey)) {
+            return Optional.empty();
+        }
+
+        return validatePropertyKey(propertyKey);
     }
 }
