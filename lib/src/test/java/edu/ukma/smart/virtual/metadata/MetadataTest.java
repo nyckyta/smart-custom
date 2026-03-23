@@ -207,7 +207,39 @@ public class MetadataTest {
         } finally {
             dropTables(service, "_communicators");
         }
+    }
 
+    @Test
+    void testAddPropertyWithNotInConstraint() {
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
+        try {
+            var err = service.createTable(
+                NewTable
+                    .builder()
+                    .key("_communicators")
+                    .name("Communication channels")
+                    .description("List of all people per company we can communicate with")
+                    .properties(List.of())
+                    .build()
+            );
+
+            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+            var intProp = IntegerProperty
+                .builder()
+                .key("contract_years")
+                .name("Number of years contract is signed for")
+                .constraints(Set.of(PropertyConstraint.notIn(List.of(2L, 5L, 10L).toArray(Long[]::new))))
+                .build();
+            err = service.addProperty(AddProperty.builder().tableKey("_communicators").property(intProp).build());
+            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+
+            var props = service.getProperties("_communicators");
+            Assert.assertFalse(props.error().isPresent());
+            Assert.assertEquals(props.value().size(), 1);
+            Assert.assertEquals(props.value().getFirst(), intProp);
+        } finally {
+            dropTables(service, "_communicators");
+        }
     }
 
     private Connection createConnection() {

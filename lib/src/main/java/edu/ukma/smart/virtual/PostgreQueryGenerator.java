@@ -174,15 +174,16 @@ class PostgreQueryGenerator implements QueryGenerator {
     }
 
     private static String buildNotIn(Property property, PropertyConstraint cons) {
+        final var checkPattern = "CHECK( %s NOT IN (%s))";
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case STRING -> "CHECK( %s NOT IN (%s)".formatted(escapedKey,
+            case STRING -> checkPattern.formatted(escapedKey,
                 convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE -> "CHECK( %s NOT IN (%s)".formatted(escapedKey,
+            case REFERENCE -> checkPattern.formatted(escapedKey,
                 convertArrayToInParameter(cons.castValue(Integer[].class)));
             case INTEGER ->
-                "CHECK( %s NOT IN (%s)".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
-            case DECIMAL -> "CHECK( %s NOT IN (%s)".formatted(escapedKey,
+                checkPattern.formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
+            case DECIMAL -> checkPattern.formatted(escapedKey,
                 convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
