@@ -100,8 +100,13 @@ class PostgreQueryGenerator implements QueryGenerator {
             c.castValue(Integer.class));
     }
 
-    private static String buildUniqueConstraint(UniqueConstraint c) {
+    private static String buildUniqueConstraintCreateTable(UniqueConstraint c) {
         return "UNIQUE (%s)".formatted(
+            c.properties().stream().map(EscapeUtil::escapeStringIdentifier).collect(Collectors.joining(",")));
+    }
+
+    private static String buildUniqueConstraintAddProperty(UniqueConstraint c) {
+        return "ADD UNIQUE (%s)".formatted(
             c.properties().stream().map(EscapeUtil::escapeStringIdentifier).collect(Collectors.joining(",")));
     }
 
@@ -224,7 +229,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
                 for (var c : property.constraints()) {
                     switch (c.type()) {
-                        case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                        case UNIQUE -> constraints.add(buildUniqueConstraintCreateTable((UniqueConstraint) c));
                         case STRING_MAX_LENGTH ->
                             constraints.add(buildMaxLengthConstraint(property, (PropertyConstraint) c));
                         case STRING_MIN_LENGTH ->
@@ -339,6 +344,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         var query =
             new StringBuilder("ALTER TABLE %s.%s ADD COLUMN%n".formatted(schema, escapedKey));
         var constraints = new ArrayList<String>();
+        var uniqueConstraint = new StringBuilder();
         var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
         var comment = buildPropertyComment(addProperty.tableKey(), prop);
@@ -353,7 +359,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
             for (var c : prop.constraints()) {
                 switch (c.type()) {
-                    case UNIQUE -> constraints.add(buildUniqueConstraint((UniqueConstraint) c));
+                    case UNIQUE -> uniqueConstraint.append(buildUniqueConstraintAddProperty((UniqueConstraint) c));
                     case STRING_MAX_LENGTH -> constraints.add(buildMaxLengthConstraint(prop, (PropertyConstraint) c));
                     case STRING_MIN_LENGTH -> constraints.add(buildMinLengthConstraint(prop, (PropertyConstraint) c));
                     case LESS_THAN_VALUE -> constraints.add(buildLessThanValue(prop, (PropertyConstraint) c));
@@ -372,6 +378,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
         query.append(" %s%s".formatted(String.join(" ", constraints),
             foreignKeyConstraint.isEmpty() ? "" : ",ADD " + foreignKeyConstraint));
+        query.append(uniqueConstraint.isEmpty() ? "" : ",%s".formatted(uniqueConstraint.toString()));
         query.append(";").append(comment);
         return Return.of(query.toString());
     }

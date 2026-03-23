@@ -3,6 +3,7 @@ package edu.ukma.smart.virtual.metadata;
 import edu.ukma.smart.virtual.Config;
 import edu.ukma.smart.virtual.DefaultVirtualTableService;
 import edu.ukma.smart.virtual.VirtualTableService;
+import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
@@ -19,6 +20,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
+
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -171,6 +174,40 @@ public class MetadataTest {
         Assert.assertTrue(propResult.error().isEmpty(), "Expected no errors, but got " + propResult.error().orElse(null));
         Assert.assertEquals(propResult.value(), communicatorProperties);
         dropTables(service, "_communicators", "_client_companies");
+    }
+
+    @Test
+    void testAddPropertyWithUniqueConstraint() {
+        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
+        try {
+            var err = service.createTable(
+                NewTable
+                    .builder()
+                    .key("_communicators")
+                    .name("Communication channels")
+                    .description("List of all people per company we can communicate with")
+                    .properties(List.of())
+                    .build()
+            );
+
+            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+            var boolProp = BooleanProperty
+                .builder()
+                .key("is_worker")
+                .name("Has licence to work")
+                .constraints(Set.of(UniqueConstraint.of("is_worker")))
+                .build();
+            err = service.addProperty(AddProperty.builder().tableKey("_communicators").property(boolProp).build());
+            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+
+            var props = service.getProperties("_communicators");
+            Assert.assertFalse(props.error().isPresent());
+            Assert.assertEquals(props.value().size(), 1);
+            Assert.assertEquals(props.value().getFirst(), boolProp);
+        } finally {
+            dropTables(service, "_communicators");
+        }
+
     }
 
     private Connection createConnection() {

@@ -13,15 +13,6 @@ import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.errors.FatalError;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.metadata.Table;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.TreeMap;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.ArrayConstructor;
 import net.sf.jsqlparser.expression.BooleanValue;
@@ -43,6 +34,16 @@ import net.sf.jsqlparser.statement.alter.Alter;
 import net.sf.jsqlparser.statement.create.table.ForeignKeyIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.TreeMap;
 
 class PostgreMetadataProcessor implements MetadataProcessor {
 
@@ -82,8 +83,12 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                         yield StringProperty.builder().key(propertyKey).name(nameDescr.left())
                             .description(nameDescr.right()).notNull(isNullable).defaultValue(defColumn);
                     }
-                    case BOOLEAN -> BooleanProperty.builder().key(propertyKey).name(nameDescr.left())
-                        .description(nameDescr.right()).notNull(isNullable).defaultValue(rs.getBoolean(4));
+                    case BOOLEAN -> {
+                        boolean defaultValue = rs.getBoolean(4);
+                        yield BooleanProperty.builder().key(propertyKey).name(nameDescr.left())
+                            .description(nameDescr.right()).notNull(isNullable)
+                            .defaultValue(rs.wasNull() ? null : defaultValue);
+                    }
                     case REFERENCE -> {
                         int columnDefValue = rs.getInt(4);
                         var defaultVal = rs.wasNull() ? null : columnDefValue;

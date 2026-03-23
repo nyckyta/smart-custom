@@ -72,7 +72,7 @@ public final class BooleanProperty implements Property {
 
     @Override
     public String toString() {
-        return "BooleanProperty[key=%s, name=%s, description=%s, defaultValue=%s, notNull=%s, notNull=%s, type=%s]".formatted(key, name,
+        return "BooleanProperty[key=%s, name=%s, description=%s, defaultValue=%s, notNull=%s, constraints=%s, type=%s]".formatted(key, name,
             description, defaultValue, notNull, constraints, type);
     }
 
