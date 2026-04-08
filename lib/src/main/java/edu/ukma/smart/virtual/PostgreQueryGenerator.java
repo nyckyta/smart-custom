@@ -2,7 +2,27 @@ package edu.ukma.smart.virtual;
 
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalNotInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongNotInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.MaxLengthConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.MinLengthConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringNotInConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
 import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
 import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
@@ -31,7 +51,6 @@ import edu.ukma.smart.virtual.dml.values.IntegerValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.dml.values.StringValue;
 import edu.ukma.smart.virtual.errors.Return;
-import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,7 +116,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private static String buildMaxLengthConstraint(Property property, PropertyConstraint c) {
         return "CHECK( char_length(%s) <= %d )".formatted(EscapeUtil.escapeStringIdentifier(property.key()),
-            c.castValue(Integer.class));
+            ((MaxLengthConstraint) c).value());
     }
 
     private static String buildUniqueConstraintCreateTable(UniqueConstraint c) {
@@ -113,11 +132,10 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static String buildLessThanValue(Property property, PropertyConstraint p) {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( %s < %d )".formatted(escapedKey, p.castValue(Long.class));
-            case REFERENCE -> "CHECK( %s < %d )".formatted(escapedKey, p.castValue(Integer.class));
-            case DECIMAL -> "CHECK( %s < %f )".formatted(escapedKey, p.castValue(BigDecimal.class));
+            case INTEGER, REFERENCE -> "CHECK( %s < %d )".formatted(escapedKey, ((LongLessThanConstraint) p).value());
+            case DECIMAL -> "CHECK( %s < %f )".formatted(escapedKey, ((DecimalLessThanConstraint) p).value());
             case STRING ->
-                "CHECK( %s < '%s' )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(p.castValue(String.class)));
+                "CHECK( %s < %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(((StringLessThanConstraint) p).value()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -125,11 +143,10 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static String buildLessOrEqualValue(Property property, PropertyConstraint cons) {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( %s <= %d )".formatted(escapedKey, cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( %s <= %d )".formatted(escapedKey, cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( %s <= %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case INTEGER, REFERENCE -> "CHECK( %s <= %d )".formatted(escapedKey, ((LongLessOrEqualConstraint) cons).value());
+            case DECIMAL -> "CHECK( %s <= %f )".formatted(escapedKey, ((DecimalLessOrEqualConstraint) cons).value());
             case STRING ->
-                "CHECK( %s <= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
+                "CHECK( %s <= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(((StringLessOrEqualConstraint) cons).value()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -137,11 +154,10 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static String buildGreaterThanValue(Property property, PropertyConstraint cons) {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( %s > %d )".formatted(escapedKey, cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( %s > %d )".formatted(escapedKey, cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( %s > %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case INTEGER, REFERENCE -> "CHECK( %s > %d )".formatted(escapedKey, ((LongGreaterThanConstraint) cons).value());
+            case DECIMAL -> "CHECK( %s > %f )".formatted(escapedKey, ((DecimalGreaterThanConstraint) cons).value());
             case STRING ->
-                "CHECK( %s > %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
+                "CHECK( %s > %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(((StringGreaterThanConstraint) cons).value()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -149,11 +165,10 @@ class PostgreQueryGenerator implements QueryGenerator {
     private static String buildGreaterOrEqualThanValue(Property property, PropertyConstraint cons) {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
-            case INTEGER -> "CHECK( %s >= %d )".formatted(escapedKey, cons.castValue(Long.class));
-            case REFERENCE -> "CHECK( %s >= %d )".formatted(escapedKey, cons.castValue(Integer.class));
-            case DECIMAL -> "CHECK( %s >= %f )".formatted(escapedKey, cons.castValue(BigDecimal.class));
+            case INTEGER, REFERENCE -> "CHECK( %s >= %d )".formatted(escapedKey, ((LongGreaterOrEqualConstraint) cons).value());
+            case DECIMAL -> "CHECK( %s >= %f )".formatted(escapedKey, ((DecimalGreaterOrEqualConstraint) cons).value());
             case STRING ->
-                "CHECK( %s >= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(cons.castValue(String.class)));
+                "CHECK( %s >= %s )".formatted(escapedKey, EscapeUtil.escapeStringLiteral(((StringGreaterOrEqualConstraint) cons).value()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -162,13 +177,11 @@ class PostgreQueryGenerator implements QueryGenerator {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
             case STRING ->
-                "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE ->
-                "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER ->
-                "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
+                "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(((StringInConstraint) cons).values()));
+            case INTEGER, REFERENCE ->
+                "CHECK( %s IN (%s))".formatted(escapedKey, convertArrayToInParameter(((LongInConstraint) cons).values()));
             case DECIMAL -> "CHECK( %s IN (%s))".formatted(escapedKey,
-                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+                convertArrayToInParameter(((DecimalInConstraint) cons).values()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -178,13 +191,11 @@ class PostgreQueryGenerator implements QueryGenerator {
         var escapedKey = EscapeUtil.escapeStringIdentifier(property.key());
         return switch (property.type()) {
             case STRING -> checkPattern.formatted(escapedKey,
-                convertArrayToInParameter(cons.castValue(String[].class)));
-            case REFERENCE -> checkPattern.formatted(escapedKey,
-                convertArrayToInParameter(cons.castValue(Integer[].class)));
-            case INTEGER ->
-                checkPattern.formatted(escapedKey, convertArrayToInParameter(cons.castValue(Long[].class)));
+                convertArrayToInParameter(((StringNotInConstraint) cons).values()));
+            case INTEGER, REFERENCE ->
+                checkPattern.formatted(escapedKey, convertArrayToInParameter(((LongNotInConstraint) cons).values()));
             case DECIMAL -> checkPattern.formatted(escapedKey,
-                convertArrayToInParameter(cons.castValue(BigDecimal[].class)));
+                convertArrayToInParameter(((DecimalNotInConstraint) cons).values()));
             case BOOLEAN -> throw new IllegalStateException("Boolean constraint can't be here");
         };
     }
@@ -260,7 +271,7 @@ class PostgreQueryGenerator implements QueryGenerator {
 
     private String buildMinLengthConstraint(Property property, PropertyConstraint c) {
         return "CHECK( char_length(%s) >= %d )".formatted(EscapeUtil.escapeStringIdentifier(property.key()),
-            c.castValue(Integer.class));
+            ((MinLengthConstraint) c).value());
     }
 
     @Override

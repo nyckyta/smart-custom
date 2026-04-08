@@ -23,6 +23,7 @@ import edu.ukma.smart.virtual.dml.select.SelectProperty;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
 import edu.ukma.smart.virtual.dml.update.UpdateRow;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
+
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;

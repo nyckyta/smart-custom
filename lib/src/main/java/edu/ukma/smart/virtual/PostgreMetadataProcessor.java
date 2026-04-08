@@ -4,30 +4,13 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonToken;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
-import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
-import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
-import edu.ukma.smart.virtual.ddl.create.Property;
-import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
-import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.ddl.create.*;
 import edu.ukma.smart.virtual.errors.FatalError;
 import edu.ukma.smart.virtual.errors.Return;
 import edu.ukma.smart.virtual.metadata.Table;
 import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.expression.ArrayConstructor;
-import net.sf.jsqlparser.expression.BooleanValue;
-import net.sf.jsqlparser.expression.CastExpression;
-import net.sf.jsqlparser.expression.DoubleValue;
-import net.sf.jsqlparser.expression.Function;
-import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.StringValue;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.MinorThan;
-import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
+import net.sf.jsqlparser.expression.*;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.alter.Alter;
@@ -39,11 +22,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 
 class PostgreMetadataProcessor implements MetadataProcessor {
 
@@ -237,8 +216,13 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                         case REFERENCE, INTEGER -> PropertyConstraint.greaterThan(gt.getRightExpression(LongValue.class).getValue());
                         case DECIMAL -> PropertyConstraint.greaterThan(
                             BigDecimal.valueOf(gt.getRightExpression(DoubleValue.class).getValue()));
-                        case BOOLEAN -> PropertyConstraint.greaterThan(gt.getRightExpression(BooleanValue.class).getValue());
-                        case STRING -> PropertyConstraint.greaterThan(gt.getRightExpression(StringValue.class).getValue());
+                        case BOOLEAN ->
+                            throw new IllegalStateException("Boolean comparison constraints are not supported");
+                        case STRING ->
+                            PropertyConstraint // postgres casts string expression to ::text, so we expect cast here instead of pure value
+                                .greaterThan((gt.getRightExpression(CastExpression.class))
+                                    .getLeftExpression(StringValue.class)
+                                    .getValue());
                     };
 
                 }
@@ -250,11 +234,15 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                 }
                 case MinorThan mt -> {
                     return switch (type) {
-                        case REFERENCE, INTEGER -> PropertyConstraint.lessThan(mt.getLeftExpression(LongValue.class).getValue());
+                        case REFERENCE, INTEGER ->
+                            PropertyConstraint.lessThan(mt.getRightExpression(LongValue.class).getValue());
                         case DECIMAL -> PropertyConstraint.lessThan(
-                            BigDecimal.valueOf(mt.getLeftExpression(DoubleValue.class).getValue()));
-                        case BOOLEAN -> PropertyConstraint.lessThan(mt.getLeftExpression(BooleanValue.class).getValue());
-                        case STRING -> PropertyConstraint.lessThan(mt.getLeftExpression(StringValue.class).getValue());
+                            BigDecimal.valueOf(mt.getRightExpression(DoubleValue.class).getValue()));
+                        case BOOLEAN ->
+                            throw new IllegalStateException("Boolean comparison constraints are not supported");
+                        case STRING -> PropertyConstraint.lessThan(
+                            mt.getRightExpression(CastExpression.class).getLeftExpression(StringValue.class)
+                                .getValue());
                     };
                 }
                 // in/not in are compiled to postgres column = ANY (ARRAY['option1'::, 'option2'::])
@@ -262,21 +250,20 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                     if (et.getRightExpression() instanceof Function f) {
                         var arrConst = (ArrayConstructor) f.getParameters().get(0);
                         var valueExpressions = arrConst.getExpressions().stream();
-                        var arrayOfPossibleValues = switch (type) {
-                            case INTEGER -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(Long[]::new);
-                            case REFERENCE -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                            .toArray(Integer[]::new);
-                            case DECIMAL -> valueExpressions.map(
-                                    ce -> BigDecimal.valueOf(((DoubleValue) ((CastExpression) ce).getLeftExpression()).getValue()))
-                                .toArray(BigDecimal[]::new);
-                            case BOOLEAN -> valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(Boolean[]::new);
-                            case STRING -> valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(String[]::new);
+                        return switch (type) {
+                            case INTEGER -> PropertyConstraint.in(valueExpressions.map(
+                                    ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(Long[]::new));
+                            case REFERENCE -> PropertyConstraint.in(valueExpressions.map(
+                                ce -> ((LongValue) ce).getValue()).toArray(Long[]::new));
+                            case DECIMAL -> PropertyConstraint.in(
+                                valueExpressions.map(PostgreMetadataProcessor::convertDecimalExpression)
+                                    .toArray(BigDecimal[]::new));
+                            case BOOLEAN -> throw new IllegalStateException("Boolean IN constraints are not supported");
+                            case STRING -> PropertyConstraint.in(valueExpressions.map(
+                                    ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(String[]::new));
                         };
-
-                        return PropertyConstraint.in(arrayOfPossibleValues);
                     }
 
                     log.error("Unexpected equals constraint {}", et);
@@ -286,24 +273,22 @@ class PostgreMetadataProcessor implements MetadataProcessor {
                     if (net.getRightExpression() instanceof Function f) {
                         var arrConst = (ArrayConstructor) f.getParameters().get(0);
                         var valueExpressions = arrConst.getExpressions().stream();
-                        var arrayOfPossibleValues = switch (type) {
-                            case INTEGER -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(
-                                    Long[]::new);
-                            case REFERENCE -> valueExpressions.map(ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(
-                                    Integer[]::new);
-                            case DECIMAL -> valueExpressions.map(
-                                    ce -> BigDecimal.valueOf(((DoubleValue) ((CastExpression) ce).getLeftExpression()).getValue()))
-                                .toArray(BigDecimal[]::new);
-                            case BOOLEAN -> valueExpressions.map(ce -> ((BooleanValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(Boolean[]::new);
-                            case STRING -> valueExpressions.map(ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
-                                .toArray(String[]::new);
-
+                        return switch (type) {
+                            case INTEGER -> PropertyConstraint.notIn(valueExpressions.map(
+                                    ce -> ((LongValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(Long[]::new));
+                            case REFERENCE -> PropertyConstraint.notIn(valueExpressions.map(
+                                    ce -> ((LongValue) ce).getValue())
+                                .toArray(Long[]::new));
+                            case DECIMAL -> PropertyConstraint.notIn(
+                                valueExpressions.map(PostgreMetadataProcessor::convertDecimalExpression)
+                                    .toArray(BigDecimal[]::new));
+                            case BOOLEAN ->
+                                throw new IllegalStateException("Boolean NOT IN constraints are not supported");
+                            case STRING -> PropertyConstraint.notIn(valueExpressions.map(
+                                    ce -> ((StringValue) ((CastExpression) ce).getLeftExpression()).getValue())
+                                .toArray(String[]::new));
                         };
-
-                        return PropertyConstraint.notIn(arrayOfPossibleValues);
                     }
 
                     log.error("Unexpected not equals constraint {}", net);
@@ -321,6 +306,22 @@ class PostgreMetadataProcessor implements MetadataProcessor {
             log.error("Unexpected class cast, can it be that database is somehow in invalid state? ", e);
             throw new FatalError("Failed to parse expression from the existing schema");
         }
+    }
+
+    private static BigDecimal convertDecimalExpression(Expression expression) {
+        var numberCastExpression = expression instanceof CastExpression
+            ? ((CastExpression) expression).getLeftExpression()
+            : expression;
+
+        if (numberCastExpression instanceof LongValue lv) {
+            return BigDecimal.valueOf(lv.getValue());
+        }
+
+        if (numberCastExpression instanceof DoubleValue dv) {
+            return BigDecimal.valueOf(dv.getValue());
+        }
+
+        throw new IllegalStateException("Unknwon cast expression type " + expression.getClass());
     }
 
     private static void parseFkConsAndAddToBuilder(
@@ -346,7 +347,10 @@ class PostgreMetadataProcessor implements MetadataProcessor {
         }
 
         if (gte.getLeftExpression() instanceof Column) {
-            return PropertyConstraint.greaterOrEqual(gte.getRightExpression(LongValue.class).getValue());
+            return PropertyConstraint
+                .greaterOrEqual(
+                    gte.getRightExpression(CastExpression.class).getLeftExpression(StringValue.class).getValue()
+                );
         }
 
         log.error("Unexpected constraint expression: {}", gte);
@@ -360,7 +364,8 @@ class PostgreMetadataProcessor implements MetadataProcessor {
         }
 
         if (mte.getLeftExpression() instanceof Column) {
-            return PropertyConstraint.lessOrEqual(mte.getRightExpression(LongValue.class).getValue());
+            return PropertyConstraint.lessOrEqual(
+                mte.getRightExpression(CastExpression.class).getLeftExpression(StringValue.class).getValue());
         }
 
         log.error("Unexpected constraint expression: {}", mte);
@@ -371,7 +376,7 @@ class PostgreMetadataProcessor implements MetadataProcessor {
         return switch (type) {
             case REFERENCE, INTEGER -> PropertyConstraint.greaterOrEqual(gte.getRightExpression(LongValue.class).getValue());
             case DECIMAL -> PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(gte.getRightExpression(DoubleValue.class).getValue()));
-            case BOOLEAN -> PropertyConstraint.greaterOrEqual(gte.getRightExpression(BooleanValue.class).getValue());
+            case BOOLEAN -> throw new IllegalStateException("Boolean comparison constraints are not supported");
             case STRING -> throw new IllegalStateException(
                 "String property is not expected here, is there a race condition?");
         };
@@ -382,7 +387,7 @@ class PostgreMetadataProcessor implements MetadataProcessor {
             case REFERENCE, INTEGER -> PropertyConstraint.lessOrEqual(mte.getRightExpression(LongValue.class).getValue());
             case DECIMAL -> PropertyConstraint.lessOrEqual(
                 BigDecimal.valueOf(mte.getRightExpression(DoubleValue.class).getValue()));
-            case BOOLEAN -> PropertyConstraint.lessOrEqual(mte.getRightExpression(BooleanValue.class).getValue());
+            case BOOLEAN -> throw new IllegalStateException("Boolean comparison constraints are not supported");
             case STRING -> throw new IllegalStateException(
                 "String property is not expected here, is there a race condition?");
         };

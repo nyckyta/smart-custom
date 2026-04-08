@@ -98,7 +98,7 @@ public final class DecimalProperty implements Property {
         return notNull == that.notNull && precision == that.precision && scale == that.scale
                && Objects.equals(key, that.key) && Objects.equals(name, that.name)
                && Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue)
-               && Objects.equals(constraints, that.constraints) && type == that.type;
+               && constraints.equals(that.constraints) && type == that.type;
     }
 
     @Override

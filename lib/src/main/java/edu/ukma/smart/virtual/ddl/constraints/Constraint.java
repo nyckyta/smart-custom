@@ -16,9 +16,9 @@ public interface Constraint {
         GREATER_OR_EQUAL_THAN_VALUE(Set.of(Property.Type.INTEGER, Property.Type.DECIMAL, Property.Type.REFERENCE, Property.Type.STRING)),
         UNIQUE(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE, Property.Type.BOOLEAN,
             Property.Type.DECIMAL)),
-        IN(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE, Property.Type.BOOLEAN,
+        IN(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE,
             Property.Type.DECIMAL)),
-        NOT_IN(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE, Property.Type.BOOLEAN,
+        NOT_IN(Set.of(Property.Type.STRING, Property.Type.INTEGER, Property.Type.REFERENCE,
             Property.Type.DECIMAL));
 
         private final Set<Property.Type> supportedProperties;

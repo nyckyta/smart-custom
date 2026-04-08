@@ -72,7 +72,7 @@ public final class IntegerProperty implements Property {
 
     @Override
     public String toString() {
-        return "IntegerProperty[key=%s, name=%s, description=%s, defaultValue=%d, notNull=%s, notNull=%s, type=%s]".formatted(key, name,
+        return "IntegerProperty[key=%s, name=%s, description=%s, defaultValue=%d, notNull=%s, constraints=%s, type=%s]".formatted(key, name,
             description, defaultValue, notNull, constraints, type);
     }
 
@@ -83,7 +83,7 @@ public final class IntegerProperty implements Property {
         }
         return notNull == that.notNull && Objects.equals(key, that.key) && Objects.equals(name, that.name)
                && Objects.equals(description, that.description) && Objects.equals(defaultValue, that.defaultValue)
-               && Objects.equals(constraints, that.constraints) && type == that.type;
+               && type == that.type && constraints.equals(that.constraints);
     }
 
     @Override

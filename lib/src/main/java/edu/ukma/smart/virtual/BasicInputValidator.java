@@ -4,7 +4,6 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.ALTER_T
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_LEFT_PART_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_OPERATOR_IS_EMPTY;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.COMPOUND_PREDICATE_RIGHT_PART_IS_EMPTY;
-import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_MISSING_VALUE;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_PROPERTY_TYPE_MISMATCH;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CONSTRAINT_VALUE_TYPE_MISMATCH;
 import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.CREATE_TABLE_EMPTY_NAME_FOR_PROPERTY;
@@ -20,7 +19,27 @@ import static edu.ukma.smart.virtual.errors.InputValidationErr.ErrorCode.WRONG_T
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.alter.DropProperty;
 import edu.ukma.smart.virtual.ddl.constraints.Constraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.DecimalNotInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.LongNotInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.MaxLengthConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.MinLengthConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringGreaterOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringGreaterThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringInConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringLessOrEqualConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringLessThanConstraint;
+import edu.ukma.smart.virtual.ddl.constraints.StringNotInConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
 import edu.ukma.smart.virtual.ddl.create.NewTable;
 import edu.ukma.smart.virtual.ddl.create.Property;
@@ -38,7 +57,6 @@ import edu.ukma.smart.virtual.dml.update.UpdateRow;
 import edu.ukma.smart.virtual.dml.values.ColumnValue;
 import edu.ukma.smart.virtual.dml.values.ListValue;
 import edu.ukma.smart.virtual.errors.InputValidationErr;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -188,19 +206,16 @@ public final class BasicInputValidator implements InputValidator {
         Property propKey,
         PropertyConstraint columnConstraint
     ) {
-        if (columnConstraint.value == null) {
-            return Optional.of(InputValidationErr.of(CONSTRAINT_MISSING_VALUE));
-        }
-
-        boolean constraintValueTypeMismatch = switch (columnConstraint.type) {
-            case STRING_MAX_LENGTH, STRING_MIN_LENGTH -> propKey instanceof StringProperty && columnConstraint.value instanceof Integer;
+        boolean valid = switch (columnConstraint.type()) {
+            case STRING_MAX_LENGTH -> propKey instanceof StringProperty && columnConstraint instanceof MaxLengthConstraint;
+            case STRING_MIN_LENGTH -> propKey instanceof StringProperty && columnConstraint instanceof MinLengthConstraint;
             case GREATER_THAN_VALUE, LESS_THAN_VALUE, GREATER_OR_EQUAL_THAN_VALUE, LESS_OR_EQUAL_THAN_VALUE ->
                 constraintTypeMatchProperty(propKey, columnConstraint);
             case IN, NOT_IN -> constraintInTypeMatchProperty(propKey, columnConstraint);
             case UNIQUE -> throw new IllegalArgumentException("Unique constraint can not be there");
         };
 
-        if (!constraintValueTypeMismatch) {
+        if (!valid) {
             return Optional.of(InputValidationErr.of(CONSTRAINT_VALUE_TYPE_MISMATCH));
         }
 
@@ -209,21 +224,28 @@ public final class BasicInputValidator implements InputValidator {
 
     private static boolean constraintTypeMatchProperty(Property property, PropertyConstraint constraint) {
         return switch (property.type()) {
-            case STRING -> constraint.value instanceof String;
-            case DECIMAL -> constraint.value instanceof BigDecimal;
-            case INTEGER -> constraint.value instanceof Long;
-            case BOOLEAN -> constraint.value instanceof Boolean;
-            case REFERENCE -> constraint.value instanceof Integer;
+            case STRING -> constraint instanceof StringGreaterThanConstraint
+                || constraint instanceof StringLessThanConstraint
+                || constraint instanceof StringGreaterOrEqualConstraint
+                || constraint instanceof StringLessOrEqualConstraint;
+            case DECIMAL -> constraint instanceof DecimalGreaterThanConstraint
+                || constraint instanceof DecimalLessThanConstraint
+                || constraint instanceof DecimalGreaterOrEqualConstraint
+                || constraint instanceof DecimalLessOrEqualConstraint;
+            case INTEGER, REFERENCE -> constraint instanceof LongGreaterThanConstraint
+                || constraint instanceof LongLessThanConstraint
+                || constraint instanceof LongGreaterOrEqualConstraint
+                || constraint instanceof LongLessOrEqualConstraint;
+            case BOOLEAN -> false;
         };
     }
 
     private static boolean constraintInTypeMatchProperty(Property property, PropertyConstraint constraint) {
         return switch (property.type()) {
-            case STRING -> constraint.value instanceof String[];
-            case DECIMAL -> constraint.value instanceof BigDecimal[];
-            case INTEGER -> constraint.value instanceof Long[];
-            case BOOLEAN -> constraint.value instanceof Boolean[];
-            case REFERENCE -> constraint.value instanceof Integer[];
+            case STRING -> constraint instanceof StringInConstraint || constraint instanceof StringNotInConstraint;
+            case DECIMAL -> constraint instanceof DecimalInConstraint || constraint instanceof DecimalNotInConstraint;
+            case INTEGER, REFERENCE -> constraint instanceof LongInConstraint || constraint instanceof LongNotInConstraint;
+            case BOOLEAN -> false;
         };
     }
 

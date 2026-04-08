@@ -6,13 +6,15 @@ import edu.ukma.smart.virtual.VirtualTableService;
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
-import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
-import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
-import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
-import edu.ukma.smart.virtual.ddl.create.NewTable;
-import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
-import edu.ukma.smart.virtual.ddl.create.StringProperty;
+import edu.ukma.smart.virtual.ddl.create.*;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -21,12 +23,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-
-import org.testcontainers.containers.GenericContainer;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 public class MetadataTest {
 
@@ -176,11 +172,20 @@ public class MetadataTest {
         dropTables(service, "_communicators", "_client_companies");
     }
 
-    @Test
-    void testAddPropertyWithUniqueConstraint() {
+    @Test(dataProvider = "addPropertyWithConstraintProvider")
+    void testAddPropertyWithConstraint(Object propertyToAdd) {
         var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
         try {
             var err = service.createTable(
+                NewTable
+                    .builder()
+                    .key("_cathedra")
+                    .name("Cathedra reference")
+                    .description("Cathedra values")
+                    .build()
+            );
+            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
+            err = service.createTable(
                 NewTable
                     .builder()
                     .key("_communicators")
@@ -191,55 +196,104 @@ public class MetadataTest {
             );
 
             Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
-            var boolProp = BooleanProperty
-                .builder()
-                .key("is_worker")
-                .name("Has licence to work")
-                .constraints(Set.of(UniqueConstraint.of("is_worker")))
-                .build();
-            err = service.addProperty(AddProperty.builder().tableKey("_communicators").property(boolProp).build());
+            err = service.addProperty(
+                AddProperty
+                    .builder()
+                    .tableKey("_communicators")
+                    .property((Property) propertyToAdd)
+                    .build()
+            );
             Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
 
             var props = service.getProperties("_communicators");
             Assert.assertFalse(props.error().isPresent());
             Assert.assertEquals(props.value().size(), 1);
-            Assert.assertEquals(props.value().getFirst(), boolProp);
+            Assert.assertEquals(props.value().getFirst(), propertyToAdd);
         } finally {
             dropTables(service, "_communicators");
+            dropTables(service, "_cathedra");
         }
     }
 
-    @Test
-    void testAddPropertyWithNotInConstraint() {
-        var service = new DefaultVirtualTableService(this::createConnection, CONFIG);
-        try {
-            var err = service.createTable(
-                NewTable
-                    .builder()
-                    .key("_communicators")
-                    .name("Communication channels")
-                    .description("List of all people per company we can communicate with")
-                    .properties(List.of())
-                    .build()
-            );
+    @DataProvider(name = "addPropertyWithConstraintProvider")
+    public static Object[] addPropertyWithConstraintTest() {
+        var strPropBuilder = StringProperty
+            .builder()
+            .key("str_prop")
+            .name("str prop");
+        var intPropBuilder = IntegerProperty
+            .builder()
+            .key("int_prop")
+            .name("int prop");
+        var boolPropBuilder = BooleanProperty
+            .builder()
+            .key("bool_prop")
+            .name("bool prop");
+        var decimalPropBuilder = DecimalProperty
+            .builder()
+            .key("decimal_prop")
+            .name("decimal prop")
+            .precision(3)
+            .scale(3);
+        var referencePropBuilder = ReferenceProperty
+            .builder()
+            .key("reference_prop")
+            .name("reference prop")
+            .refTableKey("_cathedra");
 
-            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
-            var intProp = IntegerProperty
-                .builder()
-                .key("contract_years")
-                .name("Number of years contract is signed for")
-                .constraints(Set.of(PropertyConstraint.notIn(List.of(2L, 5L, 10L).toArray(Long[]::new))))
-                .build();
-            err = service.addProperty(AddProperty.builder().tableKey("_communicators").property(intProp).build());
-            Assert.assertFalse(err.isPresent(), "Expected no errors, but got " + err.orElse(null));
-
-            var props = service.getProperties("_communicators");
-            Assert.assertFalse(props.error().isPresent());
-            Assert.assertEquals(props.value().size(), 1);
-            Assert.assertEquals(props.value().getFirst(), intProp);
-        } finally {
-            dropTables(service, "_communicators");
-        }
+        return new Object[]{
+            strPropBuilder.constraints(
+                Set.of(PropertyConstraint.notIn(List.of("2L", "5L", "10L").toArray(String[]::new)))).build(),
+            strPropBuilder.constraints(
+                Set.of(PropertyConstraint.in(List.of("2L", "5L", "10L").toArray(String[]::new)))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan("2232"))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual("2323"))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.lessThan("252432"))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual("252432"))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.maxLength(25))).build(),
+            strPropBuilder.constraints(Set.of(PropertyConstraint.minLength(20))).build(),
+            strPropBuilder.constraints(Set.of(UniqueConstraint.of("str_prop"))).build(),
+            // int property
+            intPropBuilder.constraints(
+                Set.of(PropertyConstraint.notIn(List.of(2L, 5L, 10L).toArray(Long[]::new)))).build(),
+            intPropBuilder.constraints(
+                Set.of(PropertyConstraint.in(List.of(2L, 5L, 10L).toArray(Long[]::new)))).build(),
+            intPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(2232))).build(),
+            intPropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual(2323))).build(),
+            intPropBuilder.constraints(Set.of(PropertyConstraint.lessThan(252432))).build(),
+            intPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(252432))).build(),
+            intPropBuilder.constraints(Set.of(UniqueConstraint.of("int_prop"))).build(),
+            // boolean property
+            boolPropBuilder.constraints(Set.of(UniqueConstraint.of("bool_prop"))).build(),
+            // decimal properties
+            decimalPropBuilder.constraints(
+                Set.of(PropertyConstraint.notIn(List.of(BigDecimal.valueOf(2), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L)).toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(
+                Set.of(PropertyConstraint.notIn(List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11)).toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(
+                Set.of(PropertyConstraint.in(List.of(BigDecimal.valueOf(2L), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L)).toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(
+                Set.of(PropertyConstraint.in(List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11)).toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(BigDecimal.valueOf(2232)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(BigDecimal.valueOf(22.32)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(2323)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(23.23)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessThan(BigDecimal.valueOf(252432)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessThan(BigDecimal.valueOf(252.432)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(252432)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(252.432)))).build(),
+            decimalPropBuilder.constraints(Set.of(UniqueConstraint.of("decimal_prop"))).build(),
+            //reference
+            referencePropBuilder.constraints(
+                Set.of(PropertyConstraint.notIn(List.of(2L, 5L, 10L).toArray(Long[]::new)))).build(),
+            referencePropBuilder.constraints(
+                Set.of(PropertyConstraint.in(List.of(2L, 5L, 10L).toArray(Long[]::new)))).build(),
+            referencePropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(2232))).build(),
+            referencePropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual(2323))).build(),
+            referencePropBuilder.constraints(Set.of(PropertyConstraint.lessThan(252432))).build(),
+            referencePropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(252432))).build(),
+            referencePropBuilder.constraints(Set.of(UniqueConstraint.of("reference_prop"))).build(),
+        };
     }
 
     private Connection createConnection() {

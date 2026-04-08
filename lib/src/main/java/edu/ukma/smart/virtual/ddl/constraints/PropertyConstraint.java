@@ -1,75 +1,93 @@
 package edu.ukma.smart.virtual.ddl.constraints;
 
+import java.math.BigDecimal;
 
-import java.util.Arrays;
-import java.util.Objects;
+public sealed interface PropertyConstraint extends Constraint
+    permits MaxLengthConstraint, MinLengthConstraint,
+            LongGreaterThanConstraint, DecimalGreaterThanConstraint, StringGreaterThanConstraint,
+            LongLessThanConstraint, DecimalLessThanConstraint, StringLessThanConstraint,
+            LongGreaterOrEqualConstraint, DecimalGreaterOrEqualConstraint, StringGreaterOrEqualConstraint,
+            LongLessOrEqualConstraint, DecimalLessOrEqualConstraint, StringLessOrEqualConstraint,
+            LongInConstraint, DecimalInConstraint, StringInConstraint,
+            LongNotInConstraint, DecimalNotInConstraint, StringNotInConstraint {
 
-public class PropertyConstraint implements Constraint {
-
-    public final Type type;
-    public final Object value;
-
-    private PropertyConstraint(Type type, Object value) {
-        this.type = type;
-        this.value = value;
+    static MaxLengthConstraint maxLength(int value) {
+        return new MaxLengthConstraint(value);
     }
 
-    public static PropertyConstraint maxLength(Integer value) {
-        return new PropertyConstraint(Type.STRING_MAX_LENGTH, value);
+    static MinLengthConstraint minLength(int value) {
+        return new MinLengthConstraint(value);
     }
 
-    public static PropertyConstraint minLength(Integer value) {
-        return new PropertyConstraint(Type.STRING_MIN_LENGTH, value);
+    static LongGreaterThanConstraint greaterThan(long value) {
+        return new LongGreaterThanConstraint(value);
     }
 
-    public static PropertyConstraint greaterThan(Object value) {
-        return new PropertyConstraint(Type.GREATER_THAN_VALUE, value);
+    static DecimalGreaterThanConstraint greaterThan(BigDecimal value) {
+        return new DecimalGreaterThanConstraint(value);
     }
 
-    public static PropertyConstraint lessThan(Object value) {
-        return new PropertyConstraint(Type.GREATER_THAN_VALUE, value);
+    static StringGreaterThanConstraint greaterThan(String value) {
+        return new StringGreaterThanConstraint(value);
     }
 
-    public static PropertyConstraint greaterOrEqual(Object value) {
-        return new PropertyConstraint(Type.GREATER_OR_EQUAL_THAN_VALUE, value);
+    static LongLessThanConstraint lessThan(long value) {
+        return new LongLessThanConstraint(value);
     }
 
-    public static PropertyConstraint lessOrEqual(Object value) {
-        return new PropertyConstraint(Type.LESS_OR_EQUAL_THAN_VALUE, value);
+    static DecimalLessThanConstraint lessThan(BigDecimal value) {
+        return new DecimalLessThanConstraint(value);
     }
 
-    public static <T> PropertyConstraint in(T[] values) {
-        return new PropertyConstraint(Type.IN, values);
+    static StringLessThanConstraint lessThan(String value) {
+        return new StringLessThanConstraint(value);
     }
 
-    public static <T> PropertyConstraint notIn(T[] values) {
-        return new PropertyConstraint(Type.NOT_IN, values);
+    static LongGreaterOrEqualConstraint greaterOrEqual(long value) {
+        return new LongGreaterOrEqualConstraint(value);
     }
 
-    public <T> T castValue(Class<T> clazz) {
-        return clazz.cast(value);
+    static DecimalGreaterOrEqualConstraint greaterOrEqual(BigDecimal value) {
+        return new DecimalGreaterOrEqualConstraint(value);
     }
 
-    @Override
-    public Type type() {
-        return type;
+    static StringGreaterOrEqualConstraint greaterOrEqual(String value) {
+        return new StringGreaterOrEqualConstraint(value);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof PropertyConstraint that)) {
-            return false;
-        }
-
-        return type == that.type && Objects.deepEquals(value, that.value);
+    static LongLessOrEqualConstraint lessOrEqual(long value) {
+        return new LongLessOrEqualConstraint(value);
     }
 
-    @Override
-    public int hashCode() {
-        if (value instanceof Object[] arr) {
-            return Objects.hash(type) + Arrays.deepHashCode(arr);
-        }
+    static DecimalLessOrEqualConstraint lessOrEqual(BigDecimal value) {
+        return new DecimalLessOrEqualConstraint(value);
+    }
 
-        return Objects.hash(type, value);
+    static StringLessOrEqualConstraint lessOrEqual(String value) {
+        return new StringLessOrEqualConstraint(value);
+    }
+
+    static LongInConstraint in(Long[] values) {
+        return new LongInConstraint(values);
+    }
+
+    static DecimalInConstraint in(BigDecimal[] values) {
+        return new DecimalInConstraint(values);
+    }
+
+    static StringInConstraint in(String[] values) {
+        return new StringInConstraint(values);
+    }
+
+    static LongNotInConstraint notIn(Long[] values) {
+        return new LongNotInConstraint(values);
+    }
+
+    static DecimalNotInConstraint notIn(BigDecimal[] values) {
+        return new DecimalNotInConstraint(values);
+    }
+
+    static StringNotInConstraint notIn(String[] values) {
+        return new StringNotInConstraint(values);
     }
 }
