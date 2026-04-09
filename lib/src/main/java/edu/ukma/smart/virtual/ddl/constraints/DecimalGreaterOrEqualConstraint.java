@@ -11,7 +11,9 @@ public record DecimalGreaterOrEqualConstraint(BigDecimal value) implements Prope
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof DecimalGreaterOrEqualConstraint that)) return false;
+        if (!(o instanceof DecimalGreaterOrEqualConstraint that)) {
+            return false;
+        }
         return value.compareTo(that.value) == 0;
     }
 

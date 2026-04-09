@@ -6,7 +6,13 @@ import edu.ukma.smart.virtual.VirtualTableService;
 import edu.ukma.smart.virtual.ddl.alter.AddProperty;
 import edu.ukma.smart.virtual.ddl.constraints.PropertyConstraint;
 import edu.ukma.smart.virtual.ddl.constraints.UniqueConstraint;
-import edu.ukma.smart.virtual.ddl.create.*;
+import edu.ukma.smart.virtual.ddl.create.BooleanProperty;
+import edu.ukma.smart.virtual.ddl.create.DecimalProperty;
+import edu.ukma.smart.virtual.ddl.create.IntegerProperty;
+import edu.ukma.smart.virtual.ddl.create.NewTable;
+import edu.ukma.smart.virtual.ddl.create.Property;
+import edu.ukma.smart.virtual.ddl.create.ReferenceProperty;
+import edu.ukma.smart.virtual.ddl.create.StringProperty;
 import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
@@ -266,14 +272,18 @@ public class MetadataTest {
             // boolean property
             boolPropBuilder.constraints(Set.of(UniqueConstraint.of("bool_prop"))).build(),
             // decimal properties
-            decimalPropBuilder.constraints(
-                Set.of(PropertyConstraint.notIn(List.of(BigDecimal.valueOf(2), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L)).toArray(BigDecimal[]::new)))).build(),
-            decimalPropBuilder.constraints(
-                Set.of(PropertyConstraint.notIn(List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11)).toArray(BigDecimal[]::new)))).build(),
-            decimalPropBuilder.constraints(
-                Set.of(PropertyConstraint.in(List.of(BigDecimal.valueOf(2L), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L)).toArray(BigDecimal[]::new)))).build(),
-            decimalPropBuilder.constraints(
-                Set.of(PropertyConstraint.in(List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11)).toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.notIn(
+                List.of(BigDecimal.valueOf(2), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L))
+                    .toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.notIn(
+                List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11))
+                    .toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.in(
+                List.of(BigDecimal.valueOf(2L), BigDecimal.valueOf(5L), BigDecimal.valueOf(10L))
+                    .toArray(BigDecimal[]::new)))).build(),
+            decimalPropBuilder.constraints(Set.of(PropertyConstraint.in(
+                List.of(BigDecimal.valueOf(0.2), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.11))
+                    .toArray(BigDecimal[]::new)))).build(),
             decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(BigDecimal.valueOf(2232)))).build(),
             decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterThan(BigDecimal.valueOf(22.32)))).build(),
             decimalPropBuilder.constraints(Set.of(PropertyConstraint.greaterOrEqual(BigDecimal.valueOf(2323)))).build(),
@@ -283,7 +293,7 @@ public class MetadataTest {
             decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(252432)))).build(),
             decimalPropBuilder.constraints(Set.of(PropertyConstraint.lessOrEqual(BigDecimal.valueOf(252.432)))).build(),
             decimalPropBuilder.constraints(Set.of(UniqueConstraint.of("decimal_prop"))).build(),
-            //reference
+            // reference
             referencePropBuilder.constraints(
                 Set.of(PropertyConstraint.notIn(List.of(2L, 5L, 10L).toArray(Long[]::new)))).build(),
             referencePropBuilder.constraints(

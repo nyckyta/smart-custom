@@ -11,10 +11,16 @@ public record DecimalNotInConstraint(BigDecimal[] values) implements PropertyCon
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof DecimalNotInConstraint that)) return false;
-        if (values.length != that.values.length) return false;
+        if (!(o instanceof DecimalNotInConstraint that)) {
+            return false;
+        }
+        if (values.length != that.values.length) {
+            return false;
+        }
         for (int i = 0; i < values.length; i++) {
-            if (values[i].compareTo(that.values[i]) != 0) return false;
+            if (values[i].compareTo(that.values[i]) != 0) {
+                return false;
+            }
         }
         return true;
     }

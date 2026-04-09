@@ -10,7 +10,9 @@ public record LongInConstraint(Long[] values) implements PropertyConstraint {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof LongInConstraint that)) return false;
+        if (!(o instanceof LongInConstraint that)) {
+            return false;
+        }
         return Arrays.equals(values, that.values);
     }
 

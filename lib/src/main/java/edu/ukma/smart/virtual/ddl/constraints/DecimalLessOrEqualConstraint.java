@@ -11,7 +11,9 @@ public record DecimalLessOrEqualConstraint(BigDecimal value) implements Property
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof DecimalLessOrEqualConstraint that)) return false;
+        if (!(o instanceof DecimalLessOrEqualConstraint that)) {
+            return false;
+        }
         return value.compareTo(that.value) == 0;
     }
 

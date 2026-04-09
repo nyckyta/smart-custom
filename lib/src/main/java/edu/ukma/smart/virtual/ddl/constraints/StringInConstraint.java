@@ -10,7 +10,9 @@ public record StringInConstraint(String[] values) implements PropertyConstraint 
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof StringInConstraint that)) return false;
+        if (!(o instanceof StringInConstraint that)) {
+            return false;
+        }
         return Arrays.equals(values, that.values);
     }
 

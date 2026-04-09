@@ -359,7 +359,6 @@ class PostgreQueryGenerator implements QueryGenerator {
         var uniqueConstraint = new StringBuilder();
         var foreignKeyConstraint = new StringBuilder();
         var prop = addProperty.property();
-        var comment = buildPropertyComment(addProperty.tableKey(), prop);
         try {
             switch (prop.type()) {
                 case STRING -> addStringProperty((StringProperty) prop, query);
@@ -391,6 +390,7 @@ class PostgreQueryGenerator implements QueryGenerator {
         query.append(" %s%s".formatted(String.join(" ", constraints),
             foreignKeyConstraint.isEmpty() ? "" : ",ADD " + foreignKeyConstraint));
         query.append(uniqueConstraint.isEmpty() ? "" : ",%s".formatted(uniqueConstraint.toString()));
+        var comment = buildPropertyComment(addProperty.tableKey(), prop);
         query.append(";").append(comment);
         return Return.of(query.toString());
     }
