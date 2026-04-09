@@ -21,8 +21,10 @@ import edu.ukma.smart.virtual.ddl.drop.DropTable;
 import edu.ukma.smart.virtual.dml.delete.DeleteRow;
 import edu.ukma.smart.virtual.dml.insert.InsertRow;
 import edu.ukma.smart.virtual.dml.select.BooleanPredicate;
+import edu.ukma.smart.virtual.dml.select.CompoundPredicate;
 import edu.ukma.smart.virtual.dml.select.DecimalPredicate;
 import edu.ukma.smart.virtual.dml.select.IntegerPredicate;
+import edu.ukma.smart.virtual.dml.select.NullablePredicate;
 import edu.ukma.smart.virtual.dml.select.ReferencePredicate;
 import edu.ukma.smart.virtual.dml.select.SelectProperty;
 import edu.ukma.smart.virtual.dml.select.SelectQuery;
@@ -1252,6 +1254,199 @@ class DefaultVirtualTableServiceTest {
                         DecimalValue.of("salary", new BigDecimal("270000.000")),
                         IntegerValue.of("faculty", 2L)
                     )
+                )
+            },
+            // string predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.eq("name", "Charles Kingsfield")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), IntegerValue.of("age", 60L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.ne("name", "Charles Kingsfield")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.gt("name", "Charles Kingsfield")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.ls("name", "Donald Knuth")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), IntegerValue.of("age", 60L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.lse("name", "Charles Kingsfield")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), IntegerValue.of("age", 60L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    StringPredicate.gte("name", "Donald Knuth")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            // integer predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    IntegerPredicate.ne("age", 60L)
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    IntegerPredicate.gt("age", 60L)
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    IntegerPredicate.gre("age", 85L)
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    IntegerPredicate.ls("age", 85L)
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), IntegerValue.of("age", 60L))
+                )
+            },
+            // decimal predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("salary")),
+                    DecimalPredicate.eq("salary", new BigDecimal("270000"))
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), DecimalValue.of("salary", new BigDecimal("270000.000")))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("salary")),
+                    DecimalPredicate.ne("salary", new BigDecimal("270000"))
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), DecimalValue.of("salary", new BigDecimal("300000.595")))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("salary")),
+                    DecimalPredicate.ls("salary", new BigDecimal("280000"))
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), DecimalValue.of("salary", new BigDecimal("270000.000")))
+                )
+            },
+            // boolean predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("married")),
+                    BooleanPredicate.ne("married", false)
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), BooleanValue.of("married", true))
+                )
+            },
+            // nullable predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("married")),
+                    NullablePredicate.isNull("married")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), BooleanValue.of("married", null))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("married")),
+                    NullablePredicate.isNotNull("married")
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), BooleanValue.of("married", true))
+                )
+            },
+            // compound predicates
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    CompoundPredicate.and(
+                        IntegerPredicate.gre("age", 60L),
+                        StringPredicate.like("name", "%Knuth%")
+                    )
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
+                )
+            },
+            {
+                SelectQuery.of(
+                    "_test_table_select_teacher",
+                    List.of(SelectProperty.of("name"), SelectProperty.of("age")),
+                    CompoundPredicate.or(
+                        IntegerPredicate.eq("age", 60L),
+                        IntegerPredicate.eq("age", 85L)
+                    )
+                ),
+                List.of(
+                    List.of(StringValue.of("name", "Charles Kingsfield"), IntegerValue.of("age", 60L)),
+                    List.of(StringValue.of("name", "Donald Knuth"), IntegerValue.of("age", 85L))
                 )
             }
         };
