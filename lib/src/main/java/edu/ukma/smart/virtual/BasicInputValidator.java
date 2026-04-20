@@ -154,17 +154,6 @@ public final class BasicInputValidator implements InputValidator {
             if (err.isPresent()) {
                 return err;
             }
-
-            for (var c : p.constraints()) {
-                if (!c.type().supportProperty(p)) {
-                    return Optional.of(InputValidationErr.of(CONSTRAINT_PROPERTY_TYPE_MISMATCH));
-                }
-
-                err = validateConstraint(p, c).or(() -> triggerVendorValidators(vendorConstraintValidators, c));
-                if (err.isPresent()) {
-                    return err;
-                }
-            }
         }
 
         return triggerVendorValidators(vendorNewTableValidators, newTable);
@@ -180,11 +169,28 @@ public final class BasicInputValidator implements InputValidator {
         }
 
 
-        return switch (p.type()) {
+        var err = switch (p.type()) {
             case STRING, DECIMAL, INTEGER, BOOLEAN -> triggerVendorValidators(vendorPropertyValidators, p);
             case REFERENCE -> validateReferenceProperty((ReferenceProperty) p)
                 .or(() -> triggerVendorValidators(vendorPropertyValidators, p));
         };
+
+        if (err.isPresent()) {
+            return err;
+        }
+
+        for (var c : p.constraints()) {
+            if (!c.type().supportProperty(p)) {
+                return Optional.of(InputValidationErr.of(CONSTRAINT_PROPERTY_TYPE_MISMATCH));
+            }
+
+            err = validateConstraint(p, c).or(() -> triggerVendorValidators(vendorConstraintValidators, c));
+            if (err.isPresent()) {
+                return err;
+            }
+        }
+
+        return Optional.empty();
     }
 
 
